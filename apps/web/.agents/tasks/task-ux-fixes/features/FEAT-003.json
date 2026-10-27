@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Add auto-focus to admin PIN entry page so operators can immediately type the PIN without manually clicking the page first. The page already has a window-level keydown handler but doesn't set focus on mount. Add a hidden input with autoFocus to enable immediate keyboard input. This is independent of booth flow issues and can be done in any order.",
+  "status": "pending",
+  "steps": [
+    "Open app/admin/pin/page.tsx",
+    "Add useRef hook for hidden input: const inputRef = useRef<HTMLInputElement>(null)",
+    "Add hidden <input> element before the PIN dots display: <input ref={inputRef} type=\"text\" autoFocus style={{ position: 'absolute', left: '-9999px' }} aria-hidden=\"true\" />",
+    "Add useEffect to focus on mount: useEffect(() => { inputRef.current?.focus() }, [])",
+    "Verify existing window keydown handler still works (it should — it's listening at window level)"
+  ],
+  "acceptance_criteria": [
+    "Navigating to /admin/pin immediately accepts keyboard input without clicking",
+    "Typing digits 0-9 registers on the visual PIN display",
+    "Pressing Enter submits the PIN",
+    "Pressing Backspace removes the last digit",
+    "No visual changes to the page layout",
+    "No type errors from TypeScript"
+  ],
+  "verification": [
+    "Run pnpm typecheck to verify TypeScript",
+    "Run pnpm dev:web",
+    "Navigate to http://localhost:3000/admin/pin",
+    "WITHOUT clicking anywhere, immediately type 4 digits (e.g., 1234)",
+    "Verify digits appear in the PIN dots display",
+    "Press Backspace and verify last digit is removed",
+    "Press Enter and verify PIN submission attempt (will fail if wrong PIN, but proves keyboard is working)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

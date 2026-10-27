@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix Next.js 16 dev server suspension causing WebSocket closure and missing request logs. The dev server is not processing navigation requests, making the app appear frozen. Investigate config, experimental flags, React 19 compatibility, and Next.js 16 breaking changes.",
+  "status": "pending",
+  "steps": [
+    "Read current next.config.ts to identify experimental flags or problematic config",
+    "Check package.json for Next.js 16.3.6 and React 19.2.8 versions",
+    "Search node_modules/next/dist/docs/ for Next.js 16 dev server breaking changes",
+    "Test dev server startup: run pnpm dev:web and check for startup errors",
+    "Verify WebSocket connection in browser DevTools Network tab (should show ws://localhost:3000/_next/hmr)",
+    "Navigate to / and check terminal for GET 200 / logs (currently missing)",
+    "If issue persists, create minimal next.config.ts and test",
+    "Document the root cause and fix in findings"
+  ],
+  "acceptance_criteria": [
+    "Dev server starts without errors when running pnpm dev:web",
+    "Terminal shows GET 200 logs for every page request",
+    "Browser DevTools shows active WebSocket connection to /_next/hmr (not 'closed due to suspension')",
+    "Navigating between booth pages (/, /consent, /frames) triggers visible compilation and route serving"
+  ],
+  "verification": [
+    "Run pnpm dev:web from repo root",
+    "Open http://localhost:3000 in browser",
+    "Check browser DevTools Network tab for HMR WebSocket (should be open, not closed)",
+    "Navigate from / to /consent and verify terminal shows GET 200 /consent",
+    "Run pnpm typecheck to confirm no type errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

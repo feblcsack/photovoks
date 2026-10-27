@@ -1,0 +1,7 @@
+{
+  "task_id": "task-ux-fixes",
+  "task_description": "Add navigation loading indicators to booth flow and enable admin PIN auto-focus to improve perceived responsiveness during dev compilation delays",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

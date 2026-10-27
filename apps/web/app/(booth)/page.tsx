@@ -2,25 +2,21 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, useReducedMotion } from 'framer-motion';
+import { DoodleButton, DoodleBackdrop, Float, Heart, Sparkle } from '@/components/doodle';
 import { useBoothContext } from './context/BoothContext';
-import { DoodleButton } from '@/components/doodle';
 import { id } from '@/i18n/id';
 
 /**
- * Booth idle screen — the full-screen starting point.
- *
- * The entire screen is tappable to transition from idle → consent.
- * A centred DoodleButton provides visual affordance, but the
- * pointer handler is on the outer container so any tap works.
- *
- * Decorative SVG doodles are scattered around the background for visual
- * richness; they are aria-hidden and have no pointer events.
+ * Booth idle screen (iPad landscape): the whole screen is tappable → consent.
+ * Left: brand + tagline + CTA. Right: sample strip pinned like a photo.
  *
  * Requirements: 1.1, 1.2
  */
 export default function BoothIdlePage() {
   const { dispatch } = useBoothContext();
   const router = useRouter();
+  const reduce = useReducedMotion();
 
   void dispatch; // context available but idle page doesn't dispatch
 
@@ -37,274 +33,62 @@ export default function BoothIdlePage() {
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') handleTap();
       }}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        width: '100%',
-        background: 'var(--color-bg)',
-        cursor: 'pointer',
-        userSelect: 'none',
-        gap: '2rem',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
+      className="relative flex min-h-screen w-full cursor-pointer select-none items-center justify-center overflow-hidden px-8 py-10"
     >
-      {/* ── CSS animations ────────────────────────────────────────────────── */}
-      <style>{`
-        @keyframes doodle-float {
-          0%, 100% { transform: translateY(0) rotate(-3deg); }
-          50%       { transform: translateY(-8px) rotate(3deg); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .doodle-el { animation: none !important; }
-        }
-      `}</style>
+      <DoodleBackdrop />
 
-      {/* ── Decorative doodle layer ───────────────────────────────────────── */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-        }}
-      >
-        {/* Star top-left */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="36"
-          height="36"
-          viewBox="0 0 36 36"
-          style={{
-            position: 'absolute',
-            top: '8%',
-            left: '7%',
-            opacity: 0.55,
-            animation: 'doodle-float 3.2s ease-in-out infinite',
-            animationDelay: '0s',
-          }}
+      <div className="relative z-10 flex w-full max-w-5xl flex-col items-center justify-center gap-10 md:flex-row md:gap-16">
+        {/* ── Brand + CTA ─────────────────────────────────────────────── */}
+        <motion.div
+          className="flex flex-1 flex-col items-center gap-6 text-center md:items-start md:text-left"
+          initial={reduce ? false : { opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-          <path
-            d="M18 2 L20.5 13 L31 13 L22.5 20 L25 31 L18 24 L11 31 L13.5 20 L5 13 L15.5 13 Z"
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="2"
-            strokeLinejoin="round"
+          <h1 className="font-display m-0 text-[clamp(3.5rem,11vw,7rem)] font-bold leading-[0.95] text-[var(--color-accent)]">
+            {id.idle.title}
+          </h1>
+          <p className="font-display m-0 max-w-md text-[clamp(1.4rem,3.2vw,2.1rem)] leading-snug opacity-85">
+            {id.idle.subtitle}
+          </p>
+
+          {/* Purely visual — the outer container handles every tap */}
+          <motion.div
+            animate={reduce ? undefined : { scale: [1, 1.05, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <DoodleButton
+              variant="primary"
+              size="xl"
+              aria-hidden="true"
+              tabIndex={-1}
+              style={{ pointerEvents: 'none' }}
+            >
+              {id.idle.tapToStart}
+            </DoodleButton>
+          </motion.div>
+        </motion.div>
+
+        {/* ── Sample strip, pinned with tape ──────────────────────────── */}
+        <motion.div
+          aria-hidden="true"
+          className="relative"
+          initial={reduce ? false : { opacity: 0, rotate: 10, y: 30 }}
+          animate={{ opacity: 1, rotate: 4, y: 0 }}
+          transition={{ type: 'spring', stiffness: 120, damping: 14, delay: 0.15 }}
+        >
+          <div className="absolute -top-3 left-1/2 z-10 h-6 w-20 -translate-x-1/2 -rotate-3 border-2 border-[var(--color-ink)] bg-[var(--color-accent-soft)]/90" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/samples/heartsCutoutStripSample.png"
+            alt=""
+            className="block h-[min(62vh,520px)] w-auto border-[2.5px] border-[var(--color-ink)] bg-white [box-shadow:6px_8px_0_var(--color-ink)]"
+            draggable={false}
           />
-        </svg>
-
-        {/* Small star top-right */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="28"
-          height="28"
-          viewBox="0 0 28 28"
-          style={{
-            position: 'absolute',
-            top: '6%',
-            right: '9%',
-            opacity: 0.5,
-            animation: 'doodle-float 3.8s ease-in-out infinite',
-            animationDelay: '0.6s',
-          }}
-        >
-          <path
-            d="M14 2 L16 10 L24 10 L17.5 15.5 L20 24 L14 19 L8 24 L10.5 15.5 L4 10 L12 10 Z"
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </svg>
-
-        {/* Heart bottom-left */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="34"
-          height="34"
-          viewBox="0 0 34 34"
-          style={{
-            position: 'absolute',
-            bottom: '12%',
-            left: '10%',
-            opacity: 0.45,
-            animation: 'doodle-float 4.1s ease-in-out infinite',
-            animationDelay: '1s',
-          }}
-        >
-          <path
-            d="M17 28 C17 28 4 19 4 10 C4 6 7 3 10.5 3 C13 3 15 4.5 17 7 C19 4.5 21 3 23.5 3 C27 3 30 6 30 10 C30 19 17 28 17 28 Z"
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        </svg>
-
-        {/* Camera outline bottom-right */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="40"
-          height="34"
-          viewBox="0 0 40 34"
-          style={{
-            position: 'absolute',
-            bottom: '10%',
-            right: '8%',
-            opacity: 0.45,
-            animation: 'doodle-float 3.5s ease-in-out infinite',
-            animationDelay: '1.4s',
-          }}
-        >
-          <rect x="2" y="10" width="36" height="22" rx="4" fill="none" stroke="var(--color-accent)" strokeWidth="2" />
-          <circle cx="20" cy="21" r="6" fill="none" stroke="var(--color-accent)" strokeWidth="2" />
-          <path d="M13 10 L15 4 L25 4 L27 10" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeLinejoin="round" />
-          <circle cx="32" cy="15" r="1.5" fill="var(--color-accent)" />
-        </svg>
-
-        {/* Wavy line left-center */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="60"
-          height="20"
-          viewBox="0 0 60 20"
-          style={{
-            position: 'absolute',
-            top: '45%',
-            left: '3%',
-            opacity: 0.35,
-            animation: 'doodle-float 4.4s ease-in-out infinite',
-            animationDelay: '0.3s',
-          }}
-        >
-          <path
-            d="M2 10 C8 2, 14 18, 20 10 C26 2, 32 18, 38 10 C44 2, 50 18, 58 10"
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-
-        {/* Wavy line right-center */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="60"
-          height="20"
-          viewBox="0 0 60 20"
-          style={{
-            position: 'absolute',
-            top: '50%',
-            right: '3%',
-            opacity: 0.35,
-            animation: 'doodle-float 3.9s ease-in-out infinite',
-            animationDelay: '1.8s',
-          }}
-        >
-          <path
-            d="M2 10 C8 18, 14 2, 20 10 C26 18, 32 2, 38 10 C44 18, 50 2, 58 10"
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-
-        {/* Small circle top-center */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          style={{
-            position: 'absolute',
-            top: '15%',
-            left: '42%',
-            opacity: 0.4,
-            animation: 'doodle-float 4.6s ease-in-out infinite',
-            animationDelay: '2s',
-          }}
-        >
-          <circle cx="12" cy="12" r="9" fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeDasharray="4 3" />
-        </svg>
-
-        {/* Dots bottom-center */}
-        <svg
-          className="doodle-el"
-          xmlns="http://www.w3.org/2000/svg"
-          width="48"
-          height="16"
-          viewBox="0 0 48 16"
-          style={{
-            position: 'absolute',
-            bottom: '6%',
-            left: '35%',
-            opacity: 0.4,
-            animation: 'doodle-float 3.3s ease-in-out infinite',
-            animationDelay: '0.8s',
-          }}
-        >
-          <circle cx="8" cy="8" r="4" fill="var(--color-accent)" />
-          <circle cx="24" cy="8" r="4" fill="var(--color-accent)" />
-          <circle cx="40" cy="8" r="4" fill="var(--color-accent)" />
-        </svg>
+          <Float style={{ top: '-14px', right: '-30px' }} duration={3}><Sparkle size={34} /></Float>
+          <Float style={{ bottom: '8%', left: '-34px' }} delay={0.8} duration={3.6}><Heart size={30} /></Float>
+        </motion.div>
       </div>
-
-      {/* ── Brand title ───────────────────────────────────────────────────── */}
-      <h1
-        style={{
-          fontFamily: 'var(--font-display), cursive',
-          fontSize: 'clamp(3rem, 10vw, 6rem)',
-          color: 'var(--color-accent)',
-          margin: 0,
-          textAlign: 'center',
-          fontWeight: 700,
-          lineHeight: 1.1,
-          zIndex: 1,
-        }}
-      >
-        {id.idle.title}
-      </h1>
-
-      {/* ── Tagline ───────────────────────────────────────────────────────── */}
-      <p
-        style={{
-          fontFamily: 'var(--font-display), cursive',
-          fontSize: 'clamp(1.25rem, 3.5vw, 2rem)',
-          color: 'var(--color-ink)',
-          textAlign: 'center',
-          margin: 0,
-          opacity: 0.85,
-          zIndex: 1,
-        }}
-      >
-        {id.idle.subtitle}
-      </p>
-
-      {/* ── Tap-to-start button — purely visual, outer div catches all taps */}
-      <DoodleButton
-        variant="primary"
-        style={{
-          fontSize: 'clamp(1.4rem, 3.5vw, 2.2rem)',
-          padding: '1rem 3rem',
-          pointerEvents: 'none', // outer container handles the click
-          zIndex: 1,
-        }}
-        aria-hidden="true"
-        tabIndex={-1}
-      >
-        {id.idle.tapToStart}
-      </DoodleButton>
     </div>
   );
 }

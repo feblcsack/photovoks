@@ -1,0 +1,714 @@
+{
+  "pbtResults": {
+    "5.3 Write property test for admin gesture detection": {
+      "status": "passed",
+      "lastRunTimestamp": 1790731347178
+    }
+  },
+  "executionHistory": {
+    "1.1 Initialize monorepo with pnpm workspaces; create `apps/web` (Next.js App Router + TypeScript), `apps/print-station` (Electron + Vite + TypeScript), and `packages/shared-types` directories with their respective `package.json` files and tsconfig paths wired together": [
+      {
+        "executionId": "c37a34c8-96ce-4f0b-b394-26ac695a00fe",
+        "chatSessionId": "sess_a2d98d39-22d8-42e2-9650-f19bcdeefe4f",
+        "timestamp": 1790695159572
+      },
+      {
+        "executionId": "c37a34c8-96ce-4f0b-b394-26ac695a00fe",
+        "chatSessionId": "sess_a2d98d39-22d8-42e2-9650-f19bcdeefe4f",
+        "timestamp": 1790696958054
+      }
+    ],
+    "1. Project Scaffold & Shared Foundation": [
+      {
+        "executionId": "c37a34c8-96ce-4f0b-b394-26ac695a00fe",
+        "chatSessionId": "sess_a2d98d39-22d8-42e2-9650-f19bcdeefe4f",
+        "timestamp": 1790696958780
+      }
+    ],
+    "2.1 Write Supabase migration files in `supabase/migrations/` for all tables: `events`, `frames`, `sessions`, `print_jobs`, `sketch_jobs`, `prompt_templates`, `admin_users`, `print_station_heartbeat`; include all columns, UNIQUE constraints (`sessions.token`, `sketch_jobs.session_id`, `UNIQUE(session_id, type)` on `print_jobs`), foreign keys with cascade deletes, and `UNIQUE(session_id)` on `sketch_jobs`": [
+      {
+        "executionId": "091b9748-a7e0-4345-b8a2-39af79b93b18",
+        "chatSessionId": "sess_566a76ff-00f9-40f8-832c-ad7a480f9a5e",
+        "timestamp": 1790697111619
+      },
+      {
+        "executionId": "091b9748-a7e0-4345-b8a2-39af79b93b18",
+        "chatSessionId": "sess_566a76ff-00f9-40f8-832c-ad7a480f9a5e",
+        "timestamp": 1790697318296
+      }
+    ],
+    "2.2 Write RLS policies for all tables and create private Supabase Storage buckets (`sessions`, `sketches`, `frames`); write a scoped anon key policy granting print station read/update on `print_jobs` and upsert on `print_station_heartbeat`": [
+      {
+        "executionId": "091b9748-a7e0-4345-b8a2-39af79b93b18",
+        "chatSessionId": "sess_566a76ff-00f9-40f8-832c-ad7a480f9a5e",
+        "timestamp": 1790697121481
+      },
+      {
+        "executionId": "091b9748-a7e0-4345-b8a2-39af79b93b18",
+        "chatSessionId": "sess_566a76ff-00f9-40f8-832c-ad7a480f9a5e",
+        "timestamp": 1790697325621
+      }
+    ],
+    "2. Database Schema & RLS": [
+      {
+        "executionId": "091b9748-a7e0-4345-b8a2-39af79b93b18",
+        "chatSessionId": "sess_566a76ff-00f9-40f8-832c-ad7a480f9a5e",
+        "timestamp": 1790697325984
+      }
+    ],
+    "3.1 Implement `POST /api/sessions` route in `apps/web/app/api/sessions/route.ts`: validate `eventId` references an active event, generate session token via `generateSessionToken()`, INSERT sessions record, generate 5 signed upload URLs (3 photos + strip + sheet) with 10-minute expiry scoped to `sessions/{sessionId}/`, return `{ sessionId, sessionToken, uploadUrls }`": [
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790697706468
+      },
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790698544137
+      }
+    ],
+    "3.2 Implement `POST /api/sessions/[id]/confirm` route: validate Bearer token matches session, verify all 5 uploads via Storage HEAD checks, upsert `print_jobs` record (type=`strip`, status=`queued`) idempotently, upsert `sketch_jobs` record (status=`pending`) idempotently, update `sessions.status` → `composed`, return `{ printJobId, sketchJobId }`": [
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790697712719
+      },
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790698552741
+      }
+    ],
+    "3.3 Implement `GET /api/sessions/[token]/status` route: look up session by token, join sketch_job and print_job, compute `printStationOnline = (now - lastHeartbeat) < 90s`, return combined payload; return generic 404 (no token details) when token is not found": [
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790697718732
+      },
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790698560652
+      }
+    ],
+    "3. Session Creation & Token Flow": [
+      {
+        "executionId": "35d41c52-168e-4f33-b16f-be7a2faf25c4",
+        "chatSessionId": "sess_a1283e82-0957-47c2-ad76-9d199fcbe783",
+        "timestamp": 1790698561105
+      }
+    ],
+    "4.1 Configure global CSS in `apps/web/app/globals.css` with design tokens (`--color-bg: #FDFAF3`, `--color-accent: #E85D26`, `--color-ink: #1A1A1A`, `--font-display: 'Caveat'`, `--font-body: 'Inter'`); add `prefers-reduced-motion` ruleset disabling all `animation` and `transition` on `.wobble`, `.bounce`, `[data-animate]`; configure `next/font` for Caveat and Inter": [
+      {
+        "executionId": "003a7b05-4398-4194-a560-68888728b17a",
+        "chatSessionId": "sess_933e9cf0-b79c-49e8-8491-8090e026db9c",
+        "timestamp": 1790699617656
+      },
+      {
+        "executionId": "003a7b05-4398-4194-a560-68888728b17a",
+        "chatSessionId": "sess_933e9cf0-b79c-49e8-8491-8090e026db9c",
+        "timestamp": 1790699865368
+      }
+    ],
+    "4.2 Create doodle primitive components in `apps/web/components/doodle/`: `DoodleButton` (`<button>` with SVG hand-drawn border, Caveat label, wobble animation), `DoodleCard` (`<div>` with hand-drawn SVG border overlay), `DoodleBorder` (standalone SVG border for arbitrary wrappers); ensure components consume i18n strings from `id.ts` and contain no hardcoded text": [
+      {
+        "executionId": "003a7b05-4398-4194-a560-68888728b17a",
+        "chatSessionId": "sess_933e9cf0-b79c-49e8-8491-8090e026db9c",
+        "timestamp": 1790699622255
+      },
+      {
+        "executionId": "003a7b05-4398-4194-a560-68888728b17a",
+        "chatSessionId": "sess_933e9cf0-b79c-49e8-8491-8090e026db9c",
+        "timestamp": 1790699874183
+      }
+    ],
+    "4. Booth UI Shell & Doodle Visual Style": [
+      {
+        "executionId": "003a7b05-4398-4194-a560-68888728b17a",
+        "chatSessionId": "sess_933e9cf0-b79c-49e8-8491-8090e026db9c",
+        "timestamp": 1790699874844
+      }
+    ],
+    "5.1 Implement `apps/web/app/(booth)/` route group with a `BoothProvider` wrapping `BoothContext` + `useReducer` holding full `BoothState`; implement the idle screen component with doodle style, off-white background, tap-to-start prompt, and 60-second `useIdleTimer` hook (monitors `pointerdown`, `pointermove`, `keydown`) that dispatches `RESET` and returns to idle; register Service Worker in the app shell layout": [
+      {
+        "executionId": "fb8fe7aa-d1e4-49fb-9962-8e61de6fd89c",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790701283477
+      },
+      {
+        "executionId": "6f04fcb2-53b4-40fb-ba87-fb04da3911ce",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790731525673
+      }
+    ],
+    "5.2 Implement `useAdminGesture` hook: count taps in top-right quadrant (x > 80%, y < 20%) within a 3-second rolling window; navigate to `/admin/pin` on exactly 5 taps; reset counter on timeout": [
+      {
+        "executionId": "fb8fe7aa-d1e4-49fb-9962-8e61de6fd89c",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790701283900
+      },
+      {
+        "executionId": "6f04fcb2-53b4-40fb-ba87-fb04da3911ce",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790731539747
+      }
+    ],
+    "5.4 Implement Screen Wake Lock (`navigator.wakeLock.request('screen')`) in the booth app shell; re-acquire lock on `visibilitychange`; scaffold Service Worker registration (`apps/web/public/sw.js` stub and registration call in layout)": [
+      {
+        "executionId": "fb8fe7aa-d1e4-49fb-9962-8e61de6fd89c",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790701285993
+      },
+      {
+        "executionId": "acd5ac63-e962-4730-8820-8963625c5ab5",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790730394692
+      },
+      {
+        "executionId": "acd5ac63-e962-4730-8820-8963625c5ab5",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790730697522
+      }
+    ],
+    "5.3 Write property test for admin gesture detection": [
+      {
+        "executionId": "71f83f85-48f9-4bc0-84c8-686758f728db",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790730970468
+      },
+      {
+        "executionId": "71f83f85-48f9-4bc0-84c8-686758f728db",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790731370839
+      }
+    ],
+    "5. Idle Screen & Admin Entry Trigger": [
+      {
+        "executionId": "6f04fcb2-53b4-40fb-ba87-fb04da3911ce",
+        "chatSessionId": "sess_1d27941f-d348-4fff-a92d-465c8c578161",
+        "timestamp": 1790731543120
+      }
+    ],
+    "6.1 Implement `POST /api/admin/verify-pin` route: read PIN from request body, look up bcrypt hash from `admin_users`, check lockout (`locked_until`), compare with `bcrypt.compare`, increment `failed_attempts` on failure, set `locked_until = now + 5 min` after 5 consecutive failures, issue Supabase Auth JWT (10-minute validity) on success, return appropriate error codes; never return the PIN hash to client": [
+      {
+        "executionId": "21aff0d2-64a7-4a74-b1ca-f2145da20d40",
+        "chatSessionId": "sess_9d1c9ccd-2a06-4867-ab42-1d643884e687",
+        "timestamp": 1790734112428
+      },
+      {
+        "executionId": "21aff0d2-64a7-4a74-b1ca-f2145da20d40",
+        "chatSessionId": "sess_9d1c9ccd-2a06-4867-ab42-1d643884e687",
+        "timestamp": 1790735030712
+      }
+    ],
+    "6.2 Create `apps/web/app/admin/pin/page.tsx` PIN entry screen (numeric keypad, not doodle style); wire to `POST /api/admin/verify-pin`; implement `useActivityTimer` hook that calls `supabase.auth.signOut()` after 10 minutes of inactivity, protecting all `/admin/*` routes via Next.js middleware that validates the Admin JWT": [
+      {
+        "executionId": "21aff0d2-64a7-4a74-b1ca-f2145da20d40",
+        "chatSessionId": "sess_9d1c9ccd-2a06-4867-ab42-1d643884e687",
+        "timestamp": 1790734124634
+      },
+      {
+        "executionId": "21aff0d2-64a7-4a74-b1ca-f2145da20d40",
+        "chatSessionId": "sess_9d1c9ccd-2a06-4867-ab42-1d643884e687",
+        "timestamp": 1790735039118
+      }
+    ],
+    "6. Admin Authentication": [
+      {
+        "executionId": "21aff0d2-64a7-4a74-b1ca-f2145da20d40",
+        "chatSessionId": "sess_9d1c9ccd-2a06-4867-ab42-1d643884e687",
+        "timestamp": 1790735040867
+      }
+    ],
+    "7.1 Create admin CRUD pages for Events (`apps/web/app/admin/events/`): list, create, edit (name, retention days, status, daily sketch cap, tear-line offset); implement soft-delete (set status to `archived`); block switching the active event if a visitor session is currently active (check `sessions` table for status not in terminal states)": [
+      {
+        "executionId": "342d342f-76d5-41f9-9916-925c9558d2a0",
+        "chatSessionId": "sess_7f9a5df4-93f3-4307-8099-5d8c304452d6",
+        "timestamp": 1790735133764
+      },
+      {
+        "executionId": "342d342f-76d5-41f9-9916-925c9558d2a0",
+        "chatSessionId": "sess_7f9a5df4-93f3-4307-8099-5d8c304452d6",
+        "timestamp": 1790736068260
+      }
+    ],
+    "7.2 Create admin Frame management pages (`apps/web/app/admin/frames/`): upload frame PNG to `frames/` Storage bucket, list frames for an event, reorder (drag or up/down), deactivate, soft-delete; implement `SlotGeometryEditor` component accepting pixel inputs (x, y, w, h) relative to 600×1800 canvas, converting to fractions via `pixelToFraction()` on save, auto-computing `aspectRatio`; render a `<canvas>` or `<div>` overlay showing slot rectangles as transparent coloured overlays on the frame thumbnail, updating live on every keystroke": [
+      {
+        "executionId": "342d342f-76d5-41f9-9916-925c9558d2a0",
+        "chatSessionId": "sess_7f9a5df4-93f3-4307-8099-5d8c304452d6",
+        "timestamp": 1790735144611
+      },
+      {
+        "executionId": "342d342f-76d5-41f9-9916-925c9558d2a0",
+        "chatSessionId": "sess_7f9a5df4-93f3-4307-8099-5d8c304452d6",
+        "timestamp": 1790736076819
+      }
+    ],
+    "7. Admin — Event & Frame Management": [
+      {
+        "executionId": "342d342f-76d5-41f9-9916-925c9558d2a0",
+        "chatSessionId": "sess_7f9a5df4-93f3-4307-8099-5d8c304452d6",
+        "timestamp": 1790736077019
+      }
+    ],
+    "8.1 Implement consent screen component at `(booth)/consent`: display Bahasa Indonesia consent text with retention days dynamically loaded from active Event; show \"Saya Setuju\" and \"Tidak\" buttons; on accept dispatch `ACCEPT_CONSENT` and navigate to frames; on decline dispatch `DECLINE_CONSENT` and return to idle without calling `POST /api/sessions`": [
+      {
+        "executionId": "2bd684c7-b469-40d8-99b9-fa689d987752",
+        "chatSessionId": "sess_289266a4-be81-4932-9b08-4626144f3e5a",
+        "timestamp": 1790737395578
+      },
+      {
+        "executionId": "2bd684c7-b469-40d8-99b9-fa689d987752",
+        "chatSessionId": "sess_289266a4-be81-4932-9b08-4626144f3e5a",
+        "timestamp": 1790737723489
+      }
+    ],
+    "8.4 Implement frame selection screen at `(booth)/frames`: fetch active frames for the active event, render as film-strip thumbnails using doodle card style; on tap show full-frame preview overlay before confirm; dispatch `SELECT_FRAME` and navigate to capture on confirm; display error state with \"Kembali ke Awal\" if no active frames exist": [
+      {
+        "executionId": "2bd684c7-b469-40d8-99b9-fa689d987752",
+        "chatSessionId": "sess_289266a4-be81-4932-9b08-4626144f3e5a",
+        "timestamp": 1790737406549
+      },
+      {
+        "executionId": "2bd684c7-b469-40d8-99b9-fa689d987752",
+        "chatSessionId": "sess_289266a4-be81-4932-9b08-4626144f3e5a",
+        "timestamp": 1790737730986
+      }
+    ],
+    "8. Booth Flow — Consent & Frame Selection": [
+      {
+        "executionId": "2bd684c7-b469-40d8-99b9-fa689d987752",
+        "chatSessionId": "sess_289266a4-be81-4932-9b08-4626144f3e5a",
+        "timestamp": 1790737731515
+      }
+    ],
+    "9.1 Implement `apps/web/lib/camera/index.ts`: `startCamera()` (front-facing `getUserMedia`), `captureFrame(video): Promise<Blob>` (draws video frame to OffscreenCanvas cropped to slot aspect ratio), `stopCamera(stream)`; implement capture screen at `(booth)/capture` that renders live camera preview with a transparent crop guide overlay positioned using slot fractional geometry × rendered video dimensions; display 3-2-1 countdown on capture initiation; sequence through 3 slots": [
+      {
+        "executionId": "3e5be33c-4f14-4c47-850f-171b9a88220c",
+        "chatSessionId": "sess_f6510a9d-9864-4828-b0f7-661bf87c4cf5",
+        "timestamp": 1790739646854
+      },
+      {
+        "executionId": "3e5be33c-4f14-4c47-850f-171b9a88220c",
+        "chatSessionId": "sess_f6510a9d-9864-4828-b0f7-661bf87c4cf5",
+        "timestamp": 1790740038027
+      }
+    ],
+    "9.2 Wire retake logic in capture screen: after each capture show a \"Foto Ulang\" button if `retakesUsed[slotIndex]` is false; dispatch `USE_RETAKE` on tap and re-capture; once retake is used, hide the button and lock the slot; enforce max 1 retake per slot in the reducer": [
+      {
+        "executionId": "a33f9db9-db91-4002-ae35-66c6300cab9e",
+        "chatSessionId": "sess_690f2651-1b64-4466-ab79-0bacfe6e325d",
+        "timestamp": 1790745334077
+      },
+      {
+        "executionId": "a33f9db9-db91-4002-ae35-66c6300cab9e",
+        "chatSessionId": "sess_690f2651-1b64-4466-ab79-0bacfe6e325d",
+        "timestamp": 1790745453073
+      }
+    ],
+    "9. Booth Flow — Camera Capture": [
+      {
+        "executionId": "a33f9db9-db91-4002-ae35-66c6300cab9e",
+        "chatSessionId": "sess_690f2651-1b64-4466-ab79-0bacfe6e325d",
+        "timestamp": 1790745455081
+      }
+    ],
+    "10.1 Create `apps/web/lib/canvas/compose.ts` with `composeStrip(photos, frameBlob, geometry): Promise<Blob>` (OffscreenCanvas 600×1800, draw each photo into slot, draw frame PNG on top, output PNG) and `composeSheet(strip, tearLineOffsetPx): Promise<Blob>` (OffscreenCanvas 1205×1795, two strip instances, JPEG quality 0.92); implement preview screen at `(booth)/preview` compositing photos into selected frame on a Canvas element for display": [
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790745547172
+      },
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790746005348
+      }
+    ],
+    "10.4 Implement sketch photo selection in preview screen: default `selectedPhotoIndex` to 1 (middle photo); tap on any of the three composited photo areas sets `selectedPhotoIndex`; \"Kembali\" button dispatches back-from-preview action clearing all captures and returning to capture slot 0; \"Cetak\" button confirms and proceeds to composing step": [
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790745555147
+      },
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790746014052
+      }
+    ],
+    "10.8 Implement upload orchestration in `(booth)/composing`: call `POST /api/sessions` to create session record and obtain signed URLs, run `composeStrip` + `composeSheet` on Canvas, upload 5 files (3 photos + strip + sheet) directly to Supabase Storage via signed URLs without routing through Vercel, then call `POST /api/sessions/[id]/confirm`; on network error enqueue to IndexedDB via `apps/web/lib/offline/queue.ts` and retry with exponential backoff (2s base, max 5 retries); on success dispatch `UPLOAD_COMPLETE` and navigate to end screen": [
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790745562589
+      },
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790746024593
+      }
+    ],
+    "10. Booth Flow — Preview, Compose & Upload": [
+      {
+        "executionId": "6b2072b2-3927-43b3-b5f0-7fc36b296387",
+        "chatSessionId": "sess_51d8f74c-3af7-49bf-80fa-6a55907683b4",
+        "timestamp": 1790746027202
+      }
+    ],
+    "11. Checkpoint — Ensure all tests pass, ask the user if questions arise.": [
+      {
+        "executionId": "aba69a2b-c888-4fc2-b07b-f069a4160a52",
+        "chatSessionId": "sess_267ec37c-8c7f-4ae0-824c-99dc208f663e",
+        "timestamp": 1790746218717
+      }
+    ],
+    "12.1 Implement end screen at `(booth)/end`: display printing status text (\"Sedang mencetak…\"), render `<QRCodeSVG>` from `qrcode.react` encoding `/s/{token}` with error correction level M, minimum size for legibility, high contrast; subscribe to Supabase Realtime channel `session:{sessionId}` to receive print job status updates and update displayed status text; \"Selesai\" button dispatches `DISMISS_END_SCREEN`; 45-second timeout also dispatches dismiss; on dismiss clear all state and return to idle": [
+      {
+        "executionId": "ba773e8b-3246-4c3c-90e5-7e793a78fc33",
+        "chatSessionId": "sess_235a8d7d-d2df-41cb-9bc3-26c45f926736",
+        "timestamp": 1790746697958
+      },
+      {
+        "executionId": "ba773e8b-3246-4c3c-90e5-7e793a78fc33",
+        "chatSessionId": "sess_235a8d7d-d2df-41cb-9bc3-26c45f926736",
+        "timestamp": 1790747019736
+      }
+    ],
+    "12.5 Handle Realtime unavailability on end screen: catch subscription errors and display \"Status cetak tidak dapat dikonfirmasi.\" message; still honour 45-second timeout; if uploads are still pending when end screen mounts, display QR code alongside \"Unggahan masih berlangsung…\" note": [
+      {
+        "executionId": "ba773e8b-3246-4c3c-90e5-7e793a78fc33",
+        "chatSessionId": "sess_235a8d7d-d2df-41cb-9bc3-26c45f926736",
+        "timestamp": 1790746704988
+      },
+      {
+        "executionId": "ba773e8b-3246-4c3c-90e5-7e793a78fc33",
+        "chatSessionId": "sess_235a8d7d-d2df-41cb-9bc3-26c45f926736",
+        "timestamp": 1790747028497
+      }
+    ],
+    "12. Booth Flow — End Screen & QR Code": [
+      {
+        "executionId": "ba773e8b-3246-4c3c-90e5-7e793a78fc33",
+        "chatSessionId": "sess_235a8d7d-d2df-41cb-9bc3-26c45f926736",
+        "timestamp": 1790747028795
+      }
+    ],
+    "13. Print Station — Electron App Foundation": [
+      {
+        "executionId": "adaf6081-f223-4f10-93a5-7a32aca06886",
+        "chatSessionId": "sess_47f4f5f6-c029-49d2-87ab-6910e2e93dac",
+        "timestamp": 1790747386327
+      },
+      {
+        "executionId": "adaf6081-f223-4f10-93a5-7a32aca06886",
+        "chatSessionId": "sess_47f4f5f6-c029-49d2-87ab-6910e2e93dac",
+        "timestamp": 1790747780845
+      }
+    ],
+    "14.1 Implement Supabase client in main process using service role key (read from electron-store config); subscribe to `print_jobs` Realtime channel filtered by `status=eq.queued`; implement atomic claim in `src/main/job-processor.ts`: `UPDATE print_jobs SET status='printing' WHERE id=? AND status='queued'` — proceed only if `rowCount = 1`; implement polling fallback every 10 seconds when Realtime connection is dropped": [
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790748333210
+      },
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790749265516
+      }
+    ],
+    "14.3 Wire full job lifecycle in `job-processor.ts`: after atomic claim, download sheet asset from Supabase Storage signed URL, save to temp file, call `driver.print(...)`, on success PATCH `print_jobs.status` → `printed`, on failure run `detectError(output)` — paper-out/ink-out → retain job in `queued` for retry; jam → set `failed` + `error_reason='paper_jam'` with no auto-retry; unknown failure → set `failed` with error reason; store job state in local SQLite throughout": [
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790748346375
+      },
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790749274866
+      }
+    ],
+    "14.7 Implement 30-second heartbeat: UPSERT `print_station_heartbeat` every 30s in main process; implement Realtime reconnection with exponential backoff `Math.min(2000 * 2**attempt, 60000)` ms, re-subscribing if client-level reconnect fails after 5 attempts; send `job-update` IPC events to renderer on every status change": [
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790748375665
+      },
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790749282912
+      }
+    ],
+    "14. Print Station — Job Processing & Realtime": [
+      {
+        "executionId": "6e99e2d3-56a8-4f70-8b51-d6294885a6f9",
+        "chatSessionId": "sess_371d623d-adab-482c-b76d-874f0b7e46fb",
+        "timestamp": 1790749283840
+      }
+    ],
+    "15.1 Implement `apps/web/app/s/[token]/page.tsx` as a server component: call `GET /api/sessions/[token]/status`, call `notFound()` on 404 (generic page, no token details leaked); pass `initialData` to `SessionView` client component; implement `SessionView` subscribing to Realtime channel `session:{sessionId}` for live sketch_job_status, live_photo_status, print_job_status updates": [
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790749908145
+      },
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790750486671
+      }
+    ],
+    "15.2 Render strip section with downloadable image link; render Live Photo scaffold section with four states (pending/processing/done/failed) — hide section with neutral Bahasa Indonesia message on `failed` status, no MediaRecorder implementation": [
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790749915765
+      },
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790750496035
+      }
+    ],
+    "15.5 Implement heartbeat-gated \"Request Print\" button: compute `isStationOnline = (Date.now() - lastHeartbeatMs) < 90_000`, refresh every 30s via polling `GET /api/admin/status`; call `POST /api/print-jobs/sketch` (session token auth, idempotent via unique constraint) on tap; display sketch print job status (queued/printing/printed/failed) via Realtime; handle printer offline state with disabled button": [
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790749918321
+      },
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790750504754
+      }
+    ],
+    "15. Session Page (`/s/[token]`)": [
+      {
+        "executionId": "72989461-058c-476b-9cdc-0c9f0a0a10c3",
+        "chatSessionId": "sess_732b0def-71a2-458c-8e0c-15897211b76a",
+        "timestamp": 1790750505056
+      }
+    ],
+    "16. Checkpoint — Ensure all tests pass, ask the user if questions arise.": [
+      {
+        "executionId": "ffb4036c-449d-4c64-a4d8-2a95a9a06d92",
+        "chatSessionId": "sess_4e5560fb-9388-4b46-a4ac-5c3dbda0accc",
+        "timestamp": 1790762257421
+      },
+      {
+        "executionId": "ffb4036c-449d-4c64-a4d8-2a95a9a06d92",
+        "chatSessionId": "sess_4e5560fb-9388-4b46-a4ac-5c3dbda0accc",
+        "timestamp": 1790762456117
+      }
+    ],
+    "17.1 Implement `POST /api/sketch/process` route in `apps/web/app/api/sketch/process/route.ts` with `export const maxDuration = 60`: validate Supabase webhook secret header, parse `sketch_job_id` from payload, check daily cap (`SELECT count(*) WHERE event_id=? AND date=today AND status='done'`) and mark `failed` without calling Gemini if cap reached; transition `pending → processing` via optimistic UPDATE (prevent duplicate processing); fetch prompt template for event": [
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790762894869
+      },
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790764202638
+      }
+    ],
+    "17.3 Call Gemini API using model name from `process.env.GEMINI_MODEL_NAME`; handle outcomes: success → upload raw sketch to Storage; 429 → retry once after 2s delay → if still 429 set `failed`; timeout >55s → set `failed` immediately; safety filter → set `failed_safety`; storage upload failure → set `failed`; emit structured JSON log entry (`ts`, `event`, `sessionId`, `details`) for every outcome": [
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790764212224
+      },
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790764219814
+      }
+    ],
+    "17.8 Implement `apps/web/lib/canvas/server-compose.ts` using `node-canvas` (`canvas` npm package): `composeSketchCardServer(sketchBuffer: Buffer): Promise<Buffer>` composing a 600×1800 PNG; `composeSketchSheetServer(cardBuffer, tearLineOffsetPx): Promise<Buffer>` placing sketch card on left half and white fill on right half; call these from `POST /api/sketch/process` on success, store card at `sketches/{sessionId}/card.png`, update `sketch_jobs.card_path`": [
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790764230511
+      },
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790764240070
+      }
+    ],
+    "17. AI Sketch Worker": [
+      {
+        "executionId": "27243867-cef3-4757-a525-ce678df303b1",
+        "chatSessionId": "sess_2ff54f1b-cd2c-4c8d-98b7-31a1e8fa4a86",
+        "timestamp": 1790764240716
+      }
+    ],
+    "18.1 Create admin prompt template management page at `apps/web/app/admin/prompts/`: textarea editor for prompt content, version list with created timestamps, \"Set Active\" button (updates `events.active_prompt_template_id`); implement preview by submitting a test photo through the Gemini call and displaying the result inline; seed v1 prompt via a Supabase migration or seed script": [
+      {
+        "executionId": "000895da-c650-4baa-b725-5fe1bbf4c3e7",
+        "chatSessionId": "sess_c25ce872-eb6b-463b-8823-1d4287b7dbb9",
+        "timestamp": 1790764306454
+      },
+      {
+        "executionId": "000895da-c650-4baa-b725-5fe1bbf4c3e7",
+        "chatSessionId": "sess_c25ce872-eb6b-463b-8823-1d4287b7dbb9",
+        "timestamp": 1790764818991
+      }
+    ],
+    "18. Sketch Prompt Template Admin": [
+      {
+        "executionId": "000895da-c650-4baa-b725-5fe1bbf4c3e7",
+        "chatSessionId": "sess_c25ce872-eb6b-463b-8823-1d4287b7dbb9",
+        "timestamp": 1790764820241
+      }
+    ],
+    "19.1 Implement `POST /api/print-jobs/sketch` route: authenticate via session token (Bearer), validate sketch_job status is `done`, check print station heartbeat < 90s, upsert sketch print job (type=`sketch`, idempotent via `UNIQUE(session_id, type)`) using `composeSketchSheetServer` asset path as `asset_path`; return `{ printJobId }`; on repeat calls return existing job": [
+      {
+        "executionId": "409c39c4-3d5c-4afd-bb3d-a9f730bf44ba",
+        "chatSessionId": "sess_88e16f2c-1260-441d-8b95-154d14e519a3",
+        "timestamp": 1790767276368
+      },
+      {
+        "executionId": "409c39c4-3d5c-4afd-bb3d-a9f730bf44ba",
+        "chatSessionId": "sess_88e16f2c-1260-441d-8b95-154d14e519a3",
+        "timestamp": 1790767559348
+      }
+    ],
+    "19.2 Ensure Print Station `job-processor.ts` handles `type='sketch'` print jobs: download sketch sheet asset, print via PrintDriver, update status; no auto-print — only process when a sketch print_job record exists; update `sessions.status` on relevant state changes for session page Realtime updates": [
+      {
+        "executionId": "409c39c4-3d5c-4afd-bb3d-a9f730bf44ba",
+        "chatSessionId": "sess_88e16f2c-1260-441d-8b95-154d14e519a3",
+        "timestamp": 1790767285786
+      },
+      {
+        "executionId": "409c39c4-3d5c-4afd-bb3d-a9f730bf44ba",
+        "chatSessionId": "sess_88e16f2c-1260-441d-8b95-154d14e519a3",
+        "timestamp": 1790767571591
+      }
+    ],
+    "19. Sketch Print Request Flow (F6)": [
+      {
+        "executionId": "409c39c4-3d5c-4afd-bb3d-a9f730bf44ba",
+        "chatSessionId": "sess_88e16f2c-1260-441d-8b95-154d14e519a3",
+        "timestamp": 1790767574956
+      }
+    ],
+    "20.1 Create admin dashboard page at `apps/web/app/admin/dashboard/`: display print station heartbeat status (online/offline based on <90s threshold), job counts by status, \"Reset Session\" button (set current session to `abandoned`), \"Reprint Last Strip\" button (create new print job for last session's sheet asset), \"Clear Queue\" button (cancel all `queued` print jobs); \"Switch Active Event\" is blocked with a warning if a visitor session is currently active": [
+      {
+        "executionId": "7756a573-672e-40d0-8b86-abd4800c9795",
+        "chatSessionId": "sess_3fb5abc6-feed-42a6-9b5e-31f987fb9b9f",
+        "timestamp": 1790768145464
+      },
+      {
+        "executionId": "7756a573-672e-40d0-8b86-abd4800c9795",
+        "chatSessionId": "sess_3fb5abc6-feed-42a6-9b5e-31f987fb9b9f",
+        "timestamp": 1790768546887
+      }
+    ],
+    "20. Admin — Print Station Monitoring & Operations": [
+      {
+        "executionId": "7756a573-672e-40d0-8b86-abd4800c9795",
+        "chatSessionId": "sess_3fb5abc6-feed-42a6-9b5e-31f987fb9b9f",
+        "timestamp": 1790768547692
+      }
+    ],
+    "21.1 Implement full Service Worker at `apps/web/public/sw.js` with Workbox: cache-first strategy for `/_next/static/**`, `/fonts/**`, `/frames/**` (event-keyed cache name); network-first for API routes; precache booth UI shell on install; listen for `FLUSH_QUEUE` message and `online` event to trigger IndexedDB flush": [
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790768663207
+      },
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790769350059
+      }
+    ],
+    "21.2 Implement `apps/web/lib/offline/queue.ts` with IndexedDB store `photovoks_pending_queue` (object store `pending_queue`, keyPath `id`): `enqueue()` with FIFO eviction at 50-entry capacity (evict lowest `createdAt`), `flush()` processing `session` entries before `upload` before `confirm` with exponential backoff `2000 * 2**retries` (cap retries at 4), `getAll()`, `remove()`; trigger `flush()` on `window.online` event in app shell": [
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790768673663
+      },
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790769358969
+      }
+    ],
+    "21.5 Implement offline indicator component: renders a non-blocking banner at the top of the booth UI, sourcing text from `id.ts` (`offline.indicator`), with a maximum CSS height of `40px`; bind visibility to `window.online/offline` events; ensure every booth error state renders a recovery CTA (audit all `BoothError` cases in reducer and confirm each has a recovery element in the error screen component)": [
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790768682273
+      },
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790769366933
+      }
+    ],
+    "21. Offline Resilience & Service Worker": [
+      {
+        "executionId": "4001c464-6578-431f-a5e3-1fa8c1724118",
+        "chatSessionId": "sess_9cca9aa5-3872-41d3-a0c8-dd248100f409",
+        "timestamp": 1790769367809
+      }
+    ],
+    "22.1 Implement daily deletion job as a Supabase Edge Function or Postgres cron: query expired sessions with no active print jobs (status not in `queued|printing`); for each candidate call Supabase Storage delete for all objects under `sessions/{id}/**` and `sketches/{id}/**`; only delete the DB session record after all Storage deletes succeed; skip any session with a queued/printing print job; emit structured JSON log per deletion": [
+      {
+        "executionId": "67c77133-bfed-4a5f-8eff-3d5e3df39340",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790772107320
+      },
+      {
+        "executionId": "d0235ab8-1045-4044-8e23-7cffd34697b0",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790775071267
+      }
+    ],
+    "22.5 Audit and add structured JSON logging (`console.log(JSON.stringify(entry))`) for all session lifecycle events (created, photos captured, strip composed, uploaded, abandoned), print job lifecycle events (created, claimed, printing, printed, failed + reason), and admin action events (login, logout, lockout, event change, frame change, queue clear, reprint); ensure all entries include `ts`, `level`, `event`, `sessionId` where applicable": [
+      {
+        "executionId": "67c77133-bfed-4a5f-8eff-3d5e3df39340",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790772113908
+      },
+      {
+        "executionId": "d0235ab8-1045-4044-8e23-7cffd34697b0",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790775082381
+      }
+    ],
+    "22.6 Create environment variable checklist in `README.md` listing all required env vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_MODEL_NAME`, `ADMIN_PIN_HASH`, `SUPABASE_WEBHOOK_SECRET`; run an RLS policy audit query confirming RLS is enabled on all tables (`SELECT tablename FROM pg_tables WHERE NOT rowsecurity`); document expected result": [
+      {
+        "executionId": "67c77133-bfed-4a5f-8eff-3d5e3df39340",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790772121267
+      },
+      {
+        "executionId": "d0235ab8-1045-4044-8e23-7cffd34697b0",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790775090642
+      }
+    ],
+    "22. Privacy, Retention & Observability": [
+      {
+        "executionId": "d0235ab8-1045-4044-8e23-7cffd34697b0",
+        "chatSessionId": "sess_4ab707a5-9d9b-4211-b6d2-d1e89405e42f",
+        "timestamp": 1790775091933
+      }
+    ],
+    "23. Final Checkpoint — Ensure all tests pass, ask the user if questions arise.": [
+      {
+        "executionId": "77088120-0bef-4a0b-a5c1-052e365383b4",
+        "chatSessionId": "sess_bda0cac1-490f-4149-8770-3dc1abdd180a",
+        "timestamp": 1790781256470
+      }
+    ]
+  }
+}

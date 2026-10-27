@@ -1,0 +1,27 @@
+{
+  "project_type": "Next.js 16.3.6 App Router with React 19, pnpm monorepo, photobooth kiosk app",
+  "language": "TypeScript",
+  "build_system": "Next.js build system via pnpm workspaces. Root package.json delegates to workspace packages.",
+  "test_framework": "Vitest for unit tests (apps/web/package.json shows vitest scripts)",
+  "build_command": "pnpm build:web (from root) or pnpm build (from apps/web)",
+  "test_command": "pnpm test (from apps/web) or pnpm test:watch for watch mode",
+  "verification_instructions": "1. Run pnpm typecheck to verify TypeScript. 2. Run pnpm dev:web from repo root to start dev server on localhost:3000. 3. Navigate through booth flow manually to test loading states. 4. For admin, visit /admin/pin and verify immediate keyboard input.",
+  "snapshot_or_generated_files": "None for this task — no snapshot updates or generated code to commit",
+  "environment_constraints": "Dev server runs on port 3000 by default. In dev mode, Next.js compiles routes on-demand which can take 2-5 seconds per route, causing the perceived lag this task addresses.",
+  "contribution_requirements": "Read AGENTS.md first. Next.js 16 has breaking changes — consult node_modules/next/dist/docs/ before writing code. Preserve all existing behavior, no feature changes, no style changes. All booth pages are client components. DoodleButton extends standard button props.",
+  "key_patterns": "Booth pages use router.push() from next/navigation for navigation. All booth components are 'use client'. i18n strings via @/i18n/id. DoodleButton component accepts disabled prop. Admin pages use standard HTML/Tailwind, not doodle styling.",
+  "relevant_files": [
+    "apps/web/app/(booth)/page.tsx",
+    "apps/web/app/(booth)/consent/page.tsx",
+    "apps/web/app/(booth)/frames/page.tsx",
+    "apps/web/app/(booth)/capture/page.tsx",
+    "apps/web/app/(booth)/preview/page.tsx",
+    "apps/web/app/(booth)/composing/page.tsx",
+    "apps/web/app/admin/pin/page.tsx",
+    "apps/web/components/doodle/DoodleButton.tsx",
+    "apps/web/next.config.ts",
+    "apps/web/node_modules/next/dist/docs/01-app/02-guides/instant-navigation.md",
+    "apps/web/node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-router.md"
+  ],
+  "directory_structure": "apps/web/app/(booth)/ contains the photobooth flow pages (idle, consent, frames, capture, preview, composing, end). apps/web/app/admin/ contains admin dashboard pages. apps/web/components/doodle/ has the DoodleButton and DoodleBorder components. apps/web/lib/ has utility modules. Root package.json scripts delegate to workspace packages via pnpm filters."
+}

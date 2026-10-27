@@ -1,0 +1,16 @@
+# Supabase Edge Function configuration for delete-expired-sessions
+#
+# This function is invoked daily at 02:00 UTC by the pg_cron job defined in
+# migration 20240101000004_cron_delete_expired_sessions.sql.
+#
+# The cron schedule is managed in Postgres (pg_cron) rather than in this file
+# because Supabase Edge Functions do not natively support cron scheduling via
+# config.toml in the self-hosted / Supabase Cloud model. The schedule below is
+# documented for reference and can be used with tools that read function config.
+
+[functions.delete-expired-sessions]
+verify_jwt = false  # Auth is validated manually via the service role key in the handler
+
+# Cron schedule: daily at 02:00 UTC
+# This is invoked via the pg_cron job in migration 20240101000004.
+# schedule = "0 2 * * *"

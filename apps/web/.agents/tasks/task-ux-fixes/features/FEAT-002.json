@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Add navigation loading states to all booth flow pages using React 19 useTransition. After FEAT-001 fixes the dev server, there will still be legitimate 2-5 second compilation delays for cold routes. Show visual feedback (disabled buttons, loading text) during these delays so users know the app is responding. This is a batch change applying the same pattern to 5 pages: idle, consent, frames, capture, preview.",
+  "status": "pending",
+  "steps": [
+    "Import useTransition from 'react' in app/(booth)/page.tsx (idle page)",
+    "Wrap router.push('/consent') call in startTransition(() => { ... })",
+    "Use isPending to disable tap area and show loading feedback",
+    "Repeat same pattern in app/(booth)/consent/page.tsx for both handleAccept and handleDecline",
+    "Repeat in app/(booth)/frames/page.tsx for handleConfirmSelection (preview overlay buttons)",
+    "Repeat in app/(booth)/capture/page.tsx for handleNext (after third photo captured)",
+    "Repeat in app/(booth)/preview/page.tsx for handleConfirm (Cetak button)",
+    "Test each navigation manually in dev mode to verify loading states appear during compilation"
+  ],
+  "acceptance_criteria": [
+    "All booth navigation buttons disable during router.push() execution",
+    "Buttons show visual feedback (opacity or loading text) when disabled",
+    "Navigation still completes successfully after the pending state",
+    "No type errors from TypeScript compiler",
+    "No layout shifts or visual glitches during transitions"
+  ],
+  "verification": [
+    "Run pnpm typecheck to verify TypeScript passes",
+    "Run pnpm dev:web and navigate through entire booth flow: / → consent → frames → capture (3 photos) → preview → composing",
+    "On each navigation, verify button shows disabled state during compilation",
+    "Verify navigation completes normally after loading state clears"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

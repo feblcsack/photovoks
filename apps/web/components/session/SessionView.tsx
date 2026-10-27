@@ -18,6 +18,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { createBrowserClient } from '@/lib/supabase/client';
 import type { SketchJobStatus, LivePhotoStatus, PrintJobStatus } from '@photovoks/shared-types';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Float, Heart, Sparkle, Star } from '@/components/doodle';
 import { id } from '@/i18n/id';
 
 import { StripSection } from './StripSection';
@@ -62,6 +64,8 @@ export function SessionView({ initialData, token, sessionId }: SessionViewProps)
 
   // Generate sketch loading state
   const [isGeneratingSketch, setIsGeneratingSketch] = useState(false);
+
+  const reduce = useReducedMotion();
 
   // Guard against double-subscription in React Strict Mode
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -206,44 +210,30 @@ export function SessionView({ initialData, token, sessionId }: SessionViewProps)
   void stripPrintJobStatus;
 
   // ── Render ────────────────────────────────────────────────────────────────
-
+  // Scrapbook layout: sticker header, then taped/tilted paper cards.
   return (
-    <div
-      style={{
-        maxWidth: '480px',
-        margin: '0 auto',
-        padding: 'clamp(1rem, 4vw, 2rem)',
-        boxSizing: 'border-box',
-      }}
-    >
-      {/* ── Page heading ────────────────────────────────────────────────── */}
-      <header style={{ marginBottom: 'clamp(1.25rem, 4vw, 2rem)' }}>
-        <h1
-          style={{
-            fontFamily: 'var(--font-display), cursive',
-            fontSize: 'clamp(1.8rem, 6vw, 2.8rem)',
-            color: 'var(--color-accent)',
-            margin: 0,
-            fontWeight: 700,
-            lineHeight: 1.1,
-          }}
+    <div className="relative mx-auto w-full max-w-[480px] overflow-hidden px-[clamp(1rem,5vw,2rem)] pb-16 pt-[clamp(1.5rem,6vw,2.5rem)]">
+      {/* Page heading with stickers */}
+      <header className="relative mb-[clamp(1.5rem,5vw,2.25rem)] text-center">
+        <Float style={{ top: '-4px', left: '2%' }} duration={3.4}><Star size={30} /></Float>
+        <Float style={{ top: '6px', right: '3%' }} delay={0.7} duration={3.8}><Heart size={28} /></Float>
+        <Float style={{ bottom: '-6px', left: '14%' }} delay={1.2} duration={4} opacity={0.45}><Sparkle size={22} /></Float>
+
+        <motion.h1
+          initial={reduce ? false : { opacity: 0, scale: 0.8, rotate: -6 }}
+          animate={{ opacity: 1, scale: 1, rotate: -2 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 12 }}
+          className="font-display m-0 inline-block border-[2.5px] border-[var(--color-ink)] bg-[var(--color-paper)] px-6 py-2 text-[clamp(2.2rem,9vw,3.2rem)] font-bold leading-none text-[var(--color-accent)] [border-radius:var(--doodle-radius)] [box-shadow:var(--doodle-shadow)]"
         >
           {id.session.title}
-        </h1>
+        </motion.h1>
       </header>
 
-      {/* ── Sections ────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 'clamp(1.25rem, 4vw, 2rem)',
-        }}
-      >
+      <div className="flex flex-col gap-[clamp(1.75rem,6vw,2.5rem)]">
         {/* Strip — always shown (Req 8.2) */}
         <StripSection stripSignedUrl={session.stripSignedUrl} />
 
-        {/* Sketch — shown in all states except hidden when failed (Req 8.4–8.6) */}
+        {/* Sketch — all states, neutral message when failed (Req 8.4–8.6) */}
         <SketchSection
           status={sketchStatus}
           cardSignedUrl={sketchCardSignedUrl}
@@ -251,9 +241,14 @@ export function SessionView({ initialData, token, sessionId }: SessionViewProps)
           isGenerating={isGeneratingSketch}
         />
 
-        {/* Request Print — only shown when sketch is done (Req 8.8–8.10) */}
+        {/* Request Print — only when sketch is done (Req 8.8–8.10) */}
         {sketchStatus === 'done' && (
-          <section aria-label={id.session.printRequest.button}>
+          <motion.section
+            aria-label={id.session.printRequest.button}
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center"
+          >
             <RequestPrintButton
               sessionToken={token}
               initialOnline={printStationOnline}
@@ -261,7 +256,7 @@ export function SessionView({ initialData, token, sessionId }: SessionViewProps)
               sketchPrintJobStatus={sketchPrintJobStatus}
               onPrintJobCreated={handlePrintJobCreated}
             />
-          </section>
+          </motion.section>
         )}
 
         {/* Live Photo scaffold — always shown (Req 8.3, 18.2) */}

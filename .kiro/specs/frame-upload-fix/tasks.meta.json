@@ -1,0 +1,158 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test": {
+      "status": "passed",
+      "failingExample": "All 4 tests passed as expected on unfixed code, confirming the bugs exist:\n\nTest Case A (Middleware Registration): middleware-manifest.json shows \"middleware\": {} — Next.js has no middleware registered at all. The \"middleware\" and \"sortedMiddleware\" keys are both empty.\n\nTest Case B (Upsert Flag): upload-url/route.ts contains `upsert: false` in the createSignedUploadUrl call — retries to the same storage path will fail with HTTP 500.\n\nTest Case C (Export Name): proxy.ts exports `export async function proxy(...)` and does NOT export `export async function middleware(...)` — Next.js silently ignores the file as Edge Middleware.",
+      "lastRunTimestamp": 1790789680591
+    },
+    "2. Write preservation property tests (BEFORE implementing fix)": {
+      "status": "passed",
+      "lastRunTimestamp": 1790789983627
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789547411
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789561227
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789699228
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789548228
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789707598
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790790006462
+      }
+    ],
+    "3.1 Rename export `proxy` → `middleware` di `apps/web/proxy.ts`": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789549021
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790790023325
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790790976852
+      }
+    ],
+    "3.2 Ubah `upsert: false` → `upsert: true` di `apps/web/app/api/admin/frames/upload-url/route.ts`": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789549245
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790790982355
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790791358811
+      }
+    ],
+    "3.3 Tambahkan hint teks disabled state di `apps/web/app/admin/frames/FrameUploadForm.tsx`": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789549740
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790790989728
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790791366012
+      }
+    ],
+    "3.4 Verify bug condition exploration test sekarang pass": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789550561
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790791375793
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790819240050
+      }
+    ],
+    "3.5 Verify preservation tests masih pass": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789550868
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790819245621
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790819251690
+      }
+    ],
+    "4. Checkpoint — Pastikan semua test pass": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790789551154
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790819261242
+      },
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790819312157
+      }
+    ],
+    "3. Fix frame upload — middleware registration, upsert flag, dan disabled button hint": [
+      {
+        "executionId": "a51767cf-83c1-4db9-98f4-ee1b60008a05",
+        "chatSessionId": "sess_1ce18736-6174-4a06-a2a1-304362e75889",
+        "timestamp": 1790819254354
+      }
+    ]
+  }
+}

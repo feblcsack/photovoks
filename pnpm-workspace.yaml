@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+allowBuilds:
+  better-sqlite3: true
+  canvas: true
+  electron: true
+  esbuild: true
+  unrs-resolver: true

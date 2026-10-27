@@ -1,0 +1,8 @@
+{
+  "allowedDependencies": {
+    "better-sqlite3": "9.6.0",
+    "canvas": "3.2.3",
+    "electron": "31.7.7",
+    "esbuild": "0.21.5"
+  }
+}

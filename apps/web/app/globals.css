@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Photovoks design tokens — cream paper + ink outline + orange accent.
+   One palette for booth, visitor page and admin.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Legacy tokens (kept: existing code reads these) */
+  --color-bg: #FDFAF3;
+  --color-accent: #E85D26;
+  --color-ink: #1A1A1A;
+  --font-display: var(--font-caveat);
+  --font-body: var(--font-hand);
+
+  /* New tokens */
+  --color-paper: #FFFEFA;
+  --color-accent-deep: #C94A18;
+  --color-accent-soft: #FFE6D8;
+  --color-subtle: #6F6859;
+  --color-line: #E6DDC8;
+  --color-ok: #2F9E5B;
+  --color-warn: #D99A1E;
+  --color-danger: #D63B2F;
+
+  /* shadcn semantic tokens */
+  --background: var(--color-bg);
+  --foreground: var(--color-ink);
+  --card: var(--color-paper);
+  --card-foreground: var(--color-ink);
+  --primary: var(--color-accent);
+  --primary-foreground: #ffffff;
+  --secondary: #F4ECDC;
+  --secondary-foreground: var(--color-ink);
+  --muted: #F4ECDC;
+  --muted-foreground: var(--color-subtle);
+  --destructive: var(--color-danger);
+  --border: var(--color-ink);
+  --input: var(--color-ink);
+  --ring: var(--color-accent);
+  --radius: 0.75rem;
+
+  /* Hand-drawn corner shape (uneven radii = wobbly outline) */
+  --doodle-radius: 255px 14px 225px 14px / 14px 225px 14px 255px;
+  --doodle-radius-sm: 18px 8px 16px 8px / 8px 16px 8px 18px;
+  --doodle-shadow: 3px 4px 0 var(--color-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* Re-skin the Tailwind palette so every existing admin class (gray / blue)
+   follows the cream + orange theme without touching each file. */
+@theme {
+  --color-gray-50: #FDFAF3;
+  --color-gray-100: #F6EFE0;
+  --color-gray-200: #E6DDC8;
+  --color-gray-300: #D3C7AB;
+  --color-gray-400: #A59B84;
+  --color-gray-500: #7A7364;
+  --color-gray-600: #5C5649;
+  --color-gray-700: #3F3B31;
+  --color-gray-800: #2A2720;
+  --color-gray-900: #1A1A1A;
+  --color-blue-50: #FFF3EC;
+  --color-blue-100: #FFE6D8;
+  --color-blue-500: #E85D26;
+  --color-blue-600: #E85D26;
+  --color-blue-700: #C94A18;
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-hand), "Comic Sans MS", cursive;
+  /* subtle paper dots */
+  background-image: radial-gradient(rgba(26, 26, 26, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+::selection { background: var(--color-accent-soft); }
+
+/* ── Doodle primitives (used by components/ui + components/doodle) ───────── */
+.doodle-box {
+  border: 2.5px solid var(--color-ink);
+  border-radius: var(--doodle-radius);
+  background: var(--color-paper);
+  box-shadow: var(--doodle-shadow);
+}
+.doodle-box-sm { border-radius: var(--doodle-radius-sm); }
+
+.font-display { font-family: var(--font-caveat), cursive; }
+
+@keyframes doodle-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+@keyframes doodle-spin { to { transform: rotate(360deg); } }
+.doodle-spinner {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 5px dashed rgba(232, 93, 38, 0.3);
+  border-top-color: var(--color-accent);
+  animation: doodle-spin 1.1s linear infinite;
+}
+
+/* ── Admin: "doodle-lite" ────────────────────────────────────────────────────
+   Admin keeps clean, readable tables/inputs. Only borders, buttons and cards
+   get the hand-drawn outline. Unlayered on purpose so it wins over utilities. */
+.admin-shell { font-family: var(--font-inter), system-ui, sans-serif; }
+.admin-shell h1, .admin-shell h2 { font-family: var(--font-caveat), cursive; letter-spacing: 0.01em; }
+.admin-shell h1 { font-size: 2.1rem; line-height: 1.1; }
+.admin-shell h2 { font-size: 1.55rem; }
+.admin-shell button:not([data-plain]),
+.admin-shell a[class*="rounded"][class*="bg-"] {
+  border: 2px solid var(--color-ink);
+  border-radius: var(--doodle-radius-sm);
+  box-shadow: 2px 3px 0 var(--color-ink);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.admin-shell button:not([data-plain]):hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 3px 4px 0 var(--color-ink); }
+.admin-shell button:not([data-plain]):active:not(:disabled) { transform: translate(2px, 3px); box-shadow: 0 0 0 var(--color-ink); }
+.admin-shell button:disabled { box-shadow: none; opacity: .5; }
+.admin-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.admin-shell select, .admin-shell textarea {
+  border: 2px solid var(--color-ink) !important;
+  border-radius: 10px 6px 10px 6px / 6px 10px 6px 10px;
+  background: var(--color-paper);
+}
+.admin-shell input:focus, .admin-shell select:focus, .admin-shell textarea:focus {
+  outline: 3px solid var(--color-accent-soft); outline-offset: 1px;
+}
+.admin-shell [class*="border-gray-200"][class*="rounded"],
+.admin-shell [class*="bg-white"][class*="rounded"] {
+  border: 2px solid var(--color-ink);
+  border-radius: 16px 8px 14px 8px / 8px 14px 8px 16px;
+  box-shadow: 3px 4px 0 var(--color-ink);
+  background: var(--color-paper);
+}
+.admin-shell table { border-collapse: separate; border-spacing: 0; }
+.admin-shell thead th { font-family: var(--font-caveat), cursive; font-size: 1.15rem; font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wobble, .bounce, .doodle-spinner, [data-animate] { animation: none !important; transition: none !important; }
+  .admin-shell button { transition: none !important; }
+}

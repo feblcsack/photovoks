@@ -8,10 +8,8 @@ export const id = {
   // ── Idle Screen ─────────────────────────────────────────────────────────────
   idle: {
     tapToStart: 'Ketuk untuk mulai',
-    tagline: 'Abadikan momen Anda',
     title: 'Photovoks',
     subtitle: 'Abadikan momen indahmu ✨',
-    taglineUpgrade: 'Tangkap momen, simpan kenangan ✨',
   },
 
   // ── Consent Screen ───────────────────────────────────────────────────────────

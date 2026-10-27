@@ -3,7 +3,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBoothContext } from '../context/BoothContext';
-import { DoodleButton, DoodleCard } from '@/components/doodle';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DoodleBackdrop, DoodleButton } from '@/components/doodle';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { id } from '@/i18n/id';
 import { createBrowserClient } from '@/lib/supabase/client';
 import type { Frame, SlotGeometry } from '@photovoks/shared-types';
@@ -66,8 +70,10 @@ export default function FramesPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
-  /** The frame currently being previewed in the overlay (null = no overlay) */
-  const [previewFrame, setPreviewFrame] = useState<FrameWithUrl | null>(null);
+  /** Index of the frame currently shown in the carousel, and slide direction */
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState<1 | -1>(1);
+  const reduce = useReducedMotion();
 
   // ── Fetch frames ─────────────────────────────────────────────────────────────
 
@@ -133,20 +139,32 @@ export default function FramesPage() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
-  function handleThumbnailTap(frame: FrameWithUrl) {
-    // Show the full-frame preview overlay before confirming (Req 3.2)
-    setPreviewFrame(frame);
+  const total = frames.length;
+  const current = frames[index] ?? null;
+
+  function go(delta: 1 | -1) {
+    if (total < 2) return;
+    setDirection(delta);
+    setIndex((i) => (i + delta + total) % total);
   }
+
+  // Arrow keys on a keyboard-equipped iPad / laptop
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft') go(-1);
+      else if (e.key === 'ArrowRight') go(1);
+      else if (e.key === 'Enter') handleConfirmSelection();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, index, frames]);
 
   function handleConfirmSelection() {
-    if (!previewFrame) return;
+    if (!current) return;
     // Dispatch SELECT_FRAME — sets step to 'capture' in reducer (Req 3.3)
-    dispatch({ type: 'SELECT_FRAME', frame: previewFrame });
+    dispatch({ type: 'SELECT_FRAME', frame: current });
     router.push('/capture');
-  }
-
-  function handleCancelPreview() {
-    setPreviewFrame(null);
   }
 
   function handleReturnToIdle() {
@@ -161,407 +179,130 @@ export default function FramesPage() {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          background: 'var(--color-bg)',
-        }}
-      >
-        <p
-          style={{
-            fontFamily: 'var(--font-display), cursive',
-            fontSize: '1.5rem',
-            color: 'var(--color-ink)',
-          }}
-        >
-          {/* Loading indicator — uses composing.processing text (generic loading) */}
-          {id.composing.processing}
-        </p>
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-5">
+        <div className="doodle-spinner" aria-hidden="true" />
+        <p className="font-display m-0 text-3xl" aria-live="polite">{id.composing.processing}</p>
       </div>
     );
   }
 
   if (showError) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          background: 'var(--color-bg)',
-          gap: '2rem',
-          padding: '2rem',
-        }}
-      >
-        <p
-          style={{
-            fontFamily: 'var(--font-body), sans-serif',
-            fontSize: '1.1rem',
-            color: 'var(--color-ink)',
-            textAlign: 'center',
-          }}
-        >
-          {id.frames.noFrames}
-        </p>
-        <DoodleButton variant="secondary" onClick={handleReturnToIdle}>
-          {id.frames.returnToIdle}
-        </DoodleButton>
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 p-8">
+        <DoodleBackdrop density="calm" />
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/samples/heartsCutoutStripSample.png" alt="" aria-hidden="true" className="h-40 w-auto -rotate-6 border-[2.5px] border-[var(--color-ink)] opacity-60 grayscale" />
+          <p className="m-0 max-w-md text-xl leading-relaxed">{id.frames.noFrames}</p>
+          <DoodleButton variant="secondary" onClick={handleReturnToIdle}>
+            {id.frames.returnToIdle}
+          </DoodleButton>
+        </div>
       </div>
     );
   }
 
-  // ── Main frame list + preview overlay ────────────────────────────────────────
+  // ── Carousel ──────────────────────────────────────────────────────────────
+
+  const slide = {
+    enter: (d: number) => ({ x: reduce ? 0 : d * 140, opacity: 0, rotate: reduce ? 0 : d * 4, scale: 0.92 }),
+    center: { x: 0, opacity: 1, rotate: 0, scale: 1 },
+    exit: (d: number) => ({ x: reduce ? 0 : d * -140, opacity: 0, rotate: reduce ? 0 : d * -4, scale: 0.92 }),
+  };
 
   return (
-    <>
-      {/* ── Frame selection screen ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          minHeight: '100vh',
-          background: 'var(--color-bg)',
-          padding: '2rem 1rem',
-          boxSizing: 'border-box',
-          gap: '2rem',
-        }}
+    <div className="relative flex min-h-screen flex-col items-center gap-4 overflow-hidden px-4 py-6">
+      <DoodleBackdrop density="calm" />
+
+      {/* Title + hint */}
+      <header className="relative z-10 text-center">
+        <h1 className="font-display m-0 text-[clamp(2rem,5vw,3.2rem)] font-bold leading-none">{id.frames.title}</h1>
+        <p className="font-display m-0 mt-1 text-[clamp(1.1rem,2.5vw,1.5rem)] opacity-70">{id.frames.hint}</p>
+      </header>
+
+      {/* Sketchy "monitor" with side arrows */}
+      <section
+        aria-roledescription="carousel"
+        aria-label={id.frames.preview}
+        className="relative z-10 flex w-full max-w-3xl flex-1 items-center justify-center gap-3 sm:gap-8"
       >
-        {/* Title + hint header */}
-        <div
-          style={{
-            position: 'relative',
-            display: 'inline-flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          {/* Decorative star — top-left of title */}
-          <svg
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            width="22"
-            height="22"
-            viewBox="0 0 22 22"
-            style={{
-              position: 'absolute',
-              top: '-12px',
-              left: '-20px',
-              opacity: 0.55,
-            }}
-          >
-            <path
-              d="M11 1 L13 8 L20 8 L14.5 12.5 L16.5 20 L11 16 L5.5 20 L7.5 12.5 L2 8 L9 8 Z"
-              fill="none"
-              stroke="var(--color-accent)"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <Button variant="secondary" size="icon" onClick={() => go(-1)} disabled={total < 2} aria-label="Bingkai sebelumnya" className="shrink-0">
+          <ChevronLeft className="size-7" />
+        </Button>
 
-          {/* Decorative star — top-right of title */}
-          <svg
-            aria-hidden="true"
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 18 18"
-            style={{
-              position: 'absolute',
-              top: '-8px',
-              right: '-18px',
-              opacity: 0.5,
-            }}
-          >
-            <path
-              d="M9 1 L10.5 6.5 L16 6.5 L11.5 10 L13 16 L9 13 L5 16 L6.5 10 L2 6.5 L7.5 6.5 Z"
-              fill="none"
-              stroke="var(--color-accent)"
-              strokeWidth="1.8"
-              strokeLinejoin="round"
-            />
-          </svg>
-
-          <h1
-            style={{
-              fontFamily: 'var(--font-display), cursive',
-              fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
-              color: 'var(--color-ink)',
-              margin: 0,
-              textAlign: 'center',
-            }}
-          >
-            {id.frames.title}
-          </h1>
-
-          {/* Hint text below title */}
-          <p
-            style={{
-              fontFamily: 'var(--font-display), cursive',
-              fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
-              color: 'var(--color-ink)',
-              opacity: 0.7,
-              margin: 0,
-              textAlign: 'center',
-            }}
-          >
-            {id.frames.hint}
-          </p>
+        <div className="relative flex h-[min(58vh,520px)] w-[min(78vw,330px)] items-center justify-center border-[3px] border-[var(--color-ink)] bg-[var(--color-paper)] p-4 [border-radius:14px_8px_16px_8px/8px_16px_8px_14px] [box-shadow:5px_6px_0_var(--color-ink)]">
+          <div className="absolute inset-2 border-[2px] border-[var(--color-ink)] [border-radius:8px_5px_9px_5px/5px_9px_5px_8px]" aria-hidden="true" />
+          <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+            {current && (
+              <motion.div
+                key={current.id}
+                custom={direction}
+                variants={slide}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ type: 'spring', stiffness: 260, damping: 26 }}
+                drag={total > 1 ? 'x' : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.4}
+                onDragEnd={(_, info) => {
+                  if (info.offset.x < -60) go(1);
+                  else if (info.offset.x > 60) go(-1);
+                }}
+                className="relative z-10 flex h-full items-center justify-center"
+              >
+                {current.signedUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={current.signedUrl}
+                    alt={current.name}
+                    draggable={false}
+                    className="max-h-full w-auto max-w-full object-contain [filter:drop-shadow(2px_4px_0_rgba(26,26,26,0.25))]"
+                  />
+                ) : (
+                  <div aria-hidden="true" className="aspect-[1/3] h-full max-h-full border-2 border-dashed border-[var(--color-ink)] bg-[var(--color-line)]" />
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Film-strip thumbnail grid — horizontal scroll on small screens */}
-        <div
-          role="list"
-          aria-label={id.frames.title}
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            gap: '1.25rem',
-            overflowX: 'auto',
-            padding: '0.5rem 0.25rem',
-            maxWidth: '100%',
-            alignItems: 'flex-start',
-            // Smooth momentum scroll on iOS
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {frames.map((frame) => (
-            <FrameThumbnail
-              key={frame.id}
-              frame={frame}
-              onTap={() => handleThumbnailTap(frame)}
-            />
-          ))}
-        </div>
-      </div>
+        <Button variant="secondary" size="icon" onClick={() => go(1)} disabled={total < 2} aria-label="Bingkai berikutnya" className="shrink-0">
+          <ChevronRight className="size-7" />
+        </Button>
+      </section>
 
-      {/* ── Full-frame preview overlay (Req 3.2) ──────────────────────────── */}
-      {previewFrame && (
-        <FramePreviewOverlay
-          frame={previewFrame}
-          onConfirm={handleConfirmSelection}
-          onCancel={handleCancelPreview}
-        />
-      )}
-    </>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-interface FrameThumbnailProps {
-  frame: FrameWithUrl;
-  onTap: () => void;
-}
-
-/**
- * A film-strip-style thumbnail cutout for a single frame.
- * Tapping opens the full-frame preview overlay.
- */
-function FrameThumbnail({ frame, onTap }: FrameThumbnailProps) {
-  return (
-    <div
-      role="listitem"
-      style={{
-        flexShrink: 0,
-        width: '140px',
-        cursor: 'pointer',
-      }}
-    >
-      <DoodleCard>
-        <>
-          <style>{`
-            .frame-thumb-btn { transition: transform 0.18s ease; }
-            .frame-thumb-btn:hover, .frame-thumb-btn:focus-visible { transform: scale(1.04); }
-            @media (prefers-reduced-motion: reduce) {
-              .frame-thumb-btn { transition: none !important; transform: none !important; }
-            }
-          `}</style>
-          <button
-            className="frame-thumb-btn"
-            onClick={onTap}
-            aria-label={frame.name}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.5rem',
-              width: '100%',
-            }}
-          >
-            {/* Frame image — portrait aspect ratio mimics 600×1800 strip */}
-            <div
-              style={{
-                width: '120px',
-                aspectRatio: '1 / 3',
-                overflow: 'hidden',
-                background: '#e0ddd4',
-                position: 'relative',
-              }}
-            >
-              {frame.signedUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={frame.signedUrl}
-                  alt={frame.name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
-              ) : (
-                /* Placeholder when signed URL is unavailable */
-                <div
-                  aria-hidden="true"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: '#d0cdc4',
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Frame name */}
-            <span
-              style={{
-                fontFamily: 'var(--font-display), cursive',
-                fontSize: '0.85rem',
-                color: 'var(--color-ink)',
-                textAlign: 'center',
-                wordBreak: 'break-word',
-              }}
-            >
-              {frame.name}
-            </span>
-          </button>
-        </>
-      </DoodleCard>
-    </div>
-  );
-}
-
-interface FramePreviewOverlayProps {
-  frame: FrameWithUrl;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
-
-/**
- * Full-screen overlay showing the selected frame at a larger size.
- * The visitor must tap "Pilih Bingkai Ini" to confirm selection.
- * Tapping "Kembali" dismisses the overlay without selecting.
- */
-function FramePreviewOverlay({ frame, onConfirm, onCancel }: FramePreviewOverlayProps) {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={id.frames.preview}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: '2rem 1rem',
-        gap: '1.5rem',
-      }}
-    >
-      {/* Frame name */}
-      <h2
-        style={{
-          fontFamily: 'var(--font-display), cursive',
-          fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
-          color: '#ffffff',
-          margin: 0,
-          textAlign: 'center',
-        }}
-      >
-        {frame.name}
-      </h2>
-
-      {/* Full preview image — portrait, up to 60vh tall */}
-      <div
-        style={{
-          maxHeight: '60vh',
-          maxWidth: '200px',
-          aspectRatio: '1 / 3',
-          overflow: 'hidden',
-          background: '#2a2a2a',
-        }}
-      >
-        {frame.signedUrl ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={frame.signedUrl}
-            alt={frame.name}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              display: 'block',
-            }}
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            style={{ width: '100%', height: '100%', background: '#3a3a3a' }}
-          />
+      {/* Name + dots */}
+      <div className="relative z-10 flex flex-col items-center gap-2" aria-live="polite">
+        <p className="font-display m-0 text-3xl font-bold leading-none">{current?.name}</p>
+        {total > 1 && (
+          <div className="flex items-center gap-2" role="tablist" aria-label={id.frames.title}>
+            {frames.map((f, i) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                data-plain
+                aria-selected={i === index}
+                aria-label={f.name}
+                onClick={() => { setDirection(i > index ? 1 : -1); setIndex(i); }}
+                className={cn(
+                  'size-3.5 rounded-full border-2 border-[var(--color-ink)] transition-colors',
+                  i === index ? 'bg-[var(--color-accent)]' : 'bg-transparent',
+                )}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Action buttons */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-          alignItems: 'center',
-          width: '100%',
-          maxWidth: '280px',
-        }}
-      >
-        {/* Confirm — dispatches SELECT_FRAME and navigates to capture */}
-        <DoodleButton
-          variant="primary"
-          onClick={onConfirm}
-          style={{
-            fontSize: 'clamp(1.1rem, 3vw, 1.4rem)',
-            padding: '0.7rem 2rem',
-            width: '100%',
-          }}
-        >
+      {/* Actions */}
+      <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3 pb-2">
+        <DoodleButton variant="success" size="xl" onClick={handleConfirmSelection} style={{ width: '100%' }}>
           {id.frames.confirm}
         </DoodleButton>
-
-        {/* Back — dismiss overlay without selecting */}
-        <DoodleButton
-          variant="secondary"
-          onClick={onCancel}
-          style={{
-            fontSize: '1rem',
-            padding: '0.5rem 1.5rem',
-            width: '100%',
-            color: '#ffffff',
-          }}
-        >
-          {id.frames.back}
+        <DoodleButton variant="secondary" size="sm" onClick={handleReturnToIdle}>
+          {id.frames.returnToIdle}
         </DoodleButton>
       </div>
     </div>

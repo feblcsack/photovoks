@@ -13,7 +13,8 @@
  */
 
 import React from 'react';
-import { DoodleButton, DoodleCard } from '@/components/doodle';
+import { DoodleButton } from '@/components/doodle';
+import { DownloadLink, SessionCard, Spinner } from './SessionCard';
 import { id } from '@/i18n/id';
 import type { SketchJobStatus } from '@photovoks/shared-types';
 
@@ -29,269 +30,66 @@ interface SketchSectionProps {
 }
 
 export function SketchSection({ status, cardSignedUrl, onGenerateSketch, isGenerating }: SketchSectionProps) {
-  // Req 8.6: hide entire section on failed or failed_safety
+  const t = id.session.sections.sketch;
+
+  // Failed — neutral message, no error details exposed (Req 8.6)
   if (status === 'failed' || status === 'failed_safety') {
     return (
-      <section aria-labelledby="sketch-section-title">
-        <h2
-          id="sketch-section-title"
-          style={{
-            fontFamily: 'var(--font-display), cursive',
-            fontSize: 'clamp(1.2rem, 4vw, 1.6rem)',
-            color: 'var(--color-ink)',
-            margin: '0 0 0.75rem',
-            fontWeight: 700,
-          }}
-        >
-          {id.session.sections.sketch.title}
-        </h2>
-        <DoodleCard>
-          <p
-            style={{
-              fontFamily: 'var(--font-body), sans-serif',
-              fontSize: '0.95rem',
-              color: 'var(--color-ink)',
-              opacity: 0.65,
-              textAlign: 'center',
-              margin: 0,
-              padding: '0.5rem 0',
-            }}
-          >
-            {/* Neutral message — no error details exposed (Req 8.6) */}
-            {id.session.sections.sketch.failed}
-          </p>
-        </DoodleCard>
-      </section>
+      <SessionCard titleId="sketch-section-title" title={t.title} tilt={0.8}>
+        <p className="m-0 py-2 text-center text-base opacity-70">{t.failed}</p>
+      </SessionCard>
     );
   }
 
+  const inProgress = (status === null && isGenerating) || status === 'pending' || status === 'processing';
+
   return (
-    <section aria-labelledby="sketch-section-title">
-      <h2
-        id="sketch-section-title"
-        style={{
-          fontFamily: 'var(--font-display), cursive',
-          fontSize: 'clamp(1.2rem, 4vw, 1.6rem)',
-          color: 'var(--color-ink)',
-          margin: '0 0 0.75rem',
-          fontWeight: 700,
-        }}
-      >
-        {id.session.sections.sketch.title}
-      </h2>
-
-      <DoodleCard>
-        {/* null status AND not generating — show CTA button */}
-        {status === null && !isGenerating && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.5rem 0',
-            }}
+    <SessionCard titleId="sketch-section-title" title={t.title} tilt={0.8}>
+      {/* No sketch yet — CTA to start one */}
+      {status === null && !isGenerating && (
+        <div className="flex flex-col items-center gap-3 py-2">
+          <p className="m-0 text-center text-base opacity-75">{t.generateHint}</p>
+          <DoodleButton
+            variant="primary"
+            size="default"
+            onClick={() => { void onGenerateSketch(); }}
+            disabled={isGenerating}
+            aria-busy={isGenerating}
           >
-            <p
-              style={{
-                fontFamily: 'var(--font-body), sans-serif',
-                fontSize: '0.9rem',
-                color: 'var(--color-ink)',
-                opacity: 0.7,
-                textAlign: 'center',
-                margin: 0,
-              }}
-            >
-              {id.session.sections.sketch.generateHint}
-            </p>
-            <DoodleButton
-              variant="primary"
-              onClick={() => { void onGenerateSketch(); }}
-              disabled={isGenerating}
-              aria-busy={isGenerating}
-              style={{ fontSize: '1rem', padding: '0.6rem 1.5rem', opacity: isGenerating ? 0.6 : 1 }}
-            >
-              {id.session.sections.sketch.generate}
-            </DoodleButton>
-          </div>
-        )}
+            {t.generate}
+          </DoodleButton>
+        </div>
+      )}
 
-        {/* null status AND generating — show spinner (optimistic pending UI) */}
-        {status === null && isGenerating && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.5rem 0',
-            }}
-          >
-            <SketchSpinner />
-            <p
-              aria-live="polite"
-              style={{
-                fontFamily: 'var(--font-body), sans-serif',
-                fontSize: '0.95rem',
-                color: 'var(--color-ink)',
-                opacity: 0.8,
-                textAlign: 'center',
-                margin: 0,
-              }}
-            >
-              {id.session.sections.sketch.pending}
-            </p>
-          </div>
-        )}
-
-        {/* pending — show progress indicator (Req 8.4) */}
-        {status === 'pending' && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.5rem 0',
-            }}
-          >
-            <SketchSpinner />
-            <p
-              aria-live="polite"
-              style={{
-                fontFamily: 'var(--font-body), sans-serif',
-                fontSize: '0.95rem',
-                color: 'var(--color-ink)',
-                opacity: 0.8,
-                textAlign: 'center',
-                margin: 0,
-              }}
-            >
-              {id.session.sections.sketch.pending}
-            </p>
-          </div>
-        )}
-
-        {status === 'processing' && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.5rem 0',
-            }}
-          >
-            <SketchSpinner />
-            <p
-              aria-live="polite"
-              style={{
-                fontFamily: 'var(--font-body), sans-serif',
-                fontSize: '0.95rem',
-                color: 'var(--color-ink)',
-                opacity: 0.8,
-                textAlign: 'center',
-                margin: 0,
-              }}
-            >
-              {id.session.sections.sketch.processing}
-            </p>
-          </div>
-        )}
-
-        {/* done — show sketch image with download (Req 8.5) */}
-        {status === 'done' && cardSignedUrl && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1rem',
-            }}
-          >
-            <img
-              src={cardSignedUrl}
-              alt={id.session.sections.sketch.done}
-              style={{
-                maxWidth: '200px',
-                width: '100%',
-                height: 'auto',
-                display: 'block',
-                borderRadius: '2px',
-                border: '2px solid var(--color-ink)',
-              }}
-            />
-            <a
-              href={cardSignedUrl}
-              download="sketch.png"
-              style={{
-                display: 'inline-block',
-                padding: '0.5rem 1.25rem',
-                background: 'var(--color-accent)',
-                color: '#ffffff',
-                fontFamily: 'var(--font-display), cursive',
-                fontSize: '1rem',
-                borderRadius: '4px',
-                textDecoration: 'none',
-                fontWeight: 600,
-                border: '2px solid var(--color-ink)',
-              }}
-            >
-              {id.session.sections.sketch.done}
-            </a>
-          </div>
-        )}
-
-        {/* done but no URL yet — fallback */}
-        {status === 'done' && !cardSignedUrl && (
-          <p
-            style={{
-              fontFamily: 'var(--font-body), sans-serif',
-              fontSize: '0.95rem',
-              color: 'var(--color-ink)',
-              opacity: 0.65,
-              textAlign: 'center',
-              margin: 0,
-              padding: '0.5rem 0',
-            }}
-          >
-            {id.session.sections.sketch.pending}
+      {/* Generating / pending / processing — progress indicator (Req 8.4) */}
+      {inProgress && (
+        <div className="flex flex-col items-center gap-3 py-2">
+          <Spinner />
+          <p aria-live="polite" className="m-0 text-center text-base opacity-80">
+            {status === 'processing' ? t.processing : t.pending}
           </p>
-        )}
-      </DoodleCard>
-    </section>
-  );
-}
+        </div>
+      )}
 
-// ── Spinner sub-component ─────────────────────────────────────────────────────
+      {/* Done — image + download (Req 8.5) */}
+      {status === 'done' && cardSignedUrl && (
+        <div className="flex flex-col items-center gap-4 py-1">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={cardSignedUrl}
+            alt={t.done}
+            className="block h-auto w-full max-w-[220px] border-[2.5px] border-[var(--color-ink)] bg-white [box-shadow:4px_6px_0_var(--color-ink)]"
+          />
+          <DownloadLink href={cardSignedUrl} filename="sketch.png">
+            {t.done}
+          </DownloadLink>
+        </div>
+      )}
 
-function SketchSpinner() {
-  return (
-    <>
-      <style>{`
-        @keyframes sketch-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .sketch-spinner {
-          animation: sketch-spin 1.4s linear infinite;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .sketch-spinner { animation: none !important; }
-        }
-      `}</style>
-      <div
-        aria-hidden="true"
-        className="sketch-spinner"
-        style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          border: '4px solid rgba(232, 93, 38, 0.2)',
-          borderTopColor: 'var(--color-accent)',
-          flexShrink: 0,
-        }}
-      />
-    </>
+      {/* Done but URL not ready yet */}
+      {status === 'done' && !cardSignedUrl && (
+        <p className="m-0 py-2 text-center text-base opacity-70">{t.pending}</p>
+      )}
+    </SessionCard>
   );
 }
