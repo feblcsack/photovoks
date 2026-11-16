@@ -17,10 +17,14 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
+import { requireAdmin } from '@/lib/security';
 
 const TERMINAL_SESSION_STATUSES = ['completed', 'abandoned', 'failed'] as const;
 
 export async function POST(): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const supabase = createServerClient();
 
   // Find the most recent non-terminal session

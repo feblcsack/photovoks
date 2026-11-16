@@ -12,8 +12,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import type { SlotGeometry } from '@photovoks/shared-types';
 import { log } from '@/lib/logger';
+import { requireAdmin } from '@/lib/security';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get('eventId');
 
@@ -47,6 +51,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: unknown;
   try {
     body = await request.json();

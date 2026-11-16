@@ -1,12 +1,11 @@
 'use client';
 
 /**
- * Admin PIN entry screen — 4 digits.
+ * Admin PIN entry screen — 4 to 8 digits.
  *
- * Flow: type exactly 4 digits → press ✓ (confirm) to submit. The ✓ key stays
- * disabled until all 4 digits are entered, and Enter on a keyboard behaves the
- * same way. On success the JWT is written to the `admin_token` cookie (read by
- * proxy.ts). On failure: shake + inline error, with a lockout countdown.
+ * Flow: type the PIN → press ✓ (or Enter) to submit. On success the server
+ * sets an httpOnly session cookie (JS never sees the token).
+ * On failure: shake + inline error, with a lockout countdown.
  *
  * Requirements: 11.2, 11.5
  */
@@ -20,7 +19,8 @@ import { Card } from '@/components/ui/card';
 import { DoodleBackdrop } from '@/components/doodle';
 import { cn } from '@/lib/utils';
 
-const PIN_LENGTH = 4;
+const PIN_MIN = 4;
+const PIN_MAX = 8;
 
 type KeypadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'backspace' | 'submit';
 
@@ -30,10 +30,6 @@ const KEYPAD_LAYOUT: KeypadKey[][] = [
   ['7', '8', '9'],
   ['backspace', '0', 'submit'],
 ];
-
-interface ApiSuccessResponse {
-  token: string;
-}
 
 interface ApiErrorResponse {
   error: string;
@@ -94,8 +90,8 @@ export default function AdminPinPage() {
   }
 
   async function submitPin() {
-    // Must be exactly 4 digits, and confirmed with ✓ (or Enter).
-    if (pin.length !== PIN_LENGTH || isLoading) return;
+    // 4–8 digits, confirmed with ✓ (or Enter).
+    if (pin.length < PIN_MIN || isLoading) return;
 
     setIsLoading(true);
     setError(null);
@@ -108,18 +104,6 @@ export default function AdminPinPage() {
       });
 
       if (response.ok) {
-        const data = (await response.json()) as ApiSuccessResponse;
-        const isSecure = window.location.protocol === 'https:';
-        document.cookie = [
-          `admin_token=${data.token}`,
-          'Path=/',
-          'SameSite=Strict',
-          isSecure ? 'Secure' : '',
-          'Max-Age=600', // 10 minutes, matches JWT expiry
-        ]
-          .filter(Boolean)
-          .join('; ');
-
         router.push(safeNextPath());
         return;
       }
@@ -132,7 +116,7 @@ export default function AdminPinPage() {
         setError(`Terlalu banyak percobaan. Coba lagi dalam ${remaining} detik.`);
         setPin('');
       } else if (response.status === 400) {
-        setError('PIN harus 4 digit angka.');
+        setError('PIN harus 4–8 digit angka.');
         setPin('');
       } else {
         setError('PIN salah. Silakan coba lagi.');
@@ -159,7 +143,7 @@ export default function AdminPinPage() {
         void submitPin();
         return;
       }
-      if (pin.length < PIN_LENGTH) {
+      if (pin.length < PIN_MAX) {
         setPin((p) => p + key);
         setError(null);
       }
@@ -186,7 +170,8 @@ export default function AdminPinPage() {
   }
 
   const isLocked = lockoutSeconds !== null;
-  const isComplete = pin.length === PIN_LENGTH;
+  const isComplete = pin.length >= PIN_MIN;
+  const dotCount = Math.max(PIN_MIN, pin.length);
 
   return (
     <div className="admin-shell relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
@@ -206,12 +191,12 @@ export default function AdminPinPage() {
                 <Lock className="size-6 text-[var(--color-accent)]" aria-hidden="true" />
               </span>
               <h1 className="font-display m-0 text-4xl font-bold leading-none">Admin</h1>
-              <p className="m-0 text-sm text-gray-600">Masukkan 4 digit PIN, lalu tekan ✓</p>
+              <p className="m-0 text-sm text-gray-600">Masukkan PIN admin, lalu tekan ✓</p>
             </div>
 
-            {/* 4 PIN dots */}
-            <div className="flex justify-center gap-4" aria-label={`PIN: ${pin.length} dari ${PIN_LENGTH} digit dimasukkan`} aria-live="polite">
-              {Array.from({ length: PIN_LENGTH }, (_, i) => (
+            {/* PIN dots (grow up to 8) */}
+            <div className="flex justify-center gap-3" aria-label={`PIN: ${pin.length} digit dimasukkan`} aria-live="polite">
+              {Array.from({ length: dotCount }, (_, i) => (
                 <motion.span
                   key={i}
                   animate={i < pin.length ? { scale: [1, 1.3, 1] } : { scale: 1 }}

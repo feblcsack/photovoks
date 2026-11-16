@@ -13,12 +13,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
+import { requireAdmin } from '@/lib/security';
 
 const TERMINAL_SESSION_STATUSES = ['abandoned', 'failed', 'completed', 'printed'];
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { id } = await context.params;
   const supabase = createServerClient();
 
@@ -36,6 +40,9 @@ export async function GET(_request: NextRequest, context: RouteContext): Promise
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { id } = await context.params;
 
   let body: unknown;

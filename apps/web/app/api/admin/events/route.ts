@@ -8,8 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
+import { requireAdmin } from '@/lib/security';
 
 export async function GET(): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const supabase = createServerClient();
 
   const { data, error } = await supabase
@@ -30,6 +34,9 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: unknown;
   try {
     body = await request.json();

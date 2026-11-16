@@ -80,7 +80,7 @@ export default function BoothIdlePage() {
           <div className="absolute -top-3 left-1/2 z-10 h-6 w-20 -translate-x-1/2 -rotate-3 border-2 border-[var(--color-ink)] bg-[var(--color-accent-soft)]/90" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/samples/heartsCutoutStripSample.png"
+            src="/samples/sample-strip.svg"
             alt=""
             className="block h-[min(62vh,520px)] w-auto border-[2.5px] border-[var(--color-ink)] bg-white [box-shadow:6px_8px_0_var(--color-ink)]"
             draggable={false}

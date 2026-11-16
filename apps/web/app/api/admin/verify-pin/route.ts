@@ -3,11 +3,7 @@
  *
  * Verifies the admin PIN against the bcrypt hash stored in `admin_users`.
  * Enforces a 5-attempt lockout (5-minute duration).
- * On success, issues a short-lived signed JWT (10-minute validity).
- *
- * The JWT is signed with the SUPABASE_SERVICE_ROLE_KEY so it can be verified
- * server-side in middleware without a round-trip to Supabase Auth. The claim
- * `role: 'admin'` distinguishes it from visitor session tokens.
+ * On success, sets a short-lived signed admin session in an httpOnly cookie.
  *
  * Security notes:
  * - PIN hash is NEVER returned to the client.
@@ -16,7 +12,7 @@
  * - All admin authentication events are logged as structured JSON.
  *
  * HTTP responses:
- * - 200  { token: string }   — correct PIN, JWT included
+ * - 200  { ok: true }        — correct PIN, httpOnly cookie set
  * - 400  { error: string }   — missing/invalid body
  * - 401  { error: string }   — wrong PIN
  * - 423  { error: string, lockedUntil: string, retryAfterSeconds: number }
@@ -28,21 +24,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
-import { SignJWT } from 'jose';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
+import {
+  ADMIN_COOKIE,
+  ADMIN_SESSION_SECONDS,
+  adminCookieOptions,
+  signAdminToken,
+} from '@/lib/security';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
-const JWT_VALIDITY_SECONDS = 600; // 10 minutes (Requirement 11.3)
-
-function getJwtSecret(): Uint8Array {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) {
-    throw new Error('Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY');
-  }
-  return new TextEncoder().encode(key);
-}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── Parse body ────────────────────────────────────────────────────────────
@@ -67,10 +59,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { pin } = body as { pin: string };
 
-  // The admin PIN is exactly 4 digits. Reject anything else before touching
-  // the database so malformed input never counts toward the lockout.
-  if (!/^\d{4}$/.test(pin)) {
-    return NextResponse.json({ error: 'PIN must be exactly 4 digits' }, { status: 400 });
+  // The admin PIN is 4–8 digits. Reject anything else before touching the
+  // database so malformed input never counts toward the lockout.
+  if (!/^\d{4,8}$/.test(pin)) {
+    return NextResponse.json({ error: 'PIN must be 4-8 digits' }, { status: 400 });
   }
 
   const supabase = createServerClient();
@@ -180,21 +172,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .update({ failed_attempts: 0, locked_until: null })
     .eq('id', adminUser.id);
 
-  // ── Issue signed JWT (10-minute validity) ─────────────────────────────────
-  // Requirement 11.3: JWT validity must be exactly 10 minutes.
-  // The JWT is signed with the service role key so it can be verified in
-  // Edge Middleware without importing Supabase client (not available in Edge).
+  // ── Issue admin session in an httpOnly cookie (never exposed to JS) ─────
   let token: string;
   try {
-    const secret = getJwtSecret();
-    const now = Math.floor(Date.now() / 1000);
-
-    token = await new SignJWT({ role: 'admin', adminId: adminUser.id })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt(now)
-      .setExpirationTime(now + JWT_VALIDITY_SECONDS)
-      .setIssuer('photovoks/admin')
-      .sign(secret);
+    token = await signAdminToken(adminUser.id);
   } catch (err) {
     log({
       level: 'error',
@@ -204,11 +185,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 
-  log({
-    level: 'info',
-    event: 'admin.login',
-    details: { adminId: adminUser.id },
-  });
+  log({ level: 'info', event: 'admin.login', details: { adminId: adminUser.id } });
 
-  return NextResponse.json({ token }, { status: 200 });
+  const response = NextResponse.json({ ok: true }, { status: 200 });
+  response.cookies.set(ADMIN_COOKIE, token, adminCookieOptions(ADMIN_SESSION_SECONDS));
+  return response;
 }

@@ -15,11 +15,15 @@
 
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/security';
 
 /** Station is considered online if heartbeat is fresher than this threshold. */
 const HEARTBEAT_ONLINE_THRESHOLD_MS = 90_000;
 
 export async function GET(): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const supabase = createServerClient();
 
   const { data: heartbeat } = await supabase

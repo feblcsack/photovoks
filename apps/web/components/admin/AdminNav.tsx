@@ -20,14 +20,16 @@ export function AdminNav() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // The PIN screen is the login page — no navigation before signing in.
+  if (pathname.startsWith('/admin/pin')) return null;
+
   async function logout() {
     setLoggingOut(true);
     try {
       await fetch('/api/admin/logout', { method: 'POST' });
     } catch {
-      // Even if the request fails, clear the cookie locally below.
+      // The cookie expires on its own even if this request fails.
     }
-    document.cookie = 'admin_token=; Path=/; Max-Age=0; SameSite=Strict';
     router.push('/admin/pin');
   }
 

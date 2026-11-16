@@ -4,7 +4,7 @@
  * Creates a new booth session for a visitor.
  * Public endpoint (no auth required) — rate-limited per IP by middleware.
  *
- * Request body: { eventId: string }
+ * Request body: { eventId: string, photoIndex?: 0|1|2 }  (photo used for the AI doodle)
  * Response:     { sessionId, sessionToken, uploadUrls: { photo0, photo1, photo2, strip, sheet } }
  *
  * Requirements: 6.4, 15.1, 15.6
@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { generateSessionToken } from '@photovoks/shared-types';
 import { log } from '@/lib/logger';
+import { isUuid } from '@/lib/security';
 
 // Session record expires 24 hours after creation
 const SESSION_EXPIRY_HOURS = 24;
@@ -48,7 +49,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { eventId } = body as { eventId: string };
+  const { eventId, photoIndex } = body as { eventId: string; photoIndex?: unknown };
+  if (!isUuid(eventId)) {
+    return NextResponse.json({ error: 'Event not found or not active' }, { status: 404 });
+  }
+  const selectedPhotoIndex =
+    typeof photoIndex === 'number' && [0, 1, 2].includes(photoIndex) ? photoIndex : 1;
 
   const supabase = createServerClient();
 
@@ -83,6 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       token: sessionToken,
       event_id: eventId,
       status: 'created',
+      selected_photo_index: selectedPhotoIndex,
       expires_at: expiresAt,
     })
     .select('id')

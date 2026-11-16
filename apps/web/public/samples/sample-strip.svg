@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 600" width="200" height="600">
+  <rect width="200" height="600" fill="#fffaf3"/>
+  <g fill="none" stroke="#2b2118" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- frame 1 -->
+    <rect x="16" y="16" width="168" height="160" rx="8" fill="#fde2d6"/>
+    <circle cx="80" cy="96" r="30" fill="#fff"/><circle cx="130" cy="100" r="26" fill="#fff"/>
+    <circle cx="70" cy="90" r="2.5" fill="#2b2118"/><circle cx="90" cy="90" r="2.5" fill="#2b2118"/>
+    <path d="M70 106 q10 10 20 0"/>
+    <circle cx="122" cy="96" r="2.5" fill="#2b2118"/><circle cx="138" cy="96" r="2.5" fill="#2b2118"/>
+    <path d="M122 110 q8 6 16 0"/>
+    <path d="M40 160 q60 -30 120 0"/>
+    <!-- frame 2 -->
+    <rect x="16" y="192" width="168" height="160" rx="8" fill="#dff1e6"/>
+    <circle cx="100" cy="270" r="34" fill="#fff"/>
+    <path d="M86 262 l6 0 M108 262 l6 0"/>
+    <path d="M88 284 q12 12 24 0"/>
+    <path d="M60 210 l5 10 l10 2 l-8 7 l2 10 l-9 -5 l-9 5 l2 -10 l-8 -7 l10 -2 z" fill="#ffd36e"/>
+    <path d="M150 320 c-6 -10 -18 -2 -10 8 l10 10 l10 -10 c8 -10 -4 -18 -10 -8 z" fill="#f59a7a"/>
+    <!-- frame 3 -->
+    <rect x="16" y="368" width="168" height="160" rx="8" fill="#e3e6fb"/>
+    <circle cx="76" cy="446" r="26" fill="#fff"/><circle cx="126" cy="446" r="26" fill="#fff"/>
+    <path d="M66 440 q6 -6 12 0 M118 440 q6 -6 12 0"/>
+    <path d="M68 456 q8 8 16 0 M118 456 q8 8 16 0"/>
+    <path d="M40 500 l20 0 M140 500 l20 0"/>
+  </g>
+  <text x="100" y="568" text-anchor="middle" font-family="Caveat, 'Comic Sans MS', cursive" font-size="30" fill="#e8714c" font-weight="700">Photovoks</text>
+</svg>

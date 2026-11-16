@@ -13,6 +13,8 @@
 
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/security';
+import { isGeminiConfigured } from '@/lib/sketch/gemini';
 
 /** Heartbeat threshold: station is online if last heartbeat < 90 s ago. */
 const HEARTBEAT_ONLINE_THRESHOLD_MS = 90_000;
@@ -21,6 +23,9 @@ const HEARTBEAT_ONLINE_THRESHOLD_MS = 90_000;
 const TERMINAL_SESSION_STATUSES = ['completed', 'abandoned', 'failed'] as const;
 
 export async function GET(): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const supabase = createServerClient();
 
   // Run all independent queries in parallel
@@ -93,5 +98,6 @@ export async function GET(): Promise<NextResponse> {
     jobCounts,
     activeSession,
     activeEvent,
+    aiEnabled: isGeminiConfigured(),
   });
 }

@@ -15,7 +15,7 @@ export const id = {
   // ── Consent Screen ───────────────────────────────────────────────────────────
   consent: {
     title: 'Persetujuan Penggunaan Foto',
-    body: 'Foto Anda mungkin diproses oleh AI pihak ketiga untuk membuat sketsa artistik.',
+    body: 'Fotomu akan dicetak sebagai photostrip. Jika kamu memilih membuat doodle AI, satu foto akan diproses oleh Google Gemini.',
     retentionNotice: (days: number) =>
       `Foto Anda akan dihapus otomatis setelah ${days} hari.`,
     accept: 'Saya Setuju',
@@ -49,9 +49,9 @@ export const id = {
     composing: 'Menyusun strip…',
     confirm: 'Cetak',
     back: 'Foto Ulang',
-    sketchHint: 'Ketuk foto untuk memilih sketsa AI',
+    sketchHint: 'Ketuk satu foto untuk dijadikan doodle AI',
     photoLabel: (n: number) => `Foto ${n}`,
-    selectedForSketch: 'Untuk sketsa AI',
+    selectedForSketch: 'Untuk doodle AI',
   },
 
   // ── Composing / Uploading ────────────────────────────────────────────────────
@@ -68,7 +68,10 @@ export const id = {
     done: 'Selesai',
     uploadPending: 'Unggahan masih berlangsung…',
     noRealtime: 'Status cetak tidak dapat dikonfirmasi.',
-    qrInstructions: 'Scan kode QR untuk melihat foto Anda',
+    printerOffline: 'Printer belum terhubung — petugas akan mencetak segera.',
+    printFailed: 'Cetak gagal — hubungi petugas.',
+    qrInstructions: 'Scan untuk unduh foto & bikin doodle AI',
+    autoClose: (s: number) => `Kembali ke awal dalam ${s} detik`,
   },
 
   // ── Offline Indicator ────────────────────────────────────────────────────────
@@ -103,22 +106,26 @@ export const id = {
         failed: 'Live Photo tidak tersedia.',
       },
       sketch: {
-        title: 'Sketsa AI',
-        pending: 'AI sedang membuat sketsa…',
-        processing: 'Sedang memproses sketsa…',
-        done: 'Sketsa siap',
-        failed: 'Sketsa tidak tersedia.',
-        generate: 'Buat Sketsa AI',
-        generateHint: 'Buat sketsa artistik dari foto stripmu',
+        title: 'Doodle AI',
+        pending: 'Menyiapkan doodle…',
+        processing: 'AI sedang menggambar doodle-mu… (±20 detik)',
+        done: 'Unduh Doodle',
+        failed: 'Doodle gagal dibuat.',
+        failedSafety: 'Foto ini tidak bisa diproses AI. Coba foto lain di booth ya!',
+        dailyCap: 'Kuota doodle AI hari ini sudah habis.',
+        retry: 'Coba Lagi',
+        disabled: 'Fitur doodle AI sedang tidak aktif.',
+        generate: 'Buat Doodle AI ✨',
+        generateHint: 'Ubah fotomu jadi gambar doodle lucu dengan AI',
       },
     },
     printRequest: {
-      button: 'Cetak Sketsa',
+      button: 'Cetak Doodle',
       stationOffline: 'Printer tidak tersedia saat ini',
       queued: 'Antri untuk dicetak…',
-      printing: 'Sedang mencetak sketsa…',
-      printed: 'Sketsa berhasil dicetak!',
-      failed: 'Cetak sketsa gagal.',
+      printing: 'Sedang mencetak doodle…',
+      printed: 'Doodle berhasil dicetak! Ambil di booth 🎉',
+      failed: 'Cetak doodle gagal. Hubungi petugas.',
     },
     notFound: {
       title: 'Halaman tidak ditemukan',

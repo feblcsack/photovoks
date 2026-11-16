@@ -12,8 +12,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { isUuid, requireAdmin } from '@/lib/security';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -23,8 +27,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const b = body as Record<string, unknown>;
 
-  if (!b.frameId || typeof b.frameId !== 'string') {
-    return NextResponse.json({ error: 'frameId is required' }, { status: 400 });
+  // Must be a UUID — prevents path traversal into other storage paths.
+  if (!isUuid(b.frameId)) {
+    return NextResponse.json({ error: 'frameId must be a UUID' }, { status: 400 });
   }
 
   const storagePath = `${b.frameId}.png`;
@@ -36,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (error || !data) {
     return NextResponse.json(
-      { error: `Failed to generate upload URL: ${error?.message ?? 'unknown error'}` },
+      { error: 'Failed to generate upload URL' },
       { status: 500 }
     );
   }
