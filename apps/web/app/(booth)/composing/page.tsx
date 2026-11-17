@@ -168,7 +168,7 @@ export default function ComposingPage() {
         const response = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ eventId: event.id }),
+          body: JSON.stringify({ eventId: event.id, photoIndex: state.selectedPhotoIndex }),
         });
 
         if (!response.ok) {
@@ -251,9 +251,9 @@ export default function ComposingPage() {
     setStep('uploading');
 
     const uploads: Array<{ url: string; blob: Blob; contentType: string; label: string }> = [
-      { url: uploadUrls.photo0, blob: photoBlobs[0], contentType: 'image/png', label: 'photo_0' },
-      { url: uploadUrls.photo1, blob: photoBlobs[1], contentType: 'image/png', label: 'photo_1' },
-      { url: uploadUrls.photo2, blob: photoBlobs[2], contentType: 'image/png', label: 'photo_2' },
+      { url: uploadUrls.photo0, blob: photoBlobs[0], contentType: 'image/jpeg', label: 'photo_0' },
+      { url: uploadUrls.photo1, blob: photoBlobs[1], contentType: 'image/jpeg', label: 'photo_1' },
+      { url: uploadUrls.photo2, blob: photoBlobs[2], contentType: 'image/jpeg', label: 'photo_2' },
       { url: uploadUrls.strip,  blob: stripBlob,     contentType: 'image/png', label: 'strip'   },
       { url: uploadUrls.sheet,  blob: sheetBlob,     contentType: 'image/jpeg', label: 'sheet'  },
     ];

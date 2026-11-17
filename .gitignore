@@ -5,9 +5,14 @@ node_modules/
 out/
 build/
 *.tsbuildinfo
+next-env.d.ts
 
 # local files
 .DS_Store
 *.log
+print-output/
+
+# secrets — only the example file may be committed
 .env*
+!.env.example
 supabase/.temp/

@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
+import { getBearer, isUuid, safeEqual } from '@/lib/security';
 
 /** The 5 asset paths expected under sessions/{sessionId}/ */
 const ASSET_FILENAMES = [
@@ -33,14 +34,13 @@ export async function POST(
   const { sessionId } = await context.params;
 
   // ── Validate Bearer token ─────────────────────────────────────────────────
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return NextResponse.json(
-      { error: 'Missing or invalid Authorization header' },
-      { status: 401 }
-    );
+  const bearerToken = getBearer(request);
+  if (!bearerToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const bearerToken = authHeader.slice('Bearer '.length).trim();
+  if (!isUuid(sessionId)) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
 
   const supabase = createServerClient();
 
@@ -55,8 +55,21 @@ export async function POST(
     return NextResponse.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  if (session.token !== bearerToken) {
-    return NextResponse.json({ error: 'Invalid session token' }, { status: 403 });
+  if (!safeEqual(session.token, bearerToken)) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+
+  // Already confirmed → idempotent fast path (never re-queue a printed strip)
+  if (session.status !== 'created' && session.status !== 'capturing') {
+    const { data: existingJob } = await supabase
+      .from('print_jobs')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('type', 'strip')
+      .maybeSingle();
+    if (existingJob) {
+      return NextResponse.json({ printJobId: existingJob.id, sketchJobId: null });
+    }
   }
 
   // ── Verify all 5 assets exist in Storage ─────────────────────────────────

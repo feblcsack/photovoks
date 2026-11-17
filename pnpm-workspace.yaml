@@ -2,9 +2,7 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
-allowBuilds:
-  better-sqlite3: true
-  canvas: true
-  electron: true
-  esbuild: true
-  unrs-resolver: true
+onlyBuiltDependencies:
+  - sharp
+  - esbuild
+  - unrs-resolver

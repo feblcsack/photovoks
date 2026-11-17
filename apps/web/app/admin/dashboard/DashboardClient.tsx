@@ -18,9 +18,7 @@
  * Requirements: 9.11, 11.6
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createBrowserClient } from '@/lib/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import React, { useState, useEffect, useCallback } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +36,7 @@ interface DashboardData {
   };
   activeSession: { id: string; status: string; created_at: string } | null;
   activeEvent: { id: string; name: string; status: string } | null;
+  aiEnabled: boolean;
 }
 
 interface EventOption {
@@ -84,7 +83,6 @@ export default function DashboardClient({ initialData, events }: DashboardClient
   } | null>(null);
 
   // Realtime channel ref (prevent double-subscription in Strict Mode)
-  const channelRef = useRef<RealtimeChannel | null>(null);
 
   // ── Data refresh ────────────────────────────────────────────────────────────
 
@@ -99,56 +97,12 @@ export default function DashboardClient({ initialData, events }: DashboardClient
     }
   }, []);
 
-  // 30-second polling fallback
+  // Poll every 5 s (database Realtime is not exposed to the browser — RLS)
   useEffect(() => {
     const id = setInterval(() => {
-      void refreshData();
-    }, 30_000);
+      if (document.visibilityState === 'visible') void refreshData();
+    }, 5_000);
     return () => clearInterval(id);
-  }, [refreshData]);
-
-  // ── Supabase Realtime subscription — instant updates ───────────────────────
-
-  useEffect(() => {
-    if (channelRef.current) return; // already subscribed
-
-    let supabase: ReturnType<typeof createBrowserClient>;
-    try {
-      supabase = createBrowserClient();
-    } catch {
-      return; // missing env vars, fall back to polling
-    }
-
-    const channel = supabase.channel('admin-dashboard');
-    channelRef.current = channel;
-
-    channel
-      // Any change to print_jobs → refresh counts immediately
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'print_jobs' },
-        () => { void refreshData(); },
-      )
-      // Heartbeat row update → refresh station online status
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'print_station_heartbeat' },
-        () => { void refreshData(); },
-      )
-      // Session changes → update active session display
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sessions' },
-        () => { void refreshData(); },
-      )
-      .subscribe();
-
-    return () => {
-      if (channelRef.current) {
-        try { supabase.removeChannel(channelRef.current); } catch { /* ignore */ }
-        channelRef.current = null;
-      }
-    };
   }, [refreshData]);
 
   function showMessage(type: 'success' | 'error', text: string) {
@@ -321,6 +275,25 @@ export default function DashboardClient({ initialData, events }: DashboardClient
             </span>
           </span>
         </div>
+        {!data.printStation.isOnline && (
+          <p className="mt-2 text-sm text-gray-600">
+            Printer belum terhubung. Di komputer yang tersambung ke printer jalankan{' '}
+            <code className="rounded bg-gray-100 px-1.5 py-0.5">pnpm booth</code> (atau{' '}
+            <code className="rounded bg-gray-100 px-1.5 py-0.5">pnpm print</code> jika website di-hosting online).
+          </p>
+        )}
+        <div className="mt-3 bg-white rounded-lg border border-gray-200 px-4 py-3 flex items-center justify-between gap-4">
+          <span className="text-sm font-medium text-gray-700">Doodle AI (Gemini)</span>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
+              data.aiEnabled
+                ? 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20'
+                : 'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-400/20'
+            }`}
+          >
+            {data.aiEnabled ? 'Aktif' : 'Nonaktif — isi GEMINI_API_KEY lewat pnpm configure'}
+          </span>
+        </div>
       </section>
 
       {/* ── Job Counts ───────────────────────────────────────────────────── */}
@@ -329,7 +302,7 @@ export default function DashboardClient({ initialData, events }: DashboardClient
           Pekerjaan Cetak
           <span
             aria-label="Update otomatis"
-            title="Data diperbarui otomatis via Realtime"
+            title="Data diperbarui otomatis tiap 5 detik"
             className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" aria-hidden="true" />

@@ -12,7 +12,7 @@
  * Requirements: 4.1, 4.2, 4.3
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBoothContext } from '../context/BoothContext';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -220,18 +220,16 @@ export default function CapturePage() {
    * Object URLs for each captured Blob so we can render <img> thumbnails.
    * Revoked in the cleanup to avoid memory leaks.
    */
-  const [thumbnailUrls, setThumbnailUrls] = useState<(string | null)[]>([null, null, null]);
+  const thumbnailUrls = useMemo(
+    () => state.captures.map((blob) => (blob ? URL.createObjectURL(blob) : null)),
+    [state.captures],
+  );
 
   useEffect(() => {
-    const urls = state.captures.map((blob) =>
-      blob ? URL.createObjectURL(blob) : null,
-    );
-    setThumbnailUrls(urls);
-
     return () => {
-      urls.forEach((u) => { if (u) URL.revokeObjectURL(u); });
+      thumbnailUrls.forEach((u) => { if (u) URL.revokeObjectURL(u); });
     };
-  }, [state.captures]);
+  }, [thumbnailUrls]);
 
   // ── Retake logic ─────────────────────────────────────────────────────────
 
@@ -290,7 +288,7 @@ export default function CapturePage() {
 
       {/* Camera preview area (live feed stays un-stylised: Req 17.2) */}
       <div className="relative flex w-full flex-1 items-center justify-center overflow-hidden bg-[#111]">
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        { }
         <video
           ref={videoRef}
           autoPlay

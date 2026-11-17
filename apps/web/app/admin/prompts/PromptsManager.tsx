@@ -42,7 +42,6 @@ function formatDate(isoString: string): string {
 
 export default function PromptsManager({
   eventId,
-  eventName: _eventName,
   initialTemplates,
   initialActiveTemplateId,
 }: PromptsManagerProps) {

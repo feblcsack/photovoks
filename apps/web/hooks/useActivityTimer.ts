@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@/lib/supabase/client';
 
 const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes (Requirement 11.5)
 
@@ -31,16 +30,11 @@ export function useActivityTimer(): void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const signOut = useCallback(async () => {
-    // Clear the admin JWT cookie
-    document.cookie =
-      'admin_token=; Path=/; Max-Age=0; SameSite=Strict';
-
-    // Best-effort Supabase Auth sign-out
+    // Clear the httpOnly admin session cookie server-side
     try {
-      const supabase = createBrowserClient();
-      await supabase.auth.signOut();
+      await fetch('/api/admin/logout', { method: 'POST' });
     } catch {
-      // Non-fatal — proceed to redirect regardless
+      // Non-fatal — the cookie also expires on its own
     }
 
     console.info('[useActivityTimer] Admin session expired due to inactivity.');

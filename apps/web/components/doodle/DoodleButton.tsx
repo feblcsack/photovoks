@@ -20,8 +20,8 @@ export function DoodleButton({ variant = 'primary', size = 'lg', children, ...re
   const map = { primary: 'default', secondary: 'secondary', success: 'success' } as const;
   return (
     <Button 
-      variant={map[variant] as any} 
-      size={size as any} 
+      variant={map[variant] as React.ComponentProps<typeof Button>['variant']}
+      size={size as React.ComponentProps<typeof Button>['size']}
       {...rest}
     >
       {children}

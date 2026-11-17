@@ -10,10 +10,14 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/security';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { id: templateId } = await context.params;
 
   let body: Record<string, unknown> = {};

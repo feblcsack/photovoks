@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 import React from 'react';
 import { createServerClient } from '@/lib/supabase/server';
 import DashboardClient from './DashboardClient';
+import { isGeminiConfigured } from '@/lib/sketch/gemini';
 
 const HEARTBEAT_ONLINE_THRESHOLD_MS = 90_000;
 const TERMINAL_SESSION_STATUSES = ['completed', 'abandoned', 'failed'] as const;
@@ -80,6 +81,7 @@ export default async function DashboardPage() {
     jobCounts,
     activeSession,
     activeEvent,
+    aiEnabled: isGeminiConfigured(),
   };
 
   return (

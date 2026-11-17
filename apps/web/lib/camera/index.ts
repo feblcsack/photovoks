@@ -14,6 +14,9 @@ import type { SlotGeometry } from '@photovoks/shared-types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/** JPEG keeps uploads small (PNG at camera resolution can exceed 10 MB). */
+const CAPTURE_JPEG_QUALITY = 0.92;
+
 export interface CameraConstraints {
   /** Which camera to prefer. Defaults to 'user' (front-facing). */
   facingMode?: 'user' | 'environment';
@@ -105,7 +108,7 @@ export async function captureFrame(
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Failed to get 2D context from OffscreenCanvas.');
     ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, outW, outH);
-    return canvas.convertToBlob({ type: 'image/png' });
+    return canvas.convertToBlob({ type: 'image/jpeg', quality: CAPTURE_JPEG_QUALITY });
   }
 
   // Fallback: HTMLCanvasElement
@@ -122,7 +125,8 @@ export async function captureFrame(
         if (blob) resolve(blob);
         else reject(new Error('canvas.toBlob returned null.'));
       },
-      'image/png',
+      'image/jpeg',
+      CAPTURE_JPEG_QUALITY,
     );
   });
 }

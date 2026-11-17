@@ -1,36 +1,14 @@
 /**
- * POST /api/admin/logout
- *
- * Invalidates the admin session by expiring the admin_token cookie.
- * Also emits a structured log entry for the admin.logout lifecycle event.
- *
- * This route is intentionally minimal — it does not verify the JWT because
- * logging out should always succeed even with an invalid or already-expired
- * token (e.g. the auto-logout triggered by useActivityTimer).
- *
- * The client should call this before clearing the cookie locally.
- *
- * Requirements: 16.4
+ * POST /api/admin/logout — clears the httpOnly admin session cookie.
+ * Always succeeds (also used by the inactivity auto-logout).
  */
-
 import { NextResponse } from 'next/server';
 import { log } from '@/lib/logger';
+import { ADMIN_COOKIE, adminCookieOptions } from '@/lib/security';
 
 export async function POST(): Promise<NextResponse> {
-  log({
-    level: 'info',
-    event: 'admin.logout',
-    details: {},
-  });
-
-  // Clear the admin_token cookie by setting it with Max-Age=0
+  log({ level: 'info', event: 'admin.logout', details: {} });
   const response = NextResponse.json({ ok: true });
-  response.cookies.set('admin_token', '', {
-    path: '/',
-    maxAge: 0,
-    httpOnly: false, // must be readable by client to clear it
-    sameSite: 'strict',
-  });
-
+  response.cookies.set(ADMIN_COOKIE, '', adminCookieOptions(0));
   return response;
 }

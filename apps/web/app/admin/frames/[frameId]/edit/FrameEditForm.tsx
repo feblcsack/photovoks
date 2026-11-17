@@ -8,10 +8,7 @@
  */
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import SlotGeometryEditor, {
-  type PixelSlot,
-  pixelToFraction,
-} from '@/components/admin/SlotGeometryEditor';
+import SlotGeometryEditor, { type PixelSlot } from '@/components/admin/SlotGeometryEditor';
 import type { SlotGeometry } from '@photovoks/shared-types';
 
 // Convert fractional SlotGeometry to pixel PixelSlot for editor initialisation

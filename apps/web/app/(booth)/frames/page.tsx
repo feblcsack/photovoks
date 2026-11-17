@@ -192,7 +192,7 @@ export default function FramesPage() {
         <DoodleBackdrop density="calm" />
         <div className="relative z-10 flex flex-col items-center gap-6 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/samples/heartsCutoutStripSample.png" alt="" aria-hidden="true" className="h-40 w-auto -rotate-6 border-[2.5px] border-[var(--color-ink)] opacity-60 grayscale" />
+          <img src="/samples/sample-strip.svg" alt="" aria-hidden="true" className="h-40 w-auto -rotate-6 border-[2.5px] border-[var(--color-ink)] opacity-60 grayscale" />
           <p className="m-0 max-w-md text-xl leading-relaxed">{id.frames.noFrames}</p>
           <DoodleButton variant="secondary" onClick={handleReturnToIdle}>
             {id.frames.returnToIdle}

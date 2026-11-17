@@ -10,10 +10,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import type { SlotGeometry } from '@photovoks/shared-types';
 import { log } from '@/lib/logger';
+import { requireAdmin } from '@/lib/security';
 
 type RouteContext = { params: Promise<{ frameId: string }> };
 
 export async function GET(_request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { frameId } = await context.params;
   const supabase = createServerClient();
 
@@ -36,6 +40,9 @@ export async function GET(_request: NextRequest, context: RouteContext): Promise
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { frameId } = await context.params;
 
   let body: unknown;
@@ -78,6 +85,9 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { frameId } = await context.params;
   const supabase = createServerClient();
 

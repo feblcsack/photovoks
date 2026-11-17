@@ -3,18 +3,22 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev:web": "pnpm --filter @photovoks/web dev",
-    "build:web": "pnpm --filter @photovoks/web build",
-    "dev:print": "pnpm --filter @photovoks/print-station dev",
-    "build:print": "pnpm --filter @photovoks/print-station build",
+    "configure": "pnpm --filter @photovoks/web configure",
+    "dev": "pnpm --filter @photovoks/web dev",
+    "booth": "pnpm --filter @photovoks/web booth",
+    "print": "pnpm --filter @photovoks/web print",
+    "build": "pnpm --filter @photovoks/web build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "test": "pnpm --filter @photovoks/web test",
+    "db:sql": "pnpm --silent --filter @photovoks/web db:sql"
   },
   "devDependencies": {
     "typescript": "5.4.5"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=20.12.0",
     "pnpm": ">=9.0.0"
-  }
+  },
+  "packageManager": "pnpm@10.34.9"
 }

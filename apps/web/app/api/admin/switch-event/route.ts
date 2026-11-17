@@ -23,10 +23,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import { requireAdmin } from '@/lib/security';
 
 const TERMINAL_SESSION_STATUSES = ['completed', 'abandoned', 'failed'] as const;
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   // ── Parse body ────────────────────────────────────────────────────────────
   let body: unknown;
   try {

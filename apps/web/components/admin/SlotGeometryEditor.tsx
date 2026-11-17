@@ -112,7 +112,7 @@ export default function SlotGeometryEditor({
       ctx.textAlign = 'left';
       ctx.fillText(`${i + 1}`, px + 3, py + 11);
     });
-  }, [slots, thumbnailUrl]);
+  }, [slots, thumbnailUrl, SCALE_X, SCALE_Y]);
 
   // ── Load frame image for canvas ───────────────────────────────────────────
   useEffect(() => {

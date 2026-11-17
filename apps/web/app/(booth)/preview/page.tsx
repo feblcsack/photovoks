@@ -14,7 +14,7 @@
  * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBoothContext } from '../context/BoothContext';
 import { motion } from 'framer-motion';
@@ -49,29 +49,24 @@ export default function PreviewPage() {
   }, []);
 
   // ── Object URLs for the 3 captured blobs ─────────────────────────────────
-  const [photoUrls, setPhotoUrls] = useState<(string | null)[]>([null, null, null]);
+  const photoUrls = useMemo(
+    () => captures.map((blob) => (blob ? URL.createObjectURL(blob) : null)),
+    [captures],
+  );
 
   useEffect(() => {
-    const urls = captures.map((blob) =>
-      blob ? URL.createObjectURL(blob) : null,
-    );
-    setPhotoUrls(urls);
     return () => {
-      urls.forEach((u) => { if (u) URL.revokeObjectURL(u); });
+      photoUrls.forEach((u) => { if (u) URL.revokeObjectURL(u); });
     };
-  }, [captures]);
+  }, [photoUrls]);
 
   // ── Composited strip ──────────────────────────────────────────────────────
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stripComposing, setStripComposing] = useState(true);
   const [stripError, setStripError] = useState(false);
-  const [stripBlobUrl, setStripBlobUrl] = useState<string | null>(null);
 
   const compositeStrip = useCallback(async () => {
     if (!frame || captures.some((c) => c === null)) return;
-
-    setStripComposing(true);
-    setStripError(false);
 
     try {
       const supabase = createBrowserClient();
@@ -98,12 +93,6 @@ export default function PreviewPage() {
 
       // Store both blobs in context so composing/page.tsx can skip recomposition
       dispatch({ type: 'STORE_COMPOSED_STRIP', stripBlob, sheetBlob });
-
-      // Revoke previous blob URL if any
-      setStripBlobUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(stripBlob);
-      });
 
       // Draw to canvas for pixel-accurate preview
       const canvas = canvasRef.current;
@@ -134,14 +123,9 @@ export default function PreviewPage() {
   }, [frame, captures, state.event, dispatch]);
 
   useEffect(() => {
-    void compositeStrip();
-    return () => {
-      // Cleanup strip blob URL on unmount
-      setStripBlobUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-    };
+    // Deferred one tick: avoids a duplicate run under React Strict Mode.
+    const timer = setTimeout(() => void compositeStrip(), 0);
+    return () => clearTimeout(timer);
   }, [compositeStrip]);
 
   // ── Sketch photo selection (Req 5.3) ──────────────────────────────────────
