@@ -79,7 +79,21 @@ export interface BarcodeElement extends BaseElement {
   seed: string;
 }
 
+/** Session QR code — rendered with the guest's softfile link at capture time. */
+export interface QrElement extends BaseElement {
+  type: 'qr';
+  color: string;
+  background: string;
+  /** Quiet zone around the code, in modules (0–4). */
+  margin: number;
+  radius: number;
+  /** Optional caption under the code, e.g. "Scan softfile". */
+  caption?: string;
+  captionColor?: string;
+}
+
 export type FrameElement =
+  | QrElement
   | PhotoElement
   | TextElement
   | ImageElement
@@ -113,6 +127,8 @@ export interface FrameRecord {
   design: FrameDesign;
   thumbnailUrl: string | null;
   updatedAt?: string;
+  /** Event-specific session-QR override (only on event frame lists). */
+  qrPlacement?: QrPlacement;
 }
 
 export function slotCountOf(design: FrameDesign): number {
@@ -221,6 +237,22 @@ export function sanitizeDesign(input: unknown): FrameDesign | null {
       case 'line':
         out.push({ ...base, type: 'line', color: color(e.color, '#111111'), thickness: num(e.thickness, 4, 1, 200), dash: num(e.dash, 0, 0, 200) });
         break;
+      case 'qr': {
+        const side = Math.max(base.w, base.h);
+        out.push({
+          ...base,
+          w: side,
+          h: side,
+          type: 'qr',
+          color: color(e.color, '#111111'),
+          background: color(e.background, '#ffffff'),
+          margin: Math.round(num(e.margin, 2, 0, 4)),
+          radius: num(e.radius, 0, 0),
+          caption: typeof e.caption === 'string' ? e.caption.slice(0, 40) : undefined,
+          captionColor: color(e.captionColor, '#111111'),
+        });
+        break;
+      }
       case 'barcode':
         out.push({ ...base, type: 'barcode', color: color(e.color, '#111111'), seed: typeof e.seed === 'string' ? e.seed.slice(0, 40) : 'photovoks' });
         break;
@@ -239,4 +271,53 @@ export function sanitizeDesign(input: unknown): FrameDesign | null {
     },
     elements: out,
   };
+}
+
+// ── Session QR placement (per event) ─────────────────────────────────────────
+
+export type QrCorner = 'tl' | 'tr' | 'bl' | 'br';
+/** null/undefined = as designed in the Frame Builder. */
+export type QrPlacement = { mode: 'off' } | { mode: 'corner'; corner: QrCorner; size: number } | null;
+
+export function hasQr(design: FrameDesign): boolean {
+  return design.elements.some((e) => e.type === 'qr' && !e.hidden);
+}
+
+export function sanitizeQrPlacement(v: unknown): QrPlacement {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  if (o.mode === 'off') return { mode: 'off' };
+  if (o.mode === 'corner' && ['tl', 'tr', 'bl', 'br'].includes(o.corner as string)) {
+    const size = Number(o.size);
+    return { mode: 'corner', corner: o.corner as QrCorner, size: Number.isFinite(size) ? Math.min(0.5, Math.max(0.08, size)) : 0.32 };
+  }
+  return null;
+}
+
+/** Returns the design with the event's QR placement applied (pure). */
+export function applyQrPlacement(design: FrameDesign, placement: QrPlacement | undefined): FrameDesign {
+  if (!placement) return design;
+  const without = design.elements.filter((e) => e.type !== 'qr');
+  if (placement.mode === 'off') return { ...design, elements: without };
+  const side = Math.round(Math.min(design.width, design.height) * placement.size);
+  const pad = Math.round(Math.min(design.width, design.height) * 0.035);
+  const x = placement.corner.endsWith('l') ? pad : design.width - side - pad;
+  const y = placement.corner.startsWith('t') ? pad : design.height - side - pad;
+  const qr: QrElement = { id: 'event-qr', name: 'QR sesi', type: 'qr', x, y, w: side, h: side, color: '#111111', background: '#ffffff', margin: 2, radius: Math.round(side * 0.06) };
+  return { ...design, elements: [...without, qr] };
+}
+
+/** Photo slots (1-based) that a visible QR element covers. */
+export function qrOverlaps(design: FrameDesign): number[] {
+  const qrs = design.elements.filter((e) => e.type === 'qr' && !e.hidden);
+  const hit = new Set<number>();
+  for (const q of qrs) {
+    for (const p of design.elements) {
+      if (p.type !== 'photo' || p.hidden) continue;
+      const ix = Math.min(q.x + q.w, p.x + p.w) - Math.max(q.x, p.x);
+      const iy = Math.min(q.y + q.h, p.y + p.h) - Math.max(q.y, p.y);
+      if (ix > 4 && iy > 4) hit.add(p.slot + 1);
+    }
+  }
+  return Array.from(hit).sort((a, b) => a - b);
 }

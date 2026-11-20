@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Download, Printer, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
+import { Download, ImageIcon, PenLine, Printer, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
-import { AI_STYLES, CUSTOM_STYLE_ID } from '@/lib/ai/styles';
+import { AI_STYLES, aiStyleLabel, CUSTOM_STYLE_ID, GUEST_PROMPT_ID, GUEST_PROMPT_MAX } from '@/lib/ai/styles';
 import { api } from '@/lib/fetcher';
 import type { AiGenerationView, GuestSessionData } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
@@ -23,22 +23,24 @@ const FAIL_TEXT: Record<string, string> = {
   bad_request: 'Model menolak permintaan.',
 };
 
-function styleLabel(id: string) {
-  return id === CUSTOM_STYLE_ID ? 'Gaya Event' : AI_STYLES.find((s) => s.id === id)?.label ?? id;
-}
+const PROMPT_IDEAS = ['jadi astronot di luar angkasa', 'lukisan minyak gaya klasik', 'karakter game pixel art', 'poster film tahun 80-an'];
 
 export function AiStudio({ token, data, refresh, onPrint, dark = false, compact = false }: { token: string; data: GuestSessionData; refresh: () => Promise<unknown>; onPrint?: (gen: AiGenerationView) => void; dark?: boolean; compact?: boolean }) {
   const toast = useToast();
   const { session, event, aiConfigured } = data;
   const styles = useMemo(() => {
     const list = AI_STYLES.filter((s) => event.aiStyles.includes(s.id)).map((s) => ({ id: s.id, label: s.label, description: s.description, swatch: s.swatch }));
-    if (event.aiStyles.includes(CUSTOM_STYLE_ID) && event.hasCustomStyle) list.unshift({ id: CUSTOM_STYLE_ID, label: 'Gaya Event', description: 'Gaya khusus dari penyelenggara', swatch: ['#1A2C8F', '#FFD43B'] });
+    if (event.aiStyles.includes(CUSTOM_STYLE_ID) && event.hasCustomStyle) list.unshift({ id: CUSTOM_STYLE_ID, label: 'Gaya event', description: 'Gaya khusus dari penyelenggara', swatch: ['#1A2C8F', '#FFD43B'] });
+    if (event.aiGuestPrompt) list.push({ id: GUEST_PROMPT_ID, label: 'Tulis sendiri', description: 'Ketik ide kamu', swatch: ['#FFFFFF', '#1B1B1F'] });
     return list;
   }, [event]);
   const [styleId, setStyleId] = useState(styles[0]?.id ?? '');
   const [shot, setShot] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [active, setActive] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState('');
+  const isPrompt = styleId === GUEST_PROMPT_ID;
+  const promptOk = !isPrompt || prompt.trim().length >= 3;
 
   const used = session.ai.filter((a) => a.status !== 'failed' && a.status !== 'failed_safety' && !a.id.startsWith('legacy')).length;
   const remaining = Math.max(0, event.aiPerSession - used);
@@ -53,7 +55,7 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
   async function generate() {
     setSubmitting(true);
     try {
-      const res = await api<{ id: string }>(`/api/s/${token}/ai`, { method: 'POST', json: { styleId, shotIndex: shot } });
+      const res = await api<{ id: string }>(`/api/s/${token}/ai`, { method: 'POST', json: { styleId, shotIndex: shot, ...(isPrompt ? { prompt: prompt.trim() } : {}) } });
       setActive(res.id);
       await refresh();
     } catch (e) {
@@ -106,7 +108,13 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
                 styleId === s.id ? 'border-ai bg-ai-soft text-ink' : dark ? 'border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]' : 'border-line bg-surface hover:border-line-strong',
               )}
             >
-              <span className="size-8 shrink-0 rounded-full" style={{ background: `linear-gradient(135deg, ${s.swatch[0]} 50%, ${s.swatch[1]} 50%)` }} />
+              {s.id === GUEST_PROMPT_ID ? (
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-current/20"><PenLine className="size-4" /></span>
+              ) : (
+                <span className="relative size-8 shrink-0 overflow-hidden rounded-full" style={{ background: s.swatch[0] }}>
+                  <span className="absolute inset-y-0 right-0 w-1/2" style={{ background: s.swatch[1] }} />
+                </span>
+              )}
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-bold">{s.label}</span>
                 <span className={cn('block truncate text-[11px]', styleId === s.id ? 'text-muted' : muted)}>{s.description}</span>
@@ -114,9 +122,27 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
             </button>
           ))}
         </div>
+        {isPrompt ? (
+          <div className="mt-3">
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value.slice(0, GUEST_PROMPT_MAX))}
+              rows={3}
+              placeholder="Contoh: kami jadi tokoh kartun di pantai saat senja"
+              aria-label="Tulis permintaan gaya"
+              className={cn('w-full resize-none rounded-[12px] border px-3 py-2.5 text-sm outline-none focus:ring-3', dark ? 'border-white/15 bg-white/[0.04] text-white placeholder:text-white/35 focus:ring-white/10' : 'border-line-strong bg-surface placeholder:text-faint focus:border-brand focus:ring-brand/15')}
+            />
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {PROMPT_IDEAS.map((idea) => (
+                <button key={idea} type="button" onClick={() => setPrompt(idea)} className={cn('h-7 rounded-full px-2.5 text-[12px]', dark ? 'bg-white/[0.08] text-white/80' : 'bg-ink/[0.05] text-ink-2 hover:bg-ink/10')}>{idea}</button>
+              ))}
+              <span className={cn('ml-auto text-[11px] tabular-nums', muted)}>{prompt.length}/{GUEST_PROMPT_MAX}</span>
+            </div>
+          </div>
+        ) : null}
         <div className="mt-4 flex items-center gap-3">
-          <Button variant="ai" size="lg" onClick={generate} loading={submitting} disabled={!styleId || remaining === 0}>
-            <Wand2 /> Buat dengan AI
+          <Button variant="ai" size="lg" onClick={generate} loading={submitting} disabled={!styleId || remaining === 0 || !promptOk}>
+            Buat gambar
           </Button>
           <span className={cn('text-xs', muted)}>{remaining > 0 ? `Sisa ${remaining} kali` : 'Kuota AI sesi ini habis'}</span>
         </div>
@@ -133,14 +159,13 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={current.url} alt="Hasil AI" className="size-full object-cover" />
                   <Badge tone="dark" className="absolute top-2 left-2">Asli</Badge>
-                  <Badge tone="ai" className="absolute top-2 left-[calc(50%+8px)]">{styleLabel(current.styleId)}</Badge>
+                  <Badge tone="ai" className="absolute top-2 left-[calc(50%+8px)]">{aiStyleLabel(current.styleId)}</Badge>
                 </div>
               ) : current.status === 'pending' || current.status === 'processing' ? (
                 <div className="flex flex-col items-center gap-3 px-6 text-center">
-                  <Sparkles className="size-8 animate-pulse text-ai" />
-                  <p className="text-sm font-semibold">AI sedang menggambar…</p>
+                  <Spinner className="size-7 text-ai" />
+                  <p className="text-sm font-semibold">Sedang membuat gambar…</p>
                   <p className={cn('text-xs', muted)}>Biasanya 10–40 detik. Halaman ini akan memperbarui otomatis.</p>
-                  <Spinner className="size-5 text-ai" />
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 px-6 text-center">
@@ -184,8 +209,8 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
           </div>
         ) : (
           <div className={cn('flex aspect-[3/4] flex-col items-center justify-center gap-2 rounded-[14px] border border-dashed px-6 text-center', dark ? 'border-white/15 text-white/50' : 'border-line-strong text-muted')}>
-            <Sparkles className="size-7" />
-            <p className="text-sm">Hasil AI akan muncul di sini. Bandingkan dengan foto asli, lalu unduh atau cetak.</p>
+            <ImageIcon className="size-7" />
+            <p className="text-sm">Hasil akan muncul di sini. Bandingkan dengan foto asli, lalu unduh atau cetak.</p>
           </div>
         )}
       </div>

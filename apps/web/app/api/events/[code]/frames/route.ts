@@ -1,7 +1,8 @@
 /**
  * GET /api/events/[code]/frames → { assigned: FrameRecord[], library: FrameRecord[] }
- * PUT /api/events/[code]/frames { frameIds: string[] } → replaces the event's
- *     frame list (order = booth order).
+ * PUT /api/events/[code]/frames { frameIds: string[], qr?: Record<frameId, QrPlacement> }
+ *     → replaces the event's frame list (order = booth order) and the
+ *       per-frame session-QR placement.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
@@ -9,6 +10,7 @@ import { requireEventAccess } from '@/lib/access';
 import { FRAME_COLUMNS, framesForEvent, hydrateFrames } from '@/lib/frames/server';
 import { readJson, jsonError } from '@/lib/http';
 import { isUuid } from '@/lib/security';
+import { sanitizeQrPlacement } from '@/lib/frames/types';
 
 type Ctx = { params: Promise<{ code: string }> };
 
@@ -33,6 +35,7 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
   const ids = body?.frameIds;
   if (!Array.isArray(ids) || ids.length > 100 || !ids.every(isUuid)) return jsonError('frameIds tidak valid', 400);
   const unique = Array.from(new Set(ids as string[]));
+  const qr = (body?.qr && typeof body.qr === "object" ? body.qr : {}) as Record<string, unknown>;
 
   const supabase = createServerClient();
   if (unique.length) {
@@ -44,7 +47,7 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
   if (unique.length) {
     const { error } = await supabase
       .from('event_frames')
-      .insert(unique.map((frame_id, i) => ({ event_id: access.event.id, frame_id, sort_order: i })));
+      .insert(unique.map((frame_id, i) => ({ event_id: access.event.id, frame_id, sort_order: i, qr: sanitizeQrPlacement(qr[frame_id]) })));
     if (error) return jsonError('Gagal menyimpan frame', 500);
   }
   return NextResponse.json({ ok: true, count: unique.length });

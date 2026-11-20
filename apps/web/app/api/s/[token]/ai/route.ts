@@ -1,5 +1,6 @@
 /**
- * POST /api/s/[token]/ai  { styleId, shotIndex, retryId? }
+ * POST /api/s/[token]/ai  { styleId, shotIndex, prompt?, retryId? }
+ *   styleId 'prompt' = the guest's own text (event.aiGuestPrompt).
  *
  * Starts an AI generation for one photo of the session. Work runs in the
  * background (`after()`); the client polls GET /api/s/[token].
@@ -11,7 +12,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { resolveGuest } from '@/lib/guest-guard';
 import { readJson, jsonError } from '@/lib/http';
 import { isUuid } from '@/lib/security';
-import { CUSTOM_STYLE_ID, styleById } from '@/lib/ai/styles';
+import { buildGuestPrompt, cleanGuestPrompt, CUSTOM_STYLE_ID, GUEST_PROMPT_ID, styleById } from '@/lib/ai/styles';
 import { getProvider, isAiConfigured } from '@/lib/ai/provider';
 import { processAiGeneration } from '@/lib/ai/process';
 import { log } from '@/lib/logger';
@@ -60,10 +61,15 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   const styleId = typeof body.styleId === 'string' ? body.styleId : '';
   const shotIndex = Number(body.shotIndex ?? 0);
   if (!Number.isInteger(shotIndex) || shotIndex < 0 || shotIndex >= session.shot_count) return jsonError('Foto tidak valid', 400);
-  if (!event.aiStyles.includes(styleId)) return jsonError('Gaya tidak tersedia', 400);
+  const isGuestPrompt = styleId === GUEST_PROMPT_ID;
+  if (isGuestPrompt ? !event.aiGuestPrompt : !event.aiStyles.includes(styleId)) return jsonError('Gaya tidak tersedia', 400);
 
   let prompt: string | null = null;
-  if (styleId === CUSTOM_STYLE_ID) {
+  if (isGuestPrompt) {
+    const text = cleanGuestPrompt(body.prompt);
+    if (!text) return jsonError('Tulis permintaan 3–300 karakter', 400);
+    prompt = buildGuestPrompt(text);
+  } else if (styleId === CUSTOM_STYLE_ID) {
     if (event.activePromptTemplateId) {
       const { data: tpl } = await supabase.from('prompt_templates').select('content').eq('id', event.activePromptTemplateId).maybeSingle();
       prompt = (tpl?.content as string) ?? null;
@@ -75,9 +81,9 @@ export async function POST(request: NextRequest, ctx: Ctx) {
 
   const { data: existing } = await supabase
     .from('ai_generations')
-    .select('id, style_id, shot_index, status')
+    .select('id, style_id, shot_index, status, prompt')
     .eq('session_id', session.id);
-  const same = (existing ?? []).find((g) => g.style_id === styleId && g.shot_index === shotIndex && g.status !== 'failed' && g.status !== 'failed_safety');
+  const same = (existing ?? []).find((g) => g.style_id === styleId && g.shot_index === shotIndex && g.prompt === prompt && g.status !== 'failed' && g.status !== 'failed_safety');
   if (same) return NextResponse.json({ id: same.id, status: same.status });
   const used = (existing ?? []).filter((g) => g.status !== 'failed' && g.status !== 'failed_safety').length;
   if (guest.role === null && used >= event.aiPerSession) {

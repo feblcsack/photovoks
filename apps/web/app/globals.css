@@ -30,8 +30,9 @@
   --color-warn-soft: #FEF3E2;
   --color-danger: #C62828;
   --color-danger-soft: #FDECEC;
-  --color-ai: #7C3AED;
-  --color-ai-soft: #F3EEFE;
+  /* AI features use the neutral ink accent — no special 'AI purple'. */
+  --color-ai: #0E1424;
+  --color-ai-soft: #EEF0F4;
 
   /* Booth */
   --color-paper: #FBF8F1;
@@ -76,6 +77,9 @@ body {
   background-image: radial-gradient(rgb(14 20 36 / 0.07) 1px, transparent 1px);
   background-size: 22px 22px;
 }
+
+/* Icons: one consistent, light stroke across the app */
+svg.lucide { stroke-width: 1.75; }
 
 /* Hide scrollbars on horizontal chip rails but keep them scrollable */
 .no-scrollbar { scrollbar-width: none; }

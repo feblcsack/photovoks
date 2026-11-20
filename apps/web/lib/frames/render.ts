@@ -7,7 +7,8 @@
  * printed result exactly.
  */
 import { canvasFont, ensureFonts } from './fonts';
-import type { FrameDesign, FrameElement, PhotoElement, TextElement } from './types';
+import { encode as encodeQr } from 'uqr';
+import type { FrameDesign, FrameElement, PhotoElement, QrElement, TextElement } from './types';
 import { collectAssets } from './types';
 
 export type Drawable = ImageBitmap | HTMLImageElement | HTMLCanvasElement | OffscreenCanvas | HTMLVideoElement;
@@ -24,6 +25,8 @@ export interface RenderOptions {
   tokens?: Record<string, string>;
   /** Output scale (1 = design pixels). */
   scale?: number;
+  /** Real session link for QR elements (sample code when absent). */
+  qrValue?: string;
 }
 
 const PLACEHOLDER_COLORS = ['#C9D6FF', '#C8EBD9', '#FFE3B8', '#F8CFE0', '#D9CCF7', '#C7ECF2', '#F3E3A6', '#E2D3C5'];
@@ -181,6 +184,61 @@ function drawPhoto(ctx: Ctx, el: PhotoElement, opts: RenderOptions) {
   }
 }
 
+/** Shown wherever no real session link is known yet (editor, thumbnails, previews). */
+export const SAMPLE_QR_VALUE = 'https://photovoks.app/s/contoh-qr-sesi';
+
+const qrCache = new Map<string, boolean[][]>();
+function qrMatrix(value: string): boolean[][] {
+  let m = qrCache.get(value);
+  if (!m) {
+    m = encodeQr(value, { ecc: 'M', border: 0 }).data;
+    if (qrCache.size > 20) qrCache.clear();
+    qrCache.set(value, m);
+  }
+  return m;
+}
+
+function drawQr(ctx: Ctx, el: QrElement, opts: RenderOptions) {
+  const value = opts.qrValue || SAMPLE_QR_VALUE;
+  const matrix = qrMatrix(value);
+  const n = matrix.length + el.margin * 2;
+  const side = Math.min(el.w, el.h);
+  // Caption lives inside the square, under the code.
+  const captionH = el.caption ? Math.round(side * 0.16) : 0;
+  const codeSide = side - captionH;
+  const cx = el.x + (side - codeSide) / 2;
+  if (el.background !== 'transparent') {
+    ctx.fillStyle = el.background;
+    roundedRect(ctx, el.x, el.y, side, side, el.radius);
+    ctx.fill();
+  }
+  const unit = codeSide / n;
+  ctx.fillStyle = el.color;
+  for (let r = 0; r < matrix.length; r++) {
+    for (let c = 0; c < matrix.length; c++) {
+      if (!matrix[r][c]) continue;
+      // +0.5px overlap avoids hairline seams between modules.
+      ctx.fillRect(cx + (c + el.margin) * unit, el.y + (r + el.margin) * unit, unit + 0.5, unit + 0.5);
+    }
+  }
+  if (el.caption) {
+    ctx.fillStyle = el.captionColor ?? el.color;
+    ctx.font = canvasFont('sans', 700, Math.max(8, captionH * 0.5));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(el.caption, el.x + side / 2, el.y + codeSide + captionH * 0.42, side * 0.94);
+  }
+  if (!opts.qrValue && opts.placeholders) {
+    // Editor hint: dashed outline so owners see the reserved area.
+    ctx.save();
+    ctx.setLineDash([Math.max(4, side * 0.04), Math.max(3, side * 0.03)]);
+    ctx.strokeStyle = 'rgba(37,99,235,0.85)';
+    ctx.lineWidth = Math.max(2, side * 0.012);
+    ctx.strokeRect(el.x, el.y, side, side);
+    ctx.restore();
+  }
+}
+
 export function drawElement(ctx: Ctx, el: FrameElement, opts: RenderOptions) {
   if (el.hidden) return;
   ctx.save();
@@ -235,6 +293,9 @@ export function drawElement(ctx: Ctx, el: FrameElement, opts: RenderOptions) {
       ctx.stroke();
       break;
     }
+    case 'qr':
+      drawQr(ctx, el, opts);
+      break;
     case 'barcode':
       drawBarcode(ctx, el.x, el.y, el.w, el.h, el.color, el.seed);
       break;

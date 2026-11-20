@@ -6,7 +6,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Camera, Expand, LayoutGrid, Lock, LogOut, RefreshCcw, Settings2, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Camera, Expand, LayoutGrid, Lock, LogOut, RefreshCcw, Settings2, Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
@@ -24,6 +24,7 @@ import { CaptureStage, type Shot } from './CaptureStage';
 import { ReviewStage } from './ReviewStage';
 import { FinishStage } from './FinishStage';
 import { OfflineIndicator } from './OfflineIndicator';
+import { AttractView } from './AttractView';
 
 interface BoothConfig {
   event: EventConfig;
@@ -31,6 +32,7 @@ interface BoothConfig {
   frames: FrameRecord[];
   aiConfigured: boolean;
   printStationOnline: boolean;
+  media: { attractUrl: string | null };
 }
 
 type Step = 'attract' | 'frames' | 'capture' | 'review' | 'finish';
@@ -52,6 +54,17 @@ export function BoothApp({ code }: { code: string }) {
   const [mirrorOverride, setMirrorOverride] = useState<boolean | null>(null);
   const [sessionKey, setSessionKey] = useState(0);
   const camera = useCamera();
+  // Keep the first signed URL per media path so the home-screen video stays
+  // cached between guests (a new URL would re-download it every reset).
+  const [media, setMedia] = useState<{ path: string | null; url: string | null }>({ path: null, url: null });
+  const [mediaFresh, setMediaFresh] = useState(false);
+  const latestPath = config?.event.attractMediaPath ?? null;
+  const latestUrl = config?.media?.attractUrl ?? null;
+  if (config && (media.path !== latestPath || (mediaFresh && media.url !== latestUrl))) {
+    setMedia({ path: latestPath, url: latestUrl });
+    if (mediaFresh) setMediaFresh(false);
+  }
+  const attractUrl = media.url;
 
   const load = useCallback(async () => {
     try {
@@ -151,7 +164,15 @@ export function BoothApp({ code }: { code: string }) {
     <>
       <OfflineIndicator />
       {step === 'attract' ? (
-        <AttractScreen event={event} frames={config.frames} tokens={tokens} onStart={() => (config.frames.length === 1 ? chooseFrame(config.frames[0]) : setStep('frames'))} onHoldSettings={() => setOperatorOpen(true)} />
+        <AttractView
+          event={event}
+          frames={config.frames}
+          tokens={tokens}
+          mediaUrl={attractUrl}
+          onMediaError={() => setMediaFresh(true)}
+          onStart={() => (config.frames.length === 1 ? chooseFrame(config.frames[0]) : setStep('frames'))}
+          corner={<HoldButton onHold={() => setOperatorOpen(true)} />}
+        />
       ) : null}
 
       {step === 'frames' ? <FramePicker frames={config.frames} tokens={tokens} onPick={chooseFrame} onBack={reset} /> : null}
@@ -237,95 +258,95 @@ export function BoothApp({ code }: { code: string }) {
   );
 }
 
-// ── Attract ──────────────────────────────────────────────────────────────────
+const HOLD_MS = 1000;
 
-function AttractScreen({ event, frames, tokens, onStart, onHoldSettings }: { event: EventConfig; frames: FrameRecord[]; tokens: Record<string, string>; onStart: () => void; onHoldSettings: () => void }) {
-  const [showcase, setShowcase] = useState(0);
-  useEffect(() => {
-    if (frames.length < 2) return;
-    const t = setInterval(() => setShowcase((i) => (i + 1) % frames.length), 3500);
-    return () => clearInterval(t);
-  }, [frames.length]);
-  const f = frames[showcase];
-  const steps = ['Pilih frame', 'Bergaya', event.printMode === 'off' ? 'Simpan foto' : 'Cetak', 'Scan softfile'];
-
-  return (
-    <div className="kiosk booth-paper fixed inset-0 flex flex-col overflow-hidden" onClick={frames.length ? onStart : undefined}>
-      <div className="flex items-start justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] sm:px-8">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-ink px-3 py-1 text-[11px] font-bold tracking-[0.18em] text-white uppercase">{event.code}</span>
-          {event.status !== 'active' ? <span className="rounded-full bg-warn-soft px-3 py-1 text-[11px] font-bold text-warn">Mode uji · event belum aktif</span> : null}
-        </div>
-        <HoldButton onHold={onHoldSettings} />
-      </div>
-
-      <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 items-center gap-8 px-6 py-6 sm:px-10 md:grid-cols-[1.1fr_1fr]">
-        <div className="flex flex-col items-center text-center md:items-start md:text-left">
-          <h1 className="text-[clamp(40px,7vw,84px)] leading-[0.95] font-extrabold tracking-tight text-ink">
-            {event.welcomeTitle || (
-              <>
-                Foto sekarang, <span className="rounded-[10px] bg-sun px-2">cetak</span> kemudian.
-              </>
-            )}
-          </h1>
-          <p className="mt-4 max-w-md text-lg text-ink-2">{event.welcomeSubtitle || event.name}</p>
-          <ol className="mt-8 w-full max-w-md border-y-2 border-dashed border-ink/25 py-3 font-mono">
-            {steps.map((s, i) => (
-              <li key={s} className="flex items-center gap-4 py-1.5 text-[17px] tracking-wide uppercase">
-                <span className="text-ink/40">{String(i + 1).padStart(2, '0')}</span>
-                <span className="font-bold">{s}</span>
-                <span className="flex-1 border-b-2 border-dotted border-ink/20" />
-              </li>
-            ))}
-          </ol>
-          <Button variant="sun" size="xl" className="mt-8 h-20 min-w-72 text-2xl" onClick={onStart} disabled={!frames.length}>
-            <Camera className="!size-7" /> Mulai
-          </Button>
-          {!frames.length ? <p className="mt-3 text-sm text-danger">Belum ada frame aktif untuk event ini. Tambahkan di portal.</p> : <p className="mt-3 text-sm text-muted">Ketuk di mana saja untuk mulai</p>}
-        </div>
-        <div className="hidden h-full min-h-0 items-center justify-center md:flex">
-          {f ? (
-            <div key={f.id} className="flex max-h-full animate-pop items-center justify-center" style={{ height: 'min(70vh, 640px)' }}>
-              <FrameCanvas design={f.design} tokens={tokens} maxRenderWidth={520} className="h-full w-auto rotate-[2deg] rounded-[4px] shadow-[0_30px_60px_-20px_rgba(14,20,36,0.45)]" style={{ maxHeight: '100%' }} />
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Press-and-hold (1.2 s) to open operator settings — guests won't trigger it. */
+/**
+ * Press-and-hold to open operator settings — guests won't trigger it by
+ * accident. A short tap shows a hint; while held a ring fills up.
+ */
 function HoldButton({ onHold }: { onHold: () => void }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fired = useRef(false);
   const [holding, setHolding] = useState(false);
-  const start = (e: React.PointerEvent) => {
+  const [hint, setHint] = useState(false);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+    },
+    [],
+  );
+
+  const start = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Keep receiving pointerup even if the finger drifts off the button.
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    fired.current = false;
+    setHint(false);
     setHolding(true);
     timer.current = setTimeout(() => {
+      fired.current = true;
       setHolding(false);
       onHold();
-    }, 1200);
+    }, HOLD_MS);
   };
-  const end = (e?: React.SyntheticEvent) => {
-    e?.stopPropagation();
-    setHolding(false);
+  const end = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
     if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    if (holding && !fired.current) {
+      setHint(true);
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+      hintTimer.current = setTimeout(() => setHint(false), 2200);
+    }
+    setHolding(false);
   };
+
   return (
-    <button
-      type="button"
-      onPointerDown={start}
-      onPointerUp={end}
-      onPointerLeave={end}
-      onPointerCancel={end}
-      onClick={(e) => e.stopPropagation()}
-      aria-label="Pengaturan operator (tahan)"
-      className={cn('relative flex size-11 items-center justify-center rounded-full bg-white/80 text-ink/50 shadow-[0_1px_0_rgba(14,20,36,0.08)] transition', holding && 'scale-110 text-ink')}
-    >
-      <Settings2 className="size-5" />
-      {holding ? <span className="absolute inset-0 animate-ping rounded-full border-2 border-ink/40" /> : null}
-    </button>
+    <div className="relative flex items-center">
+      <span
+        aria-hidden={!hint}
+        className={cn(
+          'pointer-events-none absolute top-1/2 right-[calc(100%+8px)] -translate-y-1/2 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white transition-opacity',
+          hint ? 'opacity-100' : 'opacity-0',
+        )}
+      >
+        Tahan 1 detik untuk pengaturan
+      </span>
+      <button
+        type="button"
+        onPointerDown={start}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onClick={(e) => e.stopPropagation()}
+        onContextMenu={(e) => e.preventDefault()}
+        aria-label="Pengaturan operator (tahan 1 detik)"
+        className={cn(
+          'relative flex size-11 items-center justify-center rounded-full bg-white/80 text-ink/50 shadow-[0_1px_0_rgba(14,20,36,0.08)] transition',
+          holding && 'scale-110 text-ink',
+        )}
+      >
+        <Settings2 className="size-5" />
+        <svg viewBox="0 0 44 44" className="pointer-events-none absolute inset-0 size-full -rotate-90" aria-hidden>
+          <circle
+            cx="22"
+            cy="22"
+            r="20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray="100"
+            strokeDashoffset={holding ? 0 : 100}
+            style={{ transition: holding ? `stroke-dashoffset ${HOLD_MS}ms linear` : 'none', opacity: holding ? 1 : 0 }}
+          />
+        </svg>
+      </button>
+    </div>
   );
 }
 
@@ -410,7 +431,7 @@ function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirr
             <Button variant="secondary" className="w-full"><LayoutGrid /> Portal event</Button>
           </a>
           <a href={`/event/${event.code}/print`} target="_blank" rel="noreferrer" className="contents">
-            <Button variant="secondary" className="w-full"><Sparkles /> Print station</Button>
+            <Button variant="secondary" className="w-full"><Printer /> Print station</Button>
           </a>
         </div>
         {!canFullscreen ? <p className="text-xs leading-relaxed text-muted">iPad: Share › <b>Add to Home Screen</b> untuk mode layar penuh, lalu aktifkan Guided Access agar tamu tidak keluar dari booth.</p> : null}

@@ -5,7 +5,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SlotGeometry } from '@photovoks/shared-types';
 import type { FrameDesign, FrameRecord } from './types';
-import { collectAssets, sanitizeDesign, slotCountOf } from './types';
+import { applyQrPlacement, collectAssets, sanitizeDesign, sanitizeQrPlacement, slotCountOf } from './types';
 
 export const FRAME_COLUMNS =
   'id, name, category, is_active, width, height, slot_count, design, storage_path, slot_geometry, thumbnail_path, sort_order, updated_at';
@@ -86,13 +86,17 @@ export async function hydrateFrames(
   });
 }
 
-/** Active frames assigned to an event, in event order. */
-export async function framesForEvent(supabase: SupabaseClient, eventId: string, onlyActive = true): Promise<FrameRecord[]> {
+/**
+ * Frames assigned to an event, in event order, with the event's session-QR
+ * placement attached. `applyQr` bakes the placement into the design (booth).
+ */
+export async function framesForEvent(supabase: SupabaseClient, eventId: string, onlyActive = true, applyQr = false): Promise<FrameRecord[]> {
   const { data: links } = await supabase
     .from('event_frames')
-    .select('frame_id, sort_order')
+    .select('frame_id, sort_order, qr')
     .eq('event_id', eventId)
     .order('sort_order', { ascending: true });
+  const placements = new Map((links ?? []).map((l) => [l.frame_id as string, sanitizeQrPlacement(l.qr)]));
   const ids = (links ?? []).map((l) => l.frame_id as string);
   if (!ids.length) return [];
   let q = supabase.from('frames').select(FRAME_COLUMNS).in('id', ids);
@@ -100,5 +104,12 @@ export async function framesForEvent(supabase: SupabaseClient, eventId: string, 
   const { data: rows } = await q;
   const order = new Map(ids.map((id, i) => [id, i]));
   const sorted = (rows ?? []).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-  return hydrateFrames(supabase, sorted);
+  const frames = await hydrateFrames(supabase, sorted);
+  return frames.map((f) => {
+    const qrPlacement = placements.get(f.id) ?? null;
+    // Stored thumbnails don't include the event's QR override → render live instead.
+    return applyQr && qrPlacement
+      ? { ...f, qrPlacement, design: applyQrPlacement(f.design, qrPlacement), thumbnailUrl: null }
+      : { ...f, qrPlacement };
+  });
 }

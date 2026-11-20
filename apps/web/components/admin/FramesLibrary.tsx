@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/ui/toast';
-import { FrameThumb } from '@/components/event/EventFrames';
+import { FrameThumb } from '@/components/frames/FrameThumb';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import { api } from '@/lib/fetcher';
 import { FRAME_TEMPLATES } from '@/lib/frames/presets';

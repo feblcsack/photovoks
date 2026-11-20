@@ -14,7 +14,7 @@ export const buttonVariants = cva(
         soft: 'bg-brand-soft text-brand-ink hover:bg-[#E2E7FD]',
         danger: 'bg-danger text-white hover:bg-[#A82020]',
         'danger-ghost': 'text-danger hover:bg-danger-soft',
-        ai: 'bg-ai text-white hover:bg-[#6A2BD9]',
+        ai: 'bg-ink text-white hover:bg-ink-2',
         ink: 'bg-ink text-white hover:bg-[#232B40]',
         sun: 'bg-sun text-ink shadow-[0_3px_0_#C99A00] hover:bg-[#FFDB5C] active:shadow-none active:translate-y-[3px]',
       },

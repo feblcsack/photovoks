@@ -15,6 +15,9 @@ const LIMITS: Array<{ test: (p: string) => boolean; max: number; windowMs: numbe
   { test: (p) => /^\/api\/events\/[^/]+\/unlock$/.test(p), max: 10, windowMs: 60_000 },
   { test: (p) => /^\/api\/s\/[^/]+\/ai$/.test(p), max: 10, windowMs: 60_000 },
   { test: (p) => /^\/api\/s\/[^/]+\/print$/.test(p), max: 20, windowMs: 60_000 },
+  { test: (p) => /^\/api\/s\/[^/]+\/edit$/.test(p), max: 20, windowMs: 60_000 },
+  // Guestbook: posting a message / reserving a photo upload.
+  { test: (p) => /^\/api\/m\/[^/]+(\/upload)?$/.test(p), max: 8, windowMs: 60_000 },
 ];
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {

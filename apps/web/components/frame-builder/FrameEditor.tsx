@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Barcode,
+  QrCode,
   Circle,
   Eye,
   EyeOff,
@@ -32,7 +33,7 @@ import { api, uploadToSignedUrl } from '@/lib/fetcher';
 import { canvasToBlob, createCanvas, defaultTokens, loadBitmap, prepareDesign, renderDesign, type Drawable } from '@/lib/frames/render';
 import { FRAME_TEMPLATES } from '@/lib/frames/presets';
 import type { AssetRef, FrameDesign, FrameElement, ImageElement } from '@/lib/frames/types';
-import { aspectOfSlot, collectAssets, newId, slotCountOf } from '@/lib/frames/types';
+import { aspectOfSlot, collectAssets, newId, qrOverlaps, slotCountOf } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
 import { EditorStage } from './EditorStage';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -46,6 +47,7 @@ const TYPE_ICON: Record<FrameElement['type'], React.ComponentType<{ className?: 
   ellipse: Circle,
   line: Minus,
   barcode: Barcode,
+  qr: QrCode,
 };
 
 export interface FrameEditorProps {
@@ -78,6 +80,7 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
 
   const dirty = editor.dirty || name !== savedName || active !== savedActive;
   const slotCount = slotCountOf(design);
+  const qrCovers = useMemo(() => qrOverlaps(design), [design]);
   const zoom = zoomMode === 'fit' ? fitZoom : zoomMode;
 
   // Fit-to-screen zoom.
@@ -141,6 +144,12 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
         case 'line':
           el = { ...base, type: 'line', h: 12, color: '#111111', thickness: 3, dash: 0 };
           break;
+        case 'qr': {
+          const side = Math.min(Math.round(Math.min(W, H) * 0.5), Math.max(240, Math.round(Math.min(W, H) * 0.22))); // ≥ 2 cm at 300 DPI
+          const pad = Math.round(Math.min(W, H) * 0.04);
+          el = { ...base, type: 'qr', name: 'QR sesi', x: W - side - pad, y: H - side - pad, w: side, h: side, color: '#111111', background: '#ffffff', margin: 2, radius: Math.round(side * 0.06) };
+          break;
+        }
         case 'barcode':
           el = { ...base, type: 'barcode', w: Math.round(W * 0.45), h: Math.round(W * 0.15), color: '#111111', seed: 'photovoks' };
           break;
@@ -276,6 +285,7 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
     { type: 'rect', label: 'Kotak' },
     { type: 'ellipse', label: 'Lingkaran' },
     { type: 'line', label: 'Garis' },
+    { type: 'qr', label: 'QR sesi' },
     { type: 'barcode', label: 'Barcode' },
   ];
 
@@ -283,7 +293,7 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
     <div className="fixed inset-0 z-40 flex flex-col bg-canvas lg:left-[248px]">
       {/* Top bar */}
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
-        <Link href={eventCode ? `/event/${eventCode}/frames` : '/admin/frames'} className="flex size-9 items-center justify-center rounded-ctl text-ink-2 hover:bg-ink/5" aria-label="Kembali"><ArrowLeft className="size-5" /></Link>
+        <Link href={eventCode ? `/event/${eventCode}/booth#frame` : '/admin/frames'} className="flex size-9 items-center justify-center rounded-ctl text-ink-2 hover:bg-ink/5" aria-label="Kembali"><ArrowLeft className="size-5" /></Link>
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder="Nama frame" className="h-9 w-40 min-w-0 rounded-ctl border border-transparent px-2 text-[15px] font-bold hover:border-line focus:border-brand focus:outline-none sm:w-64" aria-label="Nama frame" />
         <span className="hidden text-xs text-muted md:inline">{design.width}×{design.height} · {slotCount} slot</span>
         <div className="mx-auto flex items-center gap-1">
@@ -348,6 +358,11 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
         </aside>
 
         {/* Stage */}
+        {qrCovers.length ? (
+          <p role="status" className="pointer-events-none absolute top-[64px] left-1/2 z-10 -translate-x-1/2 rounded-full bg-warn px-3 py-1 text-xs font-semibold text-white shadow-pop lg:left-[calc(50%+110px)]">
+            QR menutupi slot foto {qrCovers.join(', ')} — geser QR atau slot
+          </p>
+        ) : null}
         <div ref={stageWrap} className="relative min-w-0 flex-1 overflow-auto bg-[#E7E9EF] [background-image:radial-gradient(rgb(14_20_36/0.08)_1px,transparent_1px)] [background-size:16px_16px]" onPointerDown={(e) => e.target === e.currentTarget && setSelectedId(null)}>
           <div className="flex min-h-full min-w-full items-center justify-center p-8" style={{ width: 'max-content', height: 'max-content' }} onPointerDown={(e) => e.target === e.currentTarget && setSelectedId(null)}>
             <EditorStage editor={editor} zoom={zoom} photos={photos} assets={assets} tokens={tokens} />
@@ -385,7 +400,7 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
         <div className="flex justify-center rounded-[12px] bg-[#E7E9EF] p-6">
           <FrameCanvas design={design} photos={samplePhotos(Math.max(1, slotCount), aspectOfSlot(design, 0))} tokens={tokens} maxRenderWidth={900} className="max-h-[65vh] w-auto shadow-[0_20px_50px_-20px_rgba(14,20,36,0.45)]" style={{ maxHeight: '65vh' }} />
         </div>
-        <p className="mt-3 text-center text-xs text-muted">Asset: {collectAssets(design).length} gambar · Token teks diganti otomatis: {'{event}'} {'{date}'} {'{time}'} {'{code}'}</p>
+        <p className="mt-3 text-center text-xs text-muted">{design.elements.some((e) => e.type === 'qr') ? 'QR di pratinjau adalah contoh — di booth diganti link softfile tamu. · ' : ''}Asset: {collectAssets(design).length} gambar · Token teks diganti otomatis: {'{event}'} {'{date}'} {'{time}'} {'{code}'}</p>
       </Dialog>
     </div>
   );

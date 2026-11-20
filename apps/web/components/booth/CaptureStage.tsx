@@ -56,6 +56,8 @@ export function CaptureStage({
   const [flash, setFlash] = useState(false);
   const [running, setRunning] = useState(false);
   const [ready, setReady] = useState(false);
+  /** Freeze-frame of the photo just taken (shown briefly before the next pose). */
+  const [justTaken, setJustTaken] = useState<string | null>(null);
   const cancelled = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -75,8 +77,13 @@ export function CaptureStage({
     if (!camera.stream && !camera.starting && !camera.error) void camera.start();
   }, [camera]);
 
-  useEffect(() => () => {
-    cancelled.current = true;
+  // Reset on (re)mount: React StrictMode runs mount → cleanup → mount in dev,
+  // so the flag must be cleared again or every capture aborts immediately.
+  useEffect(() => {
+    cancelled.current = false;
+    return () => {
+      cancelled.current = true;
+    };
   }, []);
 
   // Fit the preview box (exact slot aspect) into the stage.
@@ -141,6 +148,9 @@ export function CaptureStage({
       const burst = live ? normalizeBurst([...ring, grabSmall(still), ...after]) : [];
       onShot(shotIndex, { still, burst });
       setCount(null);
+      setJustTaken(scaledPreview(still));
+      await sleep(1400);
+      setJustTaken(null);
     },
     [aspectFor, countdown, live, mirror, onShot],
   );
@@ -161,7 +171,6 @@ export function CaptureStage({
         await takeOne(queue[pos]);
         if (cancelled.current) return;
         if (pos + 1 >= queue.length) {
-          await sleep(400);
           onDone();
         } else {
           setPos(pos + 1);
@@ -175,7 +184,16 @@ export function CaptureStage({
   }
 
   const camErr = camera.error ? CAMERA_ERROR_TEXT[camera.error] : null;
-  const nextLabel = pos === 0 && !running ? 'Mulai foto' : `Ambil foto ${current + 1}`;
+  const nextLabel = queue.length === 1 ? 'Ambil foto' : pos === 0 ? 'Mulai foto' : `Ambil foto ${current + 1}`;
+  const helper = running
+    ? ''
+    : mode === 'auto'
+      ? `${queue.length} foto akan diambil berurutan, hitung mundur ${countdown} detik`
+      : pos > 0
+        ? `Foto ${queue[pos - 1] + 1} tersimpan. Atur pose, lalu tekan saat siap.`
+        : queue.length > 1
+          ? `${queue.length} foto · tekan tombol untuk setiap foto`
+          : `Hitung mundur ${countdown} detik`;
 
   return (
     <div className="kiosk fixed inset-0 flex flex-col bg-[#07090F] text-white">
@@ -242,8 +260,15 @@ export function CaptureStage({
             {count !== null ? (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10" aria-live="assertive">
                 <span key={count} className="animate-pop text-[clamp(96px,22vmin,220px)] leading-none font-extrabold text-white [text-shadow:0_6px_30px_rgba(0,0,0,0.45)]">
-                  {count > 0 ? count : '✦'}
+                  {count > 0 ? count : ''}
                 </span>
+              </div>
+            ) : null}
+            {justTaken ? (
+              <div className="pointer-events-none absolute inset-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={justTaken} alt="" className="size-full object-cover" />
+                <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white">Tersimpan</span>
               </div>
             ) : null}
             <div className={cn('pointer-events-none absolute inset-0 bg-white transition-opacity duration-200', flash ? 'opacity-90' : 'opacity-0')} />
@@ -266,10 +291,19 @@ export function CaptureStage({
         <Button variant="sun" size="xl" className="min-w-64" onClick={run} disabled={running || !ready || !!camErr}>
           {running ? (count !== null && count > 0 ? 'Siap-siap…' : 'Senyum!') : (<><Camera /> {nextLabel}</>)}
         </Button>
-        <p className="h-4 text-xs text-white/45">{mode === 'auto' && !running ? `${queue.length} foto akan diambil berurutan, hitung mundur ${countdown} detik` : ''}</p>
+        <p className="h-5 text-sm text-white/60">{helper}</p>
       </div>
     </div>
   );
+}
+
+function scaledPreview(still: HTMLCanvasElement): string {
+  const s = Math.min(1, 900 / still.width);
+  const c = document.createElement('canvas');
+  c.width = Math.round(still.width * s);
+  c.height = Math.round(still.height * s);
+  c.getContext('2d')!.drawImage(still, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.8);
 }
 
 function grabSmall(still: HTMLCanvasElement): HTMLCanvasElement {

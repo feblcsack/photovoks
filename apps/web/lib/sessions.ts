@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase/server';
 import { isSessionToken } from '@/lib/security';
+import { signMedia } from '@/lib/event-media';
 import { isAiConfigured } from '@/lib/ai/provider';
 import type { AiGenerationView, GuestSessionData, PrintJobView, SessionSummary } from '@/lib/session-types';
 
@@ -188,13 +189,15 @@ export async function getGuestSession(token: string): Promise<GuestSessionData |
   const [{ data: ev }, [summary], online] = await Promise.all([
     supabase
       .from('events')
-      .select('name, code, ai_enabled, ai_styles, ai_per_session, print_mode, print_paper, max_guest_prints, active_prompt_template_id')
+      .select('id, name, code, ai_enabled, ai_styles, ai_per_session, print_mode, print_paper, max_guest_prints, active_prompt_template_id, ai_guest_prompt, stickers_enabled, sticker_paths, guestbook_enabled, live_enabled, public_token')
       .eq('id', r.event_id)
       .maybeSingle(),
     buildSummaries(supabase, [r], { withPrintJobs: true }),
     isPrintStationOnline(supabase),
   ]);
   if (!ev) return null;
+  const stickerPaths: string[] = ev.stickers_enabled ? ev.sticker_paths ?? [] : [];
+  const stickerUrls = await signMedia(supabase, stickerPaths, 6 * 3600);
 
   return {
     session: summary,
@@ -208,6 +211,10 @@ export async function getGuestSession(token: string): Promise<GuestSessionData |
       printPaper: ev.print_paper,
       maxGuestPrints: ev.max_guest_prints ?? 0,
       hasCustomStyle: Boolean(ev.active_prompt_template_id),
+      aiGuestPrompt: Boolean(ev.ai_guest_prompt),
+      stickersEnabled: ev.stickers_enabled ?? true,
+      stickers: stickerPaths.map((p) => stickerUrls.get(p)).filter((u): u is string => !!u),
+      guestbookToken: ev.guestbook_enabled ? ev.public_token : null,
     },
     aiConfigured: isAiConfigured(),
     printStationOnline: online,

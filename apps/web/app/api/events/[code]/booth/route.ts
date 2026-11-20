@@ -10,6 +10,7 @@ import { requireEventAccess } from '@/lib/access';
 import { framesForEvent } from '@/lib/frames/server';
 import { isAiConfigured } from '@/lib/ai/provider';
 import { isPrintStationOnline } from '@/lib/sessions';
+import { signMedia } from '@/lib/event-media';
 
 type Ctx = { params: Promise<{ code: string }> };
 
@@ -18,12 +19,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const access = await requireEventAccess(code);
   if (!access.ok) return access.response;
   const supabase = createServerClient();
-  const [frames, online] = await Promise.all([
-    framesForEvent(supabase, access.event.id, true),
+  const ev = access.event;
+  const [frames, online, urls] = await Promise.all([
+    framesForEvent(supabase, ev.id, true, true),
     isPrintStationOnline(supabase),
+    signMedia(supabase, ev.attractMediaPath ? [ev.attractMediaPath] : [], 24 * 3600),
   ]);
+  const media = { attractUrl: ev.attractMediaPath ? urls.get(ev.attractMediaPath) ?? null : null };
   return NextResponse.json(
-    { event: access.event, role: access.role, frames, aiConfigured: isAiConfigured(), printStationOnline: online },
+    { event: ev, role: access.role, frames, aiConfigured: isAiConfigured(), printStationOnline: online, media },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

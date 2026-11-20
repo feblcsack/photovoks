@@ -11,8 +11,8 @@ Alternatif jika butuh semuanya dalam satu mesin (mis. event tanpa internet stabi
 ## 1. Supabase (database & storage)
 
 1. **New project** di <https://supabase.com> — pilih region terdekat (mis. Singapore).
-2. **SQL Editor** → jalankan semua migrasi berurutan (`pnpm -s db:sql` menggabungkannya). Untuk project lama cukup `20240101000007_v2_events_frames_gallery.sql`.
-3. Periksa **Storage**: bucket `sessions`, `sketches`, `frames` ada dan **privat**.
+2. **SQL Editor** → jalankan semua migrasi berurutan (`pnpm -s db:sql` menggabungkannya). Untuk project lama jalankan yang belum ada: `…07_v2_events_frames_gallery.sql`, lalu `…08_v3_booth_live_guestbook.sql`.
+3. Periksa **Storage**: bucket `sessions`, `sketches`, `frames`, `event-media` ada dan **privat**. (Plan Free membatasi file ≤ 50 MB — cukup untuk video layar awal.)
 4. **Project Settings › API**: catat *Project URL*, *anon key*, *service_role key*.
 5. (Opsional, disarankan) **Hapus otomatis** sesi kedaluwarsa:
    ```bash
@@ -84,14 +84,16 @@ Catatan Vercel:
 
 1. `https://domain/` tampil; `/admin` mengarah ke PIN; login admin berhasil.
 2. **Dashboard**: database terhubung, AI siap.
-3. Buat event (kode + PIN) → buat frame dari template → pilih frame di event → status *Aktif*.
+3. Buat event (kode + PIN) → buat frame dari template → **Pengaturan Booth**: tambah frame, atur QR, upload video layar awal, status *Aktif* → Simpan.
 4. iPad: buka `/booth/KODE` → PIN → izinkan kamera → foto 1 sesi penuh → QR muncul.
 5. Scan QR dengan HP (data seluler) → halaman tamu tampil, GIF bergerak, unduh berhasil.
 6. Coba **Gaya AI** → hasil muncul ≤ 60 detik.
 7. Cetak: mode *Print station* → job muncul di `/event/KODE/print` → cetak 1 lembar 4R, cek ukuran & potongan. Mode *Langsung* → dialog print dari booth.
 8. **Riwayat Sesi** & **Galeri** menampilkan sesi; sembunyikan/hapus berfungsi.
 9. Jika galeri diatur *Dengan link*, buka `/g/<token>` di jendela incognito.
-10. Cek **Supabase › Storage** terisi di `sessions/<id>/…` dan pemakaian kuota.
+10. Aktifkan galeri live + buku tamu → buka `/live/…` di layar besar, kirim pesan dari HP lewat `/m/…`, foto 1 sesi → muncul di layar ≤ 10 detik.
+11. Di HP tamu: **Hias dengan stiker → Kirim ke printer** → job muncul di Print Station.
+12. Cek **Supabase › Storage** terisi di `sessions/<id>/…` dan pemakaian kuota.
 
 ## 8. Alternatif: satu mesin lokal (tanpa Vercel)
 

@@ -3,7 +3,7 @@
 import React, { useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowRight, Camera, Check, Copy, ExternalLink, Frame, Printer, Settings, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowRight, Camera, Check, Copy, ExternalLink, Printer, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { PageHeader } from '@/components/shell/PortalShell';
 import { Panel, PanelHeader, Stat } from '@/components/ui/panel';
 import { Badge } from '@/components/ui/badge';
@@ -26,8 +26,8 @@ export function EventOverview({ event, isAdmin, frameCount, aiConfigured, printW
 
   const checks: Array<{ ok: boolean; label: string; href?: string; warn?: boolean }> = [
     { ok: event.hasPin, label: event.hasPin ? 'PIN event sudah diatur' : 'PIN event belum diatur (atur di Event › Edit)', href: isAdmin ? '/admin/events' : undefined },
-    { ok: frameCount > 0, label: frameCount > 0 ? `${frameCount} frame aktif` : 'Belum ada frame aktif', href: `/event/${event.code}/frames` },
-    { ok: event.status === 'active', label: event.status === 'active' ? 'Event aktif' : 'Event masih draft — booth berjalan dalam mode uji', href: `/event/${event.code}/settings`, warn: true },
+    { ok: frameCount > 0, label: frameCount > 0 ? `${frameCount} frame aktif` : 'Belum ada frame aktif', href: `/event/${event.code}/booth#frame` },
+    { ok: event.status === 'active', label: event.status === 'active' ? 'Event aktif' : 'Event masih draft — booth berjalan dalam mode uji', href: `/event/${event.code}/booth`, warn: true },
     ...(event.aiEnabled ? [{ ok: aiConfigured, label: aiConfigured ? 'AI (OpenRouter) siap' : 'AI aktif tapi OPENROUTER_API_KEY belum diisi', warn: true }] : []),
     ...(event.printMode === 'station' ? [{ ok: printWorkerOnline, label: printWorkerOnline ? 'Print worker online' : 'Print worker offline — gunakan halaman Print Station atau jalankan `pnpm print`', href: `/event/${event.code}/print`, warn: true }] : []),
   ];
@@ -43,7 +43,7 @@ export function EventOverview({ event, isAdmin, frameCount, aiConfigured, printW
         description={event.description || 'Ringkasan hari ini, status booth, dan link penting.'}
         actions={
           <>
-            <Link href={`/event/${event.code}/settings`}><Button variant="secondary"><Settings /> Pengaturan</Button></Link>
+            <Link href={`/event/${event.code}/booth`}><Button variant="secondary"><SlidersHorizontal /> Pengaturan Booth</Button></Link>
             <a href={`/booth/${event.code}`} target="_blank" rel="noreferrer"><Button variant="primary"><Camera /> Buka Booth</Button></a>
           </>
         }
@@ -103,23 +103,28 @@ export function EventOverview({ event, isAdmin, frameCount, aiConfigured, printW
           </Panel>
 
           <Panel>
-            <PanelHeader title="Galeri bersama" description={event.galleryVisibility === 'private' ? 'Privat — hanya pengelola event yang bisa melihat semua foto.' : event.galleryVisibility === 'unlisted' ? 'Siapa pun dengan link bisa melihat galeri event.' : 'Publik — juga tampil di galeri global.'} />
-            <div className="flex flex-wrap items-center gap-2 p-4">
-              {event.galleryVisibility === 'private' ? (
-                <Link href={`/event/${event.code}/settings#galeri`}><Button size="sm" variant="secondary"><Settings /> Ubah visibilitas</Button></Link>
-              ) : (
-                <>
-                  <Button size="sm" variant="secondary" onClick={() => copy(galleryUrl)}><Copy /> Salin link galeri</Button>
-                  <a href={galleryUrl} target="_blank" rel="noreferrer"><Button size="sm" variant="ghost"><ExternalLink /> Buka</Button></a>
-                </>
-              )}
-            </div>
+            <PanelHeader title="Link untuk tamu & layar" actions={<Link href={`/event/${event.code}/booth#galeri`} className="text-sm font-semibold text-brand">Atur</Link>} />
+            <ul className="divide-y divide-line">
+              {[
+                { label: 'Galeri live', on: event.liveEnabled, url: `${origin}/live/${event.publicToken}`, hint: 'Untuk proyektor / TV' },
+                { label: 'Buku tamu', on: event.guestbookEnabled, url: `${origin}/m/${event.publicToken}`, hint: 'Pesan, kesan & foto tamu' },
+                { label: 'Galeri event', on: event.galleryVisibility !== 'private', url: galleryUrl, hint: event.galleryVisibility === 'public' ? 'Publik' : 'Dengan link' },
+              ].map((l) => (
+                <li key={l.label} className="flex items-center gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{l.label}</p>
+                    <p className="text-xs text-muted">{l.on ? l.hint : 'Nonaktif'}</p>
+                  </div>
+                  {l.on ? (
+                    <>
+                      <Button size="icon-sm" variant="ghost" onClick={() => copy(l.url)} aria-label={`Salin link ${l.label}`}><Copy /></Button>
+                      <a href={l.url} target="_blank" rel="noreferrer" aria-label={`Buka ${l.label}`} className="flex size-8 items-center justify-center rounded-[8px] text-ink-2 hover:bg-ink/5"><ExternalLink className="size-4" /></a>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           </Panel>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Link href={`/event/${event.code}/frames`} className="flex items-center gap-2 rounded-panel border border-line bg-surface px-4 py-3 text-sm font-semibold shadow-panel hover:border-line-strong"><Frame className="size-4 text-muted" /> Atur frame</Link>
-            <Link href={`/event/${event.code}/settings#ai`} className="flex items-center gap-2 rounded-panel border border-line bg-surface px-4 py-3 text-sm font-semibold shadow-panel hover:border-line-strong"><Sparkles className="size-4 text-muted" /> Gaya AI</Link>
-          </div>
         </div>
       </div>
 

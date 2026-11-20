@@ -20,7 +20,7 @@ interface Job {
   sessionId: string;
   sessionToken: string | null;
   frameName: string | null;
-  type: 'strip' | 'ai' | 'sketch';
+  type: 'strip' | 'ai' | 'sketch' | 'edit';
   status: string;
   copies: number;
   paper: string | null;
@@ -152,7 +152,7 @@ export function PrintStation({ code, defaultPaper }: { code: string; defaultPape
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-bold">{j.type === 'ai' ? 'Hasil AI' : j.frameName ?? 'Foto'}</p>
+                      <p className="truncate text-sm font-bold">{j.type === 'ai' ? 'Hasil AI' : j.type === 'edit' ? 'Foto berstiker (dari tamu)' : j.frameName ?? 'Foto'}</p>
                       <PrintStatusBadge status={j.status} />
                     </div>
                     <p className="mt-0.5 text-xs text-muted">{j.copies} lembar · {paperById(j.paper).label} · dari {j.source} · {timeAgo(j.createdAt)}</p>
@@ -180,7 +180,7 @@ export function PrintStation({ code, defaultPaper }: { code: string; defaultPape
                 {done.map((j) => (
                   <li key={j.id} className="flex items-center gap-3 px-5 py-2.5">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{j.type === 'ai' ? 'Hasil AI' : j.frameName ?? 'Foto'} · {j.copies}×</p>
+                      <p className="truncate text-sm font-semibold">{j.type === 'ai' ? 'Hasil AI' : j.type === 'edit' ? 'Foto berstiker (dari tamu)' : j.frameName ?? 'Foto'} · {j.copies}×</p>
                       <p className="text-xs text-muted">{formatDateTime(j.createdAt)}</p>
                     </div>
                     <PrintStatusBadge status={j.status} />

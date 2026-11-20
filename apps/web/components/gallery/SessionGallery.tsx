@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, ExternalLink, EyeOff, Eye, Film, ImageIcon, Images, Printer, Sparkles, Trash2 } from 'lucide-react';
+import { Download, ExternalLink, EyeOff, Eye, Film, ImageIcon, Images, Palette, Printer, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog';
@@ -9,7 +9,7 @@ import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/ui/toast';
 import { PrintDialog } from '@/components/print/PrintDialog';
 import { api, formatDateTime, timeAgo } from '@/lib/fetcher';
-import { AI_STYLES } from '@/lib/ai/styles';
+import { aiStyleLabel } from '@/lib/ai/styles';
 import type { SessionSummary } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
 import { LivePlayer } from './LivePlayer';
@@ -46,13 +46,15 @@ function SessionCard({ session, onOpen }: { session: SessionSummary; onOpen: () 
       ) : (
         <ImageIcon className="size-6 text-faint" />
       )}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-black/55 to-transparent px-2 pt-6 pb-1.5 text-[11px] font-semibold text-white">
+      <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex items-end justify-between gap-1 text-[11px] font-semibold text-white [&>*]:rounded [&>*]:bg-black/60 [&>*]:px-1.5 [&>*]:py-0.5">
         <span>{timeAgo(session.createdAt)}</span>
-        <span className="flex gap-1">
-          {session.urls.gif ? <span className="rounded bg-white/25 px-1 backdrop-blur">LIVE</span> : null}
-          {aiDone ? <span className="rounded bg-ai/80 px-1">AI {aiDone}</span> : null}
-          {session.isHidden ? <span className="rounded bg-black/50 px-1">disembunyikan</span> : null}
-        </span>
+        {session.urls.gif || aiDone || session.isHidden ? (
+          <span className="flex gap-1.5">
+            {session.urls.gif ? <span>LIVE</span> : null}
+            {aiDone ? <span>AI {aiDone}</span> : null}
+            {session.isHidden ? <span>disembunyikan</span> : null}
+          </span>
+        ) : null}
       </div>
     </button>
   );
@@ -82,7 +84,7 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
     { value: 'strip', label: <><ImageIcon className="size-3.5" /> Hasil</> },
     ...(s.urls.gif || s.urls.live ? [{ value: 'live' as Tab, label: <><Film className="size-3.5" /> Live</> }] : []),
     { value: 'shots', label: <><Images className="size-3.5" /> Foto ({s.urls.shots.length})</> },
-    ...(aiDone.length ? [{ value: 'ai' as Tab, label: <><Sparkles className="size-3.5" /> AI ({aiDone.length})</> }] : []),
+    ...(aiDone.length ? [{ value: 'ai' as Tab, label: <><Palette className="size-3.5" /> AI ({aiDone.length})</> }] : []),
   ];
 
   async function toggleHidden() {
@@ -209,7 +211,7 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={a.url!} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
                   <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-                    <Badge tone="ai">{AI_STYLES.find((x) => x.id === a.styleId)?.label ?? 'Gaya Event'}</Badge>
+                    <Badge tone="ai">{aiStyleLabel(a.styleId)}</Badge>
                     <div className="flex">
                       <a href={a.url!} target="_blank" rel="noreferrer" download className="flex size-8 items-center justify-center rounded-[8px] text-muted hover:bg-ink/5" aria-label="Unduh"><Download className="size-4" /></a>
                       {manage ? (

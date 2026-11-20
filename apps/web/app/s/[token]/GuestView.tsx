@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CheckCircle2, Clock, Download, Film, ImageIcon, Printer, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, CheckCircle2, Clock, Download, Film, ImageIcon, MessageSquareText, Palette, Printer, Sticker } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/ui/toast';
-import { PrintDialog } from '@/components/print/PrintDialog';
 import { AiStudio } from '@/components/session/AiStudio';
+import { StickerStudio } from '@/components/session/StickerStudio';
 import { useGuestSession } from '@/components/session/useGuestSession';
 import { LivePlayer } from '@/components/gallery/LivePlayer';
 import { api, formatDateTime } from '@/lib/fetcher';
@@ -21,8 +21,8 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
   const d = data ?? initial;
   const { session, event } = d;
   const [view, setView] = useState<View>(session.urls.gif ? 'live' : 'strip');
-  const [printTarget, setPrintTarget] = useState<{ type: 'strip' | 'ai'; url: string; aiId?: string } | null>(null);
   const [queueing, setQueueing] = useState(false);
+  const [stickerOpen, setStickerOpen] = useState(false);
 
   const used = session.printJobs.filter((p) => p.source.startsWith('guest') && p.status !== 'cancelled').reduce((s, p) => s + p.copies, 0);
   const printsLeft = Math.max(0, event.maxGuestPrints - used);
@@ -33,8 +33,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
     setQueueing(true);
     try {
       await api(`/api/s/${token}/print`, { method: 'POST', json: { mode: 'queue', type, aiId, copies: 1 } });
-      toast('Dikirim ke antrean cetak');
-      setPrintTarget(null);
+      toast('Terkirim ke printer penyelenggara');
       await refresh();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Gagal mengirim ke printer', 'error');
@@ -43,11 +42,12 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
     }
   }
 
+  // Phones can't reach the booth printer: every print goes to the owner's queue.
   function startPrint(type: 'strip' | 'ai', url: string | null, aiId?: string) {
     if (!url) return;
-    if (event.printMode === 'station') void queuePrint(type, aiId);
-    else setPrintTarget({ type, url, aiId });
+    void queuePrint(type, aiId);
   }
+  const printHint = event.printMode === 'off' ? 'Cetak tidak tersedia di event ini' : printsLeft === 0 ? 'Jatah cetak dari HP sudah habis' : '';
 
   return (
     <main className="mx-auto min-h-dvh max-w-5xl px-4 pt-[max(20px,env(safe-area-inset-top))] pb-16 sm:px-6">
@@ -95,7 +95,12 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
               </div>
             )}
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          {event.stickersEnabled && session.urls.strip ? (
+            <Button variant="sun" size="lg" className="mt-3 w-full" onClick={() => setStickerOpen(true)}>
+              <Sticker /> Hias dengan stiker
+            </Button>
+          ) : null}
+          <div className="mt-2 grid grid-cols-2 gap-2">
             {session.urls.strip ? (
               <a href={session.urls.strip} download="photovoks.png" target="_blank" rel="noreferrer">
                 <Button variant="primary" size="lg" className="w-full"><Download /> Unduh foto</Button>
@@ -115,44 +120,53 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
                 ) : session.printCount > 0 ? (
                   <span className="flex items-center gap-2 font-semibold"><CheckCircle2 className="size-4 text-ok" /> Sudah dicetak {session.printCount}×</span>
                 ) : (
-                  <span className="text-muted">Mau cetak foto?</span>
+                  <span className="text-muted">Cetak di booth</span>
                 )}
-                {event.maxGuestPrints > 0 ? <span className="block text-xs text-muted">Sisa cetak dari HP: {printsLeft}</span> : null}
+                <span className="block text-xs text-muted">{event.maxGuestPrints > 0 ? `Dikirim ke printer penyelenggara · sisa ${printsLeft}` : 'Cetak dari HP tidak diizinkan'}</span>
               </div>
               <Button variant="secondary" disabled={!canPrint || queueing} loading={queueing} onClick={() => startPrint('strip', session.urls.strip)}>
-                <Printer /> Cetak
+                <Printer /> Kirim ke printer
               </Button>
             </div>
           ) : null}
         </section>
 
-        {event.aiEnabled ? (
-          <section className="rounded-[18px] bg-surface p-5 shadow-panel">
-            <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="size-5 text-ai" />
-              <h2 className="text-base font-extrabold">Ubah jadi karya AI</h2>
-              <Badge tone="ai">Baru</Badge>
-            </div>
-            <AiStudio token={token} data={d} refresh={refresh} onPrint={canPrint ? (g: AiGenerationView) => startPrint('ai', g.url, g.id) : undefined} />
-          </section>
-        ) : null}
+        <div className="flex min-w-0 flex-col gap-6">
+          {event.aiEnabled ? (
+            <section className="rounded-[18px] bg-surface p-5 shadow-panel">
+              <div className="mb-4 flex items-center gap-2">
+                <Palette className="size-5 text-ink-2" />
+                <h2 className="text-base font-extrabold">Ubah gaya foto</h2>
+              </div>
+              <AiStudio token={token} data={d} refresh={refresh} onPrint={canPrint ? (g: AiGenerationView) => startPrint('ai', g.url, g.id) : undefined} />
+            </section>
+          ) : null}
+          {event.guestbookToken ? (
+            <Link href={`/m/${event.guestbookToken}`} className="flex items-center gap-4 rounded-[18px] bg-surface p-5 shadow-panel transition hover:shadow-pop">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-white"><MessageSquareText className="size-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-extrabold">Tulis di buku tamu</span>
+                <span className="block text-sm text-muted">Tinggalkan pesan & kesan untuk {event.name}</span>
+              </span>
+              <ArrowRight className="size-5 text-muted" />
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {d.expiresAt ? <p className="mt-8 text-center text-xs text-muted">Foto disimpan sampai {formatDateTime(d.expiresAt)}. Unduh sebelum dihapus otomatis.</p> : null}
 
-      <PrintDialog
-        open={!!printTarget}
-        onOpenChange={(o) => !o && setPrintTarget(null)}
-        source={printTarget?.url ?? null}
-        defaultPaper={event.printPaper}
-        maxCopies={Math.max(1, printsLeft)}
-        onPrinted={async ({ copies, paper }) => {
-          if (!printTarget) return;
-          await api(`/api/s/${token}/print`, { method: 'POST', json: { mode: 'browser', type: printTarget.type, copies, paper } }).catch(() => {});
-          setPrintTarget(null);
-          void refresh();
-        }}
-      />
+      {stickerOpen && session.urls.strip ? (
+        <StickerStudio
+          imageUrl={session.urls.strip}
+          eventStickers={event.stickers}
+          canPrint={canPrint}
+          printHint={printHint}
+          token={token}
+          onClose={() => setStickerOpen(false)}
+          onQueued={() => void refresh()}
+        />
+      ) : null}
     </main>
   );
 }

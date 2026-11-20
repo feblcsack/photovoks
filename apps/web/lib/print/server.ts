@@ -31,12 +31,16 @@ export async function composeSheetServer(image: Buffer, paperId: string): Promis
 export interface EnqueueInput {
   sessionId: string;
   eventId: string;
-  type: 'strip' | 'ai';
+  type: 'strip' | 'ai' | 'edit';
   copies: number;
   source: 'booth' | 'guest' | 'station' | 'admin';
   paper: string;
   aiGenerationId?: string;
+  /** sessions/<sid>/edit_<id>.jpg (guest sticker edit) */
+  editPath?: string;
 }
+
+export const EDIT_PATH_RE = /^sessions\/[0-9a-f-]{36}\/edit_[0-9a-f]{12}\.jpg$/;
 
 /**
  * Creates a queued print job. For AI results a print-ready sheet is rendered
@@ -67,6 +71,18 @@ export async function enqueuePrint(supabase: SupabaseClient, input: EnqueueInput
     assetPath = sheetPath;
   }
 
+  if (input.type === 'edit') {
+    const edit = input.editPath ?? '';
+    if (!EDIT_PATH_RE.test(edit) || !edit.startsWith(`sessions/${input.sessionId}/`)) return { error: 'File stiker tidak valid' };
+    const sheetPath = edit.replace(/\.jpg$/, `_${input.paper}.jpg`);
+    const { data: blob } = await supabase.storage.from('sessions').download(edit);
+    if (!blob) return { error: 'File stiker belum terunggah' };
+    const sheet = await composeSheetServer(Buffer.from(await blob.arrayBuffer()), input.paper);
+    const { error } = await supabase.storage.from('sessions').upload(sheetPath, sheet, { contentType: 'image/jpeg', upsert: true });
+    if (error) return { error: 'Gagal menyiapkan file cetak' };
+    assetPath = sheetPath;
+  }
+
   const { data, error } = await supabase
     .from('print_jobs')
     .insert({
@@ -91,7 +107,7 @@ export async function enqueuePrint(supabase: SupabaseClient, input: EnqueueInput
 }
 
 /** Records a print done directly from a browser (counts toward limits / history). */
-export async function recordBrowserPrint(supabase: SupabaseClient, sessionId: string, eventId: string, type: 'strip' | 'ai', copies: number, paper: string, source: string) {
+export async function recordBrowserPrint(supabase: SupabaseClient, sessionId: string, eventId: string, type: 'strip' | 'ai' | 'edit', copies: number, paper: string, source: string) {
   await supabase.from('print_jobs').insert({
     session_id: sessionId,
     event_id: eventId,

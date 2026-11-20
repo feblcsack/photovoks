@@ -1,7 +1,8 @@
 /**
  * POST /api/s/[token]/print
  *
- * { mode: 'queue',   type: 'strip'|'ai', aiId?, copies } → send to print station
+ * { mode: 'queue',   type: 'strip'|'ai'|'edit', aiId?, editPath?, copies } → send to
+ *                                                          the owner's print queue
  * { mode: 'browser', type: 'strip'|'ai', copies, paper }  → record a print made
  *                                                          from this browser
  *
@@ -27,11 +28,12 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   const body = await readJson(request);
   if (!body) return jsonError('Body tidak valid', 400);
   const mode = body.mode === 'browser' ? 'browser' : 'queue';
-  const type = body.type === 'ai' ? 'ai' : 'strip';
+  const type = body.type === 'ai' ? 'ai' : body.type === 'edit' ? 'edit' : 'strip';
   const copies = Number.isInteger(body.copies) ? Math.min(10, Math.max(1, body.copies as number)) : 1;
 
   if (event.printMode === 'off' && role === null) return jsonError('Cetak tidak aktif untuk event ini', 403);
-  if (mode === 'queue' && event.printMode !== 'station' && role === null) return jsonError('Event ini tidak memakai print station', 400);
+  // Guests' phones can't reach the booth printer: their requests always go to
+  // the owner's queue (Print Station), whatever the booth's own print mode.
 
   const supabase = createServerClient();
   if (role === null) {
@@ -52,6 +54,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
   }
 
   if (type === 'ai' && !isUuid(body.aiId)) return jsonError('aiId wajib', 400);
+  if (type === 'edit' && typeof body.editPath !== 'string') return jsonError('editPath wajib', 400);
   const result = await enqueuePrint(supabase, {
     sessionId: session.id,
     eventId: event.id,
@@ -60,6 +63,7 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     source,
     paper: event.printPaper,
     aiGenerationId: type === 'ai' ? (body.aiId as string) : undefined,
+    editPath: type === 'edit' ? (body.editPath as string) : undefined,
   });
   if ('error' in result) return jsonError(result.error, 400);
   return NextResponse.json({ ok: true, printJobId: result.id });

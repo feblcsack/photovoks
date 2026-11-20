@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Check, Clock, Film, Home, ImageIcon, Printer, RefreshCcw, Sparkles } from 'lucide-react';
+import { Check, Clock, Film, Home, ImageIcon, Palette, Printer, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Segmented } from '@/components/ui/segmented';
@@ -12,9 +12,10 @@ import { PrintDialog } from '@/components/print/PrintDialog';
 import { AiStudio } from '@/components/session/AiStudio';
 import { useGuestSession } from '@/components/session/useGuestSession';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
-import { canvasToBlob, composeDesign, createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
+import { canvasToBlob, createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
 import { boomerang, buildSprite, encodeGif, filteredCopy, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
-import { renderSheet, sheetToJpeg } from '@/lib/print/sheet';
+import { printSheet, renderSheet, sheetToJpeg } from '@/lib/print/sheet';
+import type { SheetPlan } from '@/lib/print/papers';
 import type { EventConfig } from '@/lib/events';
 import type { FrameRecord } from '@/lib/frames/types';
 import { primarySlotAspect } from '@/lib/frames/types';
@@ -37,6 +38,8 @@ interface Result {
   stripUrl: string;
   gifUrl: string | null;
   stripBlob: Blob;
+  sheetBlob: Blob;
+  sheetPlan: SheetPlan;
 }
 
 export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, onDone }: {
@@ -61,6 +64,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   const [aiOpen, setAiOpen] = useState(false);
   const [remaining, setRemaining] = useState(AUTO_RETURN_S);
   const started = useRef(false);
+  const createdRef = useRef<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> } | null>(null);
   const lastPhase = useRef<Phase>('compose');
   const [failedAt, setFailedAt] = useState<Phase>('compose');
   const { data: guest, refresh } = useGuestSession(result?.token ?? null);
@@ -73,22 +77,34 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       setPhaseState(p);
     };
     try {
-      // 1 · Compose full-resolution strip with filtered stills.
+      // 1 · Reserve the session first so the frame's QR can carry the real
+      //     softfile link. Reused on retry (no orphan sessions).
       setPhase('compose');
+      const hasLiveShots = event.livePhoto && shots.every((s) => s.burst.length === LIVE_FRAMES);
+      const created =
+        createdRef.current ??
+        (await api<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> }>('/api/sessions', {
+          method: 'POST',
+          json: { eventCode: code, frameId: frame.id, shotCount: shots.length, live: hasLiveShots, gif: hasLiveShots },
+        }));
+      createdRef.current = created;
+      const qrValue = `${window.location.origin}/s/${created.sessionToken}`;
+
+      // 2 · Compose full-resolution strip with filtered stills.
       const assets = await prepareDesign(frame.design);
       const fullPhotos = Array.from({ length: frame.slotCount }, (_, i) => filteredCopy(shots[selection[i]].still, filter));
-      const strip = await composeDesign(frame.design, fullPhotos, tokens, assets);
+      const strip = createCanvas(frame.design.width, frame.design.height);
+      renderDesign(strip.getContext('2d')!, frame.design, { photos: fullPhotos, assets, tokens, qrValue });
       const stripBlob = await canvasToBlob(strip, 'image/png');
       const thumbBlob = await toJpeg(scaledCopy(strip, 480), 0.82);
       const sheet = renderSheet(strip, strip.width, strip.height, event.printPaper, 'auto', 0);
       const sheetBlob = await sheetToJpeg(sheet.canvas);
       const shotBlobs = await Promise.all(shots.map((s) => toJpeg(filteredCopy(s.still, filter), 0.9)));
 
-      // 2 · Live photo: sprite (all shots) + animated GIF of the whole frame.
+      // 3 · Live photo: sprite (all shots) + animated GIF of the whole frame.
       let spriteBlob: Blob | null = null;
       let gifBlob: Blob | null = null;
-      const hasLive = event.livePhoto && shots.every((s) => s.burst.length === LIVE_FRAMES);
-      if (hasLive) {
+      if (hasLiveShots) {
         setPhase('animate');
         const filteredBursts = shots.map((s) => s.burst.map((f) => filteredCopy(f, filter)));
         const cellW = LIVE_CELL_WIDTH;
@@ -103,18 +119,15 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
             assets,
             tokens,
             scale,
+            qrValue,
           });
           frames.push(c);
         }
         gifBlob = await encodeGif(frames, 90, 540);
       }
 
-      // 3 · Create session + upload everything straight to storage.
+      // 4 · Upload everything straight to storage.
       setPhase('upload');
-      const created = await api<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> }>('/api/sessions', {
-        method: 'POST',
-        json: { eventCode: code, frameId: frame.id, shotCount: shots.length, live: !!spriteBlob, gif: !!gifBlob },
-      });
       const uploads: Array<[string, Blob, string]> = [
         ['strip.png', stripBlob, 'image/png'],
         ['thumb.jpg', thumbBlob, 'image/jpeg'],
@@ -138,7 +151,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
         }),
       );
 
-      // 4 · Confirm (+ auto print when the event uses a print station).
+      // 5 · Confirm (+ auto print when the event uses a print station).
       setPhase('save');
       await api(`/api/sessions/${created.sessionId}/confirm`, {
         method: 'POST',
@@ -157,6 +170,8 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
         sessionId: created.sessionId,
         token: created.sessionToken,
         stripBlob,
+        sheetBlob,
+        sheetPlan: sheet.plan,
         stripUrl: URL.createObjectURL(stripBlob),
         gifUrl: gifBlob ? URL.createObjectURL(gifBlob) : null,
       });
@@ -204,6 +219,23 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   const jobs = guest?.session.printJobs ?? [];
   const activeJob = jobs.find((j) => j.status === 'queued' || j.status === 'printing');
   const failedJob = jobs.find((j) => j.status === 'failed');
+
+  const [printing, setPrinting] = useState(false);
+  /** One tap: prints the ready-made sheet with the event's paper + copies. */
+  async function printNow() {
+    if (!result || printing) return;
+    setPrinting(true);
+    try {
+      await printSheet(result.sheetBlob, result.sheetPlan, event.printCopies);
+      await api(`/api/s/${result.token}/print`, { method: 'POST', json: { mode: 'browser', type: 'strip', copies: event.printCopies, paper: event.printPaper } }).catch(() => {});
+      setPrintedCount((n) => n + 1);
+    } catch {
+      toast('Gagal membuka printer', 'error');
+    } finally {
+      setPrinting(false);
+    }
+  }
+  const [printedCount, setPrintedCount] = useState(0);
 
   async function queuePrint(type: 'strip' | 'ai', aiId?: string) {
     if (!result) return;
@@ -286,9 +318,16 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
           </div>
 
           {event.printMode === 'browser' ? (
-            <Button variant="sun" size="xl" onClick={() => setPrintOpen({ url: result.stripBlob, type: 'strip' })}>
-              <Printer /> Cetak
-            </Button>
+            <div className="flex flex-col gap-1.5">
+              <Button variant="sun" size="xl" onClick={() => void printNow()} loading={printing}>
+                <Printer /> {printedCount ? 'Cetak lagi' : 'Cetak sekarang'}
+              </Button>
+              <p className="text-center text-xs text-muted">
+                {printedCount ? `Terkirim ke printer${event.printCopies > 1 ? ` · ${event.printCopies} lembar` : ''}` : `${event.printCopies} lembar · langsung ke printer booth`}
+                {' · '}
+                <button type="button" className="font-semibold underline underline-offset-2" onClick={() => setPrintOpen({ url: result.stripBlob, type: 'strip' })}>atur ukuran</button>
+              </p>
+            </div>
           ) : event.printMode === 'station' ? (
             <div className="flex items-center justify-between gap-3 rounded-[16px] bg-white px-4 py-3 shadow-[0_1px_0_rgba(14,20,36,0.06)]">
               <div className="min-w-0 text-sm">
@@ -311,7 +350,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
 
           {event.aiEnabled && aiConfigured ? (
             <Button variant="ai" size="xl" onClick={() => setAiOpen(true)}>
-              <Sparkles /> Ubah dengan Gaya AI
+              <Palette /> Ubah gaya foto
             </Button>
           ) : null}
         </div>
@@ -330,7 +369,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
         }}
       />
 
-      <Dialog open={aiOpen} onOpenChange={setAiOpen} size="lg" dark title="Gaya AI" description="Pilih foto dan gaya, lalu tunggu sebentar.">
+      <Dialog open={aiOpen} onOpenChange={setAiOpen} size="lg" dark title="Ubah gaya foto" description="Pilih foto dan gaya, lalu tunggu sebentar.">
         {guest ? (
           <AiStudio
             token={result.token}

@@ -38,14 +38,29 @@ export interface EventConfig {
   galleryToken: string;
   activePromptTemplateId: string | null;
   createdAt: string;
+  // v3
+  attractMediaPath: string | null;
+  attractMediaType: AttractMediaType | null;
+  attractCta: string | null;
+  attractShowText: boolean;
+  liveEnabled: boolean;
+  guestbookEnabled: boolean;
+  publicToken: string;
+  stickersEnabled: boolean;
+  stickerPaths: string[];
+  aiGuestPrompt: boolean;
 }
+
+export type AttractMediaType = 'video' | 'image';
 
 /** Columns selected for an EventConfig. Never includes pin_hash. */
 export const EVENT_COLUMNS =
   'id, code, name, status, description, welcome_title, welcome_subtitle, pin_hash, retention_days, ' +
   'shot_count, countdown_seconds, capture_mode, allow_retake, max_retakes, live_photo, mirror_preview, filters, ' +
   'print_mode, print_paper, print_copies, max_guest_prints, ai_enabled, ai_styles, ai_per_session, daily_sketch_cap, ' +
-  'gallery_visibility, gallery_token, active_prompt_template_id, created_at';
+  'gallery_visibility, gallery_token, active_prompt_template_id, created_at, ' +
+  'attract_media_path, attract_media_type, attract_cta, attract_show_text, live_enabled, guestbook_enabled, public_token, ' +
+  'stickers_enabled, sticker_paths, ai_guest_prompt';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapEvent(row: any): EventConfig {
@@ -61,7 +76,7 @@ export function mapEvent(row: any): EventConfig {
     retentionDays: row.retention_days ?? 30,
     shotCount: row.shot_count ?? 3,
     countdownSeconds: row.countdown_seconds ?? 3,
-    captureMode: row.capture_mode ?? 'auto',
+    captureMode: row.capture_mode ?? 'manual',
     allowRetake: row.allow_retake ?? true,
     maxRetakes: row.max_retakes ?? 2,
     livePhoto: row.live_photo ?? true,
@@ -79,6 +94,16 @@ export function mapEvent(row: any): EventConfig {
     galleryToken: row.gallery_token ?? '',
     activePromptTemplateId: row.active_prompt_template_id ?? null,
     createdAt: row.created_at,
+    attractMediaPath: row.attract_media_path ?? null,
+    attractMediaType: row.attract_media_type ?? null,
+    attractCta: row.attract_cta ?? null,
+    attractShowText: row.attract_show_text ?? true,
+    liveEnabled: row.live_enabled ?? false,
+    guestbookEnabled: row.guestbook_enabled ?? false,
+    publicToken: row.public_token ?? '',
+    stickersEnabled: row.stickers_enabled ?? true,
+    stickerPaths: row.sticker_paths ?? [],
+    aiGuestPrompt: row.ai_guest_prompt ?? false,
   };
 }
 
@@ -124,7 +149,19 @@ export interface EventUpdateInput {
   aiPerSession?: number;
   dailySketchCap?: number;
   galleryVisibility?: GalleryVisibility;
+  attractMediaPath?: string | null;
+  attractMediaType?: AttractMediaType | null;
+  attractCta?: string | null;
+  attractShowText?: boolean;
+  liveEnabled?: boolean;
+  guestbookEnabled?: boolean;
+  stickersEnabled?: boolean;
+  stickerPaths?: string[];
+  aiGuestPrompt?: boolean;
 }
+
+/** Paths inside the private `event-media` bucket. */
+export const EVENT_MEDIA_RE = /^(attract|stickers|guestbook)\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(mp4|webm|mov|jpg|png|webp)$/;
 
 type Validator = (v: unknown) => unknown | undefined;
 
@@ -169,6 +206,15 @@ const FIELDS: Record<keyof EventUpdateInput, [column: string, validate: Validato
   aiPerSession: ['ai_per_session', int(0, 10)],
   dailySketchCap: ['daily_sketch_cap', int(0, 10000)],
   galleryVisibility: ['gallery_visibility', oneOf(['private', 'unlisted', 'public'])],
+  attractMediaPath: ['attract_media_path', (v) => (v === null ? null : typeof v === 'string' && EVENT_MEDIA_RE.test(v) && v.startsWith('attract/') ? v : undefined)],
+  attractMediaType: ['attract_media_type', (v) => (v === null ? null : v === 'video' || v === 'image' ? v : undefined)],
+  attractCta: ['attract_cta', str(60, true)],
+  attractShowText: ['attract_show_text', bool],
+  liveEnabled: ['live_enabled', bool],
+  guestbookEnabled: ['guestbook_enabled', bool],
+  stickersEnabled: ['stickers_enabled', bool],
+  stickerPaths: ['sticker_paths', (v) => (Array.isArray(v) && v.length <= 40 && v.every((x) => typeof x === 'string' && EVENT_MEDIA_RE.test(x) && x.startsWith('stickers/')) ? Array.from(new Set(v as string[])) : undefined)],
+  aiGuestPrompt: ['ai_guest_prompt', bool],
 };
 
 /**

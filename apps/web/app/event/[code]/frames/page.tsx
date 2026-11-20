@@ -1,9 +1,7 @@
-import { getEventRole, loadEventByCode } from '@/lib/access';
-import { EventFrames } from '@/components/event/EventFrames';
+import { redirect } from 'next/navigation';
 
-export default async function EventFramesPage({ params }: { params: Promise<{ code: string }> }) {
+/** Old URL — frames are managed inside Pengaturan Booth. */
+export default async function FramesRedirect({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const loaded = (await loadEventByCode(code))!;
-  const role = await getEventRole(loaded);
-  return <EventFrames code={loaded.event.code} eventName={loaded.event.name} isAdmin={role === 'admin'} />;
+  redirect(`/event/${code}/booth#frame`);
 }

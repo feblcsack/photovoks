@@ -1,4 +1,4 @@
-# 📸 Photovoks
+# Photovoks
 
 Photobooth web app berbasis **event**. Operator membuka booth di iPad / laptop dengan **kode event + PIN**, tamu memilih frame, berfoto (dengan countdown, live photo, filter), lalu mencetak dan scan QR untuk softfile, GIF bergerak, dan versi **AI** (via OpenRouter). Semua sesi masuk ke **galeri event**, cetakan masuk ke **print station**.
 
@@ -17,13 +17,17 @@ PC + printer ──► /event/KODE/print  (atau `pnpm print`, worker senyap)
 | Area | Yang bisa dilakukan |
 |---|---|
 | **Event** | Banyak event aktif sekaligus. Tiap event punya kode unik, PIN (bcrypt, lockout 5×), frame, pengaturan booth/cetak/AI/galeri sendiri. |
-| **Booth** | Layar sambutan → pilih frame → kamera (preview dipotong persis ke rasio slot) → countdown → N foto otomatis/manual → pilih foto terbaik + ulang foto + filter → komposisi → QR, cetak, Gaya AI. Auto-kembali ke awal saat idle. |
+| **Booth** | Layar awal (bawaan atau **video/gambar sendiri**, ketuk layar untuk mulai) → pilih frame → kamera (preview dipotong persis ke rasio slot) → countdown → **jeda tiap foto: tamu menekan tombol lagi untuk foto berikutnya** → pilih foto terbaik + ulang foto + filter → komposisi (dengan **QR softfile di frame**) → QR, **cetak satu ketukan**, Gaya AI. Auto-kembali ke awal saat idle. |
+| **Pengaturan Booth** | **Satu halaman** per event (`/event/KODE/booth`): layar awal + pratinjau, frame & letak QR, sesi foto, cetak, fitur tamu, galeri/live/buku tamu, status. Satu tombol Simpan. |
+| **Tamu (HP)** | Scan QR → unduh foto/GIF, **hias dengan stiker** (stiker bawaan, emoji, teks, stiker PNG dari penyelenggara) lalu simpan atau **kirim ke printer penyelenggara**, Gaya AI termasuk **prompt sendiri**, link ke buku tamu. |
+| **Galeri live** | `/live/TOKEN` — layar penuh untuk proyektor/TV; foto & GIF baru muncul ±5 detik setelah sesi selesai, pesan buku tamu berjalan di bawah. |
+| **Buku tamu** | Microsite `/m/TOKEN` — tamu menulis pesan & kesan + foto. Moderasi (sembunyikan/hapus) di portal event › Buku Tamu. |
 | **Live photo / GIF** | Setiap jepretan merekam burst ±1 detik (10 frame). Hasil: GIF *seluruh frame* yang bergerak + sprite per-foto dengan kontrol kecepatan. Semua dari foto sesi yang tersimpan. |
 | **Galeri** | Galeri event (pengelola), galeri bersama via link (`/g/…`), galeri publik global (`/gallery`, hanya event yang memilih *Publik*). Sembunyikan / hapus sesi. Lazy-load + thumbnail. |
-| **Frame Builder** | Editor visual: slot foto, teks (7 font, token `{event}` `{date}` `{time}` `{code}`), gambar/overlay PNG, kotak, lingkaran, garis, barcode. Drag, resize 8 arah, snapping + guide, undo/redo, layer, tata letak slot otomatis, template, pratinjau dengan foto contoh. Library frame dipakai ulang lintas event. |
+| **Frame Builder** | Editor visual: slot foto, teks (7 font, token `{event}` `{date}` `{time}` `{code}`), **QR sesi** (contoh QR di editor → diganti link softfile tamu saat foto, peringatan bila menutupi slot), gambar/overlay PNG, kotak, lingkaran, garis, barcode. Drag, resize 8 arah, snapping + guide, undo/redo, layer, tata letak slot otomatis, template, pratinjau dengan foto contoh. Library frame dipakai ulang lintas event. |
 | **Cetak** | Dialog cetak dengan pratinjau persis (4R, strip 2×6, 5×7, postcard, A4–A6, struk 58/80mm), tata letak (otomatis / pas / penuh / 2 per lembar / isi lembar), margin, jumlah salinan. Mode per event: *print station*, *langsung dari booth*, atau *tanpa cetak*. |
 | **Print station** | Antrean real-time per event, cetak dari browser (opsional otomatis), tandai tercetak/gagal, cetak ulang, batas cetak tamu. Atau worker Node senyap (`pnpm print`). |
-| **AI** | 8 gaya bawaan + "Gaya Event" (prompt kustom berversi). Provider modular: OpenRouter (default) atau Gemini langsung. Bandingkan asli vs AI, unduh, cetak, retry, batas per sesi & per hari. |
+| **AI** | 8 gaya bawaan + "Gaya Event" (prompt kustom berversi) + opsional **prompt tulisan tamu** (dibungkus aturan keamanan & identitas). Provider modular: OpenRouter (default) atau Gemini langsung. Bandingkan asli vs AI, unduh, cetak, retry, batas per sesi & per hari. |
 
 ## 2. Teknologi
 
@@ -40,6 +44,8 @@ apps/web/
   app/booth/[code]        booth kiosk          app/event/[code]/*   portal event (PIN)
   app/admin/(portal)/*    portal pemilik       app/s/[token]        halaman tamu (QR)
   app/g/[token], gallery  galeri bersama/publik app/api/*           API
+  app/live/[token]        galeri live          app/m/[token]        buku tamu (microsite)
+  components/event/booth-settings  halaman Pengaturan Booth terpadu
   components/booth        CaptureStage, ReviewStage, FinishStage
   components/frame-builder  editor visual
   lib/frames              tipe desain, renderer, template, konversi frame lama
@@ -61,7 +67,7 @@ pnpm install
 
 1. Buat project di [Supabase](https://supabase.com) (gratis).
 2. Siapkan database: `pnpm -s db:sql | pbcopy` (macOS) atau `pnpm -s db:sql > setup.sql`, lalu paste ke **Supabase › SQL Editor › Run**.
-   *Sudah pernah setup versi lama?* Cukup jalankan file baru `supabase/migrations/20240101000007_v2_events_frames_gallery.sql` — sifatnya aditif, data lama tetap ada.
+   *Sudah pernah setup versi lama?* Jalankan migrasi yang belum ada secara berurutan — `…07_v2_events_frames_gallery.sql`, lalu `…08_v3_booth_live_guestbook.sql`. Keduanya aditif & aman dijalankan ulang; data lama tetap ada.
 3. `pnpm configure` — wizard mengisi `apps/web/.env.local`, PIN admin, dan membuat event pertama (kode + PIN).
 4. `pnpm dev` → buka `http://localhost:3000`.
 
@@ -101,29 +107,33 @@ Tidak ada API key yang dikirim ke browser; hanya variabel `NEXT_PUBLIC_*` yang m
 3. Pilih model gambar yang **menerima input gambar** (image-to-image). Cek di <https://openrouter.ai/models> (filter output: image) atau `GET https://openrouter.ai/api/v1/images/models` untuk parameter yang didukung. Ganti cukup lewat `OPENROUTER_MODEL`.
 4. Jika model hanya tersedia lewat chat completions, set `OPENROUTER_API_MODE=chat`.
 5. Uji: **Portal Pemilik › Prompt AI › (event) › Tes prompt** dengan foto contoh — tanpa menyimpan apa pun. Status AI juga tampil di Dashboard.
-6. Kendalikan biaya: **Pengaturan event › Gaya AI** → maks. hasil per sesi dan batas harian per event.
+6. Kendalikan biaya: **Pengaturan Booth › Fitur tamu › Gaya AI** → maks. hasil per sesi dan batas harian per event. *Tamu boleh menulis prompt sendiri* bisa dimatikan kapan saja.
 
 Menambah gaya: tambahkan item di `apps/web/lib/ai/styles.ts`. Menambah provider: implementasikan `ImageProvider` di `lib/ai/` dan daftarkan di `lib/ai/provider.ts`.
 
 ## 7. Membuat event
 
 1. **Portal Pemilik** (`/admin`, PIN admin) › **Event › Tambah Event** → nama, kode (opsional, otomatis), **PIN event**.
-2. **Kelola** → **Frame**: pilih frame dari library (urutan = urutan di booth).
-3. **Pengaturan**: jumlah foto per sesi, hitung mundur, mode otomatis/manual, ulang foto, live photo, cermin, filter, mode cetak + kertas + salinan, batas cetak tamu, galeri & privasi, masa simpan, Gaya AI. Set status **Aktif** (draft = mode uji).
-4. Operator tanpa akses admin cukup buka `/event/KODE` + PIN event untuk mengelola sesi, galeri, print station, frame & pengaturan (ganti kode/PIN hanya pemilik).
+2. **Kelola** → **Pengaturan Booth** — semuanya di satu halaman:
+   - **Layar awal**: upload video (MP4 H.264, ≤ 50 MB) atau gambar, judul, ajakan; pratinjau persis booth.
+   - **Frame & QR**: tambah frame dari library, urutkan, dan atur **QR softfile** per frame (*sesuai desain* / *pojok* + ukuran dalam cm / *tanpa QR*). Peringatan muncul bila QR menutupi foto atau < 2 cm.
+   - **Sesi foto**, **Cetak**, **Fitur tamu** (stiker + stiker PNG event, Gaya AI, prompt tamu), **Galeri, live & buku tamu**, **Status & akses**. Set status **Aktif** (draft = mode uji).
+3. Operator tanpa akses admin cukup buka `/event/KODE` + PIN event untuk mengelola semua hal di atas (ganti kode/PIN hanya pemilik).
 
 ## 8. Menggunakan photobooth
 
 1. Di iPad/laptop buka `https://domain/booth/KODE` (atau beranda → isi kode) → masukkan **PIN event** (sekali per perangkat, berlaku 12 jam).
-2. iPad: **Share › Add to Home Screen** untuk layar penuh, aktifkan **Guided Access**. Laptop: tahan ikon ⚙ (1,2 detik) di layar sambutan untuk memilih kamera, mode cermin, layar penuh, atau mengunci booth.
-3. Tamu: **Mulai → pilih frame → Mulai foto** → countdown tiap foto → **pilih foto terbaik** (jika jumlah foto > slot), ulang foto (↺), filter → **Lanjut** → QR + Cetak + Gaya AI → **Selesai** (otomatis kembali setelah 2 menit tanpa sentuhan).
+2. iPad: **Share › Add to Home Screen** untuk layar penuh, aktifkan **Guided Access**. Laptop: tahan ikon ⚙ (1 detik) di layar sambutan untuk memilih kamera, mode cermin, layar penuh, atau mengunci booth.
+3. Tamu: **ketuk layar → pilih frame → Mulai foto** → countdown → foto tersimpan, booth menunggu → **Ambil foto 2** saat siap (mode *Otomatis berurutan* tersedia di pengaturan) → **pilih foto terbaik** (jika jumlah foto > slot), ulang foto (↺), filter → **Lanjut** → QR + Cetak + Gaya AI → **Selesai** (otomatis kembali setelah 2 menit tanpa sentuhan).
 4. Jika upload gagal (internet putus), foto tetap di perangkat dan tombol **Coba lagi** muncul.
 
 ## 9. Galeri
 
 - **Portal event › Galeri**: semua sesi event (scroll tak terbatas). Klik → tab *Hasil / Live / Foto / AI*, unduh, cetak, buka halaman tamu, sembunyikan dari galeri bersama, hapus.
 - **Riwayat Sesi**: tabel dengan filter waktu/status, statistik, export CSV.
-- **Visibilitas** (Pengaturan › Galeri & privasi): *Privat* (default — tamu hanya melihat sesinya sendiri lewat QR), *Dengan link* (`/g/<token>` untuk semua tamu), *Publik* (juga di `/gallery`). Link galeri berupa token acak 128-bit.
+- **Galeri live**: aktifkan di Pengaturan Booth › Galeri, live & buku tamu, lalu buka link `/live/…` di laptop yang tersambung proyektor/TV (tombol layar penuh di pojok kanan atas).
+- **Buku tamu**: aktifkan di tempat yang sama. Link muncul di halaman softfile tamu dan sebagai QR di galeri live. Moderasi di **Buku Tamu**.
+- **Visibilitas** (Pengaturan Booth › Galeri, live & buku tamu): *Privat* (default — tamu hanya melihat sesinya sendiri lewat QR), *Dengan link* (`/g/<token>` untuk semua tamu), *Publik* (juga di `/gallery`). Link galeri berupa token acak 128-bit.
 - **Portal Pemilik › Galeri**: semua sesi semua event.
 
 ## 10. Frame Builder
@@ -139,7 +149,9 @@ Menambah gaya: tambahkan item di `apps/web/lib/ai/styles.ts`. Menambah provider:
 
 ## 11. Mencetak
 
-- Tombol **Cetak** membuka dialog dengan pratinjau sheet persis (300 DPI). Pilih kertas, tata letak, margin, salinan → dialog print browser.
+- Booth mode *Langsung dari booth*: tombol **Cetak sekarang** langsung mengirim sheet (kertas & jumlah lembar dari pengaturan) ke printer perangkat booth; *atur ukuran* membuka dialog lengkap.
+- Cetakan yang diminta tamu dari HP (foto, hasil AI, **foto berstiker**) selalu masuk **antrean Print Station** penyelenggara, apa pun mode booth-nya, sampai batas *Cetak dari HP tamu*.
+- Dialog cetak lengkap memakai pratinjau sheet persis (300 DPI). Pilih kertas, tata letak, margin, salinan → dialog print browser.
 - Di dialog print browser: pilih printer & ukuran kertas yang sama, **Margins: None**, **Scale: 100%**, matikan *Headers and footers*.
 - Strip 2×6 pada kertas 4R otomatis dicetak **2 strip per lembar** (garis potong tipis di tengah).
 
@@ -161,7 +173,11 @@ Booth di mode *Print station* otomatis memasukkan sesi ke antrean (jumlah salina
 
 ## 13. Keterbatasan yang diketahui
 
-- **Belum diuji dengan layanan sungguhan.** Verifikasi dilakukan dengan typecheck, lint, 28 unit test, build produksi, dan E2E Chromium (kamera palsu) terhadap emulator Supabase + endpoint OpenRouter palsu di mesin pengembang. Perlu diuji di project Supabase Anda, dengan key OpenRouter asli, printer fisik, dan iPad Safari asli.
+- **Pengujian**: typecheck, lint, 36 unit test, build produksi, dan E2E Chromium/WebKit (kamera palsu) terhadap emulator Supabase + endpoint OpenRouter palsu. Fitur v3 (layar awal, QR di frame, stiker, live, buku tamu, prompt tamu) belum diuji di project Supabase asli, printer fisik, dan iPad/iPhone asli.
+- **Galeri live** memakai polling tiap 5 detik (bukan websocket) — sengaja, agar jalan di jaringan event mana pun. Ratusan layar sekaligus akan menambah beban API.
+- **Video layar awal** diunduh sekali per perangkat dan di-cache browser; file besar memperlambat booth saat pertama dibuka. Format paling aman untuk iPad: MP4 H.264.
+- **Stiker** di HP: simpan memakai share sheet (iOS/Android) atau unduhan; emoji digambar dengan font emoji perangkat tamu.
+- **Moderasi buku tamu** bersifat reaktif: pesan langsung tampil, pengelola bisa menyembunyikannya. Tidak ada filter kata otomatis.
 - **Silent printing** tidak mungkin dari web biasa; hanya Chrome `--kiosk-printing` atau worker. Safari/iPad selalu menampilkan dialog dan bisa mengabaikan `@page size` → pilih ukuran kertas manual. Hasil akhir bergantung driver printer (borderless, skala).
 - **iPad Safari** tidak mendukung Fullscreen API untuk halaman → gunakan *Add to Home Screen* + Guided Access. Kamera butuh HTTPS dan izin di Pengaturan › Safari › Kamera.
 - **Fungsi serverless**: job AI berjalan via `after()` dengan batas 60 detik (Vercel). Model yang lambat bisa timeout → tamu bisa *Coba lagi* (maks. 3×).

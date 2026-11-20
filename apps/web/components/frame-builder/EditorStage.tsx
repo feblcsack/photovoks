@@ -150,6 +150,14 @@ export function EditorStage({ editor, zoom, photos, assets, tokens, showGuides =
         }
       }
       r = { x, y, w: Math.max(8, w), h: Math.max(8, hh) };
+      // QR codes are always square (keeps them scannable).
+      if (el?.type === 'qr') {
+        const side = Math.max(r.w, r.h);
+        if (h.includes('w')) r.x = st.orig.x + st.orig.w - side;
+        if (h.includes('n')) r.y = st.orig.y + st.orig.h - side;
+        r.w = side;
+        r.h = side;
+      }
     }
 
     r = { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) };

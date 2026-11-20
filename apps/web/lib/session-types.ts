@@ -14,7 +14,7 @@ export interface AiGenerationView {
 
 export interface PrintJobView {
   id: string;
-  type: 'strip' | 'sketch' | 'ai';
+  type: 'strip' | 'sketch' | 'ai' | 'edit';
   status: 'queued' | 'printing' | 'printed' | 'failed' | 'cancelled' | 'cancel_failed';
   copies: number;
   source: string;
@@ -58,6 +58,12 @@ export interface GuestEventInfo {
   printPaper: string;
   maxGuestPrints: number;
   hasCustomStyle: boolean;
+  aiGuestPrompt: boolean;
+  stickersEnabled: boolean;
+  /** Signed URLs of the event's own sticker PNGs. */
+  stickers: string[];
+  /** Public token of the guestbook microsite (null when disabled). */
+  guestbookToken: string | null;
 }
 
 export interface GuestSessionData {

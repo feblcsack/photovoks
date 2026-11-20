@@ -15,8 +15,9 @@ import {
   LogOut,
   Menu,
   Printer,
-  Settings,
-  Sparkles,
+  MessageSquareText,
+  Palette,
+  SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -34,18 +35,18 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/events', label: 'Event', icon: CalendarDays },
   { href: '/admin/frames', label: 'Frame Builder', icon: Frame },
   { href: '/admin/gallery', label: 'Galeri', icon: GalleryHorizontalEnd },
-  { href: '/admin/prompts', label: 'Prompt AI', icon: Sparkles },
+  { href: '/admin/prompts', label: 'Prompt AI', icon: Palette },
 ];
 
 function eventNav(code: string): NavItem[] {
   const base = `/event/${code}`;
   return [
     { href: base, label: 'Ringkasan', icon: LayoutDashboard, exact: true },
-    { href: `${base}/sessions`, label: 'Riwayat Sesi', icon: History },
+    { href: `${base}/booth`, label: 'Pengaturan Booth', icon: SlidersHorizontal },
     { href: `${base}/gallery`, label: 'Galeri', icon: GalleryHorizontalEnd },
+    { href: `${base}/sessions`, label: 'Riwayat Sesi', icon: History },
+    { href: `${base}/guestbook`, label: 'Buku Tamu', icon: MessageSquareText },
     { href: `${base}/print`, label: 'Print Station', icon: Printer },
-    { href: `${base}/frames`, label: 'Frame', icon: Frame },
-    { href: `${base}/settings`, label: 'Pengaturan', icon: Settings },
   ];
 }
 

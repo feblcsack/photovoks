@@ -24,7 +24,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Segmented } from '@/components/ui/segmented';
 import { FONTS } from '@/lib/frames/fonts';
 import { CANVAS_PRESETS } from '@/lib/frames/presets';
-import type { FontKey, FrameElement, PhotoElement } from '@/lib/frames/types';
+import type { FontKey, FrameElement, PhotoElement, QrElement } from '@/lib/frames/types';
 import { slotCountOf } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
 import { autoLayoutSlots, resizeCanvas, type Editor } from './useEditor';
@@ -37,6 +37,7 @@ const TYPE_LABEL: Record<FrameElement['type'], string> = {
   ellipse: 'Lingkaran',
   line: 'Garis',
   barcode: 'Barcode',
+  qr: 'QR sesi',
 };
 
 function Section({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
@@ -352,6 +353,25 @@ function ElementProps({ editor, el, onUploadImage, uploading }: { editor: Editor
             <ColorField label="Warna" value={el.color} onChange={(v) => up({ color: v })} />
             <Slider label="Ketebalan" value={el.thickness} min={1} max={40} onChange={(v) => up({ thickness: v })} format={(v) => `${v}px`} />
             <Slider label="Putus-putus" value={el.dash} min={0} max={60} onChange={(v) => up({ dash: v })} format={(v) => (v ? `${v}px` : 'solid')} />
+          </div>
+        </Section>
+      ) : null}
+
+      {el.type === 'qr' ? (
+        <Section title="QR sesi">
+          <div className="flex flex-col gap-3">
+            <p className="text-[12px] leading-relaxed text-ink-2">
+              Kode di kanvas hanya contoh. Di booth, area ini diisi QR link softfile tiap tamu — jadi tamu bisa scan langsung dari cetakan.
+            </p>
+            <ColorField label="Warna kode" value={el.color} onChange={(v) => up({ color: v } as Partial<QrElement>)} />
+            <ColorField label="Latar" value={el.background} onChange={(v) => up({ background: v } as Partial<QrElement>)} allowTransparent />
+            <Slider label="Ruang tepi" value={el.margin} min={0} max={4} onChange={(v) => up({ margin: v } as Partial<QrElement>)} format={(v) => `${v} modul`} />
+            <Slider label="Sudut membulat" value={el.radius} min={0} max={Math.round(el.w / 4)} onChange={(v) => up({ radius: v } as Partial<QrElement>)} format={(v) => `${v}px`} />
+            <Field label="Keterangan (opsional)">
+              <Input value={el.caption ?? ''} onChange={(e) => up({ caption: e.target.value || undefined } as Partial<QrElement>)} maxLength={40} placeholder="Scan softfile" />
+            </Field>
+            {el.caption ? <ColorField label="Warna keterangan" value={el.captionColor ?? el.color} onChange={(v) => up({ captionColor: v } as Partial<QrElement>)} /> : null}
+            <p className="text-[11px] text-muted">Agar mudah di-scan dari cetakan, beri ukuran minimal ±2 cm (≈240 px pada 300 DPI) dan kontras tinggi.</p>
           </div>
         </Section>
       ) : null}
