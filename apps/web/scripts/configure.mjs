@@ -72,9 +72,13 @@ function writeEnv(values) {
     `NEXT_PUBLIC_SUPABASE_ANON_KEY=${values.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
     `SUPABASE_SERVICE_ROLE_KEY=${values.SUPABASE_SERVICE_ROLE_KEY}`,
     '',
-    '# Google Gemini (https://aistudio.google.com/apikey) — leave empty to disable AI doodles',
-    `GEMINI_API_KEY=${values.GEMINI_API_KEY ?? ''}`,
-    `GEMINI_MODEL_NAME=${values.GEMINI_MODEL_NAME || 'gemini-2.5-flash-image'}`,
+    '# AI (OpenRouter — https://openrouter.ai/keys). Empty key = AI styles disabled.',
+    `OPENROUTER_API_KEY=${values.OPENROUTER_API_KEY ?? ''}`,
+    `OPENROUTER_MODEL=${values.OPENROUTER_MODEL || 'google/gemini-2.5-flash-image'}`,
+    ...(values.OPENROUTER_API_MODE ? [`OPENROUTER_API_MODE=${values.OPENROUTER_API_MODE}`] : []),
+    ...(values.APP_URL ? [`APP_URL=${values.APP_URL}`] : []),
+    ...(values.GEMINI_API_KEY ? ['', '# Legacy direct Gemini provider (only used when AI_PROVIDER=gemini)', `GEMINI_API_KEY=${values.GEMINI_API_KEY}`, `GEMINI_MODEL_NAME=${values.GEMINI_MODEL_NAME || 'gemini-2.5-flash-image'}`] : []),
+    ...(values.AI_PROVIDER ? [`AI_PROVIDER=${values.AI_PROVIDER}`] : []),
     '',
     '# Printer name (`pnpm print --list`). "dry-run" = save files to ./print-output. Empty = no printing here.',
     `PRINTER_NAME=${values.PRINTER_NAME ?? ''}`,
@@ -162,9 +166,10 @@ async function main() {
   }
   console.log(c.green('ok'));
 
-  // 2. Gemini
-  console.log(`\n${c.bold('2) Gemini AI')}${c.dim('  — https://aistudio.google.com/apikey (kosongkan untuk mematikan doodle AI)')}`);
-  const gemini = await ask('   Gemini API key', prev.GEMINI_API_KEY);
+  // 2. AI via OpenRouter
+  console.log(`\n${c.bold('2) AI (OpenRouter)')}${c.dim('  — https://openrouter.ai/keys (kosongkan untuk mematikan Gaya AI)')}`);
+  const openrouter = await ask('   OpenRouter API key', prev.OPENROUTER_API_KEY);
+  const orModel = await ask('   Model gambar', prev.OPENROUTER_MODEL || 'google/gemini-2.5-flash-image');
 
   // 3. Printer
   console.log(`\n${c.bold('3) Printer')}${c.dim('  — isi di komputer yang tersambung ke printer')}`);
@@ -187,30 +192,40 @@ async function main() {
   else printer = choice; // typed a printer name manually
 
   // 4. Admin PIN
-  console.log(`\n${c.bold('4) PIN admin')}${c.dim('  — untuk masuk ke /admin (tap 5x pojok kanan atas di layar booth)')}`);
+  console.log(`\n${c.bold('4) PIN admin')}${c.dim('  — untuk masuk ke /admin (Portal Pemilik)')}`);
   const { data: admin } = await supabase.from('admin_users').select('id').eq('username', 'admin').maybeSingle();
   if (!admin || (await ask('   Ganti PIN admin? (y/N)', 'N')).toLowerCase() === 'y') {
     await setPin(supabase);
   }
 
   // 5. Event
-  const { data: activeEvent } = await supabase.from('events').select('id, name').eq('status', 'active').maybeSingle();
-  if (!activeEvent) {
+  const { data: anyEvent } = await supabase.from('events').select('id, name, code').limit(1).maybeSingle();
+  if (!anyEvent) {
     console.log(`\n${c.bold('5) Event')}`);
-    const name = await ask('   Belum ada event aktif. Nama event pertama', 'Photovoks Event');
-    const { error } = await supabase.from('events').insert({ name, status: 'active' });
+    const name = await ask('   Belum ada event. Nama event pertama', 'Photovoks Event');
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const code = Array.from(crypto.randomBytes(6), (b) => alphabet[b % alphabet.length]).join('');
+    let pin = '';
+    while (!/^\d{4,8}$/.test(pin)) pin = await askSecret('   PIN event (4–8 angka) — dipakai operator untuk membuka booth');
+    const { error } = await supabase.from('events').insert({ name, code, status: 'active', pin_hash: await bcrypt.hash(pin, 10) });
     if (error) fail(`Gagal membuat event: ${error.message}`);
-    console.log(c.green(`   ✔ Event "${name}" dibuat & diaktifkan. Upload bingkai di /admin/frames.`));
+    console.log(c.green(`   ✔ Event "${name}" dibuat · kode ${c.bold(code)}. Booth: /booth/${code}`));
+    console.log(c.dim('     Buat frame di /admin/frames lalu pilih di Portal Event › Frame.'));
   } else {
-    console.log(`\n${c.bold('5) Event')}  aktif: ${c.green(activeEvent.name)}`);
+    console.log(`\n${c.bold('5) Event')}  sudah ada (mis. ${c.green(anyEvent.name)} · ${anyEvent.code}). Kelola di /admin/events.`);
   }
 
   writeEnv({
     NEXT_PUBLIC_SUPABASE_URL: url.replace(/\/$/, ''),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: anon,
     SUPABASE_SERVICE_ROLE_KEY: service,
-    GEMINI_API_KEY: gemini,
+    OPENROUTER_API_KEY: openrouter,
+    OPENROUTER_MODEL: orModel,
+    OPENROUTER_API_MODE: prev.OPENROUTER_API_MODE,
+    APP_URL: prev.APP_URL,
+    GEMINI_API_KEY: prev.GEMINI_API_KEY,
     GEMINI_MODEL_NAME: prev.GEMINI_MODEL_NAME,
+    AI_PROVIDER: prev.AI_PROVIDER,
     PRINTER_NAME: printer,
     ADMIN_SESSION_SECRET: prev.ADMIN_SESSION_SECRET || crypto.randomBytes(48).toString('base64url'),
   });

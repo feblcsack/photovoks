@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/prompts/preview  (admin only)
  *
- * Runs a test photo through the Gemini doodle pipeline and returns the result
+ * Runs a test photo through the configured AI provider (OpenRouter by default) and returns the result
  * inline as base64. Nothing is persisted.
  *
  * Request: multipart/form-data — photo: File, content: string (prompt)
@@ -9,7 +9,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/security';
-import { generateDoodle } from '@/lib/sketch/gemini';
+import { describeAiFailure, getProvider } from '@/lib/ai/provider';
 
 export const maxDuration = 60;
 
@@ -17,13 +17,13 @@ const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const MAX_PROMPT_CHARS = 4000;
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-const ERROR_MESSAGES: Record<string, [string, number]> = {
-  not_configured: ['GEMINI_API_KEY belum diisi di server', 500],
-  safety: ['Foto/prompt ditolak oleh filter keamanan Gemini', 422],
-  rate_limited: ['Kuota Gemini habis sementara (429). Coba lagi sebentar.', 429],
-  timeout: ['Gemini terlalu lama merespons', 504],
-  empty_response: ['Gemini tidak mengembalikan gambar. Pastikan model mendukung output gambar.', 502],
-  gemini_error: ['Gagal memanggil Gemini', 502],
+const STATUS: Record<string, number> = {
+  not_configured: 500,
+  auth: 500,
+  insufficient_credits: 402,
+  safety: 422,
+  rate_limited: 429,
+  timeout: 504,
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -58,11 +58,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const photo = Buffer.from(await photoFile.arrayBuffer());
-  const result = await generateDoodle(photo, fileType === 'image/jpg' ? 'image/jpeg' : fileType, promptContent);
+  const result = await getProvider().generate({
+    image: photo,
+    mimeType: fileType === 'image/jpg' ? 'image/jpeg' : fileType,
+    prompt: promptContent,
+  });
 
   if (!result.ok) {
-    const [message, status] = ERROR_MESSAGES[result.reason] ?? ['Gagal', 500];
-    return NextResponse.json({ error: message }, { status });
+    const detail = result.message ? ` (${result.message.slice(0, 160)})` : '';
+    return NextResponse.json({ error: describeAiFailure(result.reason) + detail }, { status: STATUS[result.reason] ?? 502 });
   }
 
   return NextResponse.json({

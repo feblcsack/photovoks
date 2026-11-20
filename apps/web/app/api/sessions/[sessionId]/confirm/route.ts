@@ -1,179 +1,99 @@
 /**
- * POST /api/sessions/[sessionId]/confirm
+ * POST /api/sessions/[sessionId]/confirm   (Authorization: Bearer <sessionToken>)
  *
- * Confirms that all 5 assets have been uploaded, then creates the print job
- * record and marks the session as composed.
+ * Called after the booth uploaded every file. Verifies the files exist,
+ * stores metadata, marks the session composed, and — when the event uses a
+ * print station and `autoPrint` is true — queues the first print.
  *
- * Auth: Bearer {sessionToken} in Authorization header
- *
- * Response: { printJobId: string, sketchJobId: null }
- *
- * Requirements: 6.5, 6.8, 6.6
+ * Body: { slotMap: number[], filter?: string, stripWidth, stripHeight,
+ *         liveFrames?: number, autoPrint?: boolean }
+ * Idempotent: a second call returns the same result without re-queuing.
  */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
 import { getBearer, isUuid, safeEqual } from '@/lib/security';
+import { readJson, jsonError } from '@/lib/http';
+import { EVENT_COLUMNS, mapEvent } from '@/lib/events';
+import { enqueuePrint } from '@/lib/print/server';
 
-/** The 5 asset paths expected under sessions/{sessionId}/ */
-const ASSET_FILENAMES = [
-  'photo_0.jpg',
-  'photo_1.jpg',
-  'photo_2.jpg',
-  'strip.png',
-  'sheet.jpg',
-] as const;
+type Ctx = { params: Promise<{ sessionId: string }> };
 
-type RouteContext = { params: Promise<{ sessionId: string }> };
-
-export async function POST(
-  request: NextRequest,
-  context: RouteContext
-): Promise<NextResponse> {
-  const { sessionId } = await context.params;
-
-  // ── Validate Bearer token ─────────────────────────────────────────────────
-  const bearerToken = getBearer(request);
-  if (!bearerToken) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  if (!isUuid(sessionId)) {
-    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-  }
+export async function POST(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
+  const { sessionId } = await ctx.params;
+  const bearer = getBearer(request);
+  if (!bearer) return jsonError('Unauthorized', 401);
+  if (!isUuid(sessionId)) return jsonError('Sesi tidak ditemukan', 404);
+  const body = (await readJson(request)) ?? {};
 
   const supabase = createServerClient();
-
-  // ── Look up the session and validate token ────────────────────────────────
-  const { data: session, error: sessionError } = await supabase
+  const { data: session } = await supabase
     .from('sessions')
-    .select('id, token, status')
+    .select('id, token, status, event_id, shot_count')
     .eq('id', sessionId)
-    .single();
+    .maybeSingle();
+  if (!session || !safeEqual(session.token, bearer)) return jsonError('Sesi tidak ditemukan', 404);
 
-  if (sessionError || !session) {
-    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-  }
+  const { data: evRow } = await supabase.from('events').select(EVENT_COLUMNS).eq('id', session.event_id).single();
+  const event = mapEvent(evRow);
 
-  if (!safeEqual(session.token, bearerToken)) {
-    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-  }
-
-  // Already confirmed → idempotent fast path (never re-queue a printed strip)
-  if (session.status !== 'created' && session.status !== 'capturing') {
-    const { data: existingJob } = await supabase
+  const alreadyDone = !['created', 'capturing'].includes(session.status);
+  if (alreadyDone) {
+    const { data: job } = await supabase
       .from('print_jobs')
       .select('id')
       .eq('session_id', sessionId)
-      .eq('type', 'strip')
+      .eq('source', 'booth')
+      .order('created_at', { ascending: true })
+      .limit(1)
       .maybeSingle();
-    if (existingJob) {
-      return NextResponse.json({ printJobId: existingJob.id, sketchJobId: null });
-    }
+    return NextResponse.json({ ok: true, token: session.token, printJobId: job?.id ?? null });
   }
 
-  // ── Verify all 5 assets exist in Storage ─────────────────────────────────
-  const headChecks = await Promise.all(
-    ASSET_FILENAMES.map(async (filename) => {
-      const path = `sessions/${sessionId}/${filename}`;
-      const { data, error } = await supabase.storage
-        .from('sessions')
-        .list(`sessions/${sessionId}`, {
-          search: filename,
-          limit: 1,
-        });
+  const { data: files } = await supabase.storage.from('sessions').list(`sessions/${sessionId}`, { limit: 100 });
+  const names = new Set((files ?? []).map((f) => f.name));
+  const required = [...Array.from({ length: session.shot_count }, (_, i) => `photo_${i}.jpg`), 'strip.png'];
+  const missing = required.filter((f) => !names.has(f));
+  if (missing.length) return jsonError('Upload belum lengkap', 422, { missing });
 
-      // Alternative: use getPublicUrl or download. We check via list() since
-      // HEAD via the storage client isn't directly exposed. A non-empty result
-      // means the file exists.
-      if (error) return { path, exists: false };
-      return { path, exists: (data?.length ?? 0) > 0 };
-    })
-  );
+  const shotCount = session.shot_count as number;
+  const slotMap = Array.isArray(body.slotMap)
+    ? (body.slotMap as unknown[]).filter((n): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) < shotCount).slice(0, 12)
+    : null;
+  const intOrNull = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 && (v as number) < 20000 ? (v as number) : null);
+  const liveFrames = Number.isInteger(body.liveFrames) ? Math.min(30, Math.max(0, body.liveFrames as number)) : 0;
 
-  const missing = headChecks.filter((r) => !r.exists).map((r) => r.path);
-  if (missing.length > 0) {
-    return NextResponse.json(
-      { error: 'Upload verification failed — missing assets', missing },
-      { status: 422 }
-    );
-  }
-
-  // ── Log upload completion ─────────────────────────────────────────────────
-  log({
-    level: 'info',
-    event: 'session.uploaded',
-    sessionId,
-    details: { assetsVerified: ASSET_FILENAMES.length },
-  });
-
-  // ── Upsert strip print job (idempotent via UNIQUE(session_id, type)) ──────
-  // Requirement 6.8: idempotent — repeated calls must not create duplicates.
-  const { data: printJob, error: printJobError } = await supabase
-    .from('print_jobs')
-    .upsert(
-      {
-        session_id: sessionId,
-        type: 'strip',
-        status: 'queued',
-        asset_path: `sessions/${sessionId}/sheet.jpg`,
-      },
-      { onConflict: 'session_id,type', ignoreDuplicates: false }
-    )
-    .select('id')
-    .single();
-
-  if (printJobError || !printJob) {
-    log({
-      level: 'error',
-      event: 'print_job.create_failed',
-      sessionId,
-      details: { error: printJobError?.message },
-    });
-    return NextResponse.json(
-      { error: 'Failed to create print job' },
-      { status: 500 }
-    );
-  }
-
-  // Log print job creation lifecycle event (Requirement 16.2)
-  log({
-    level: 'info',
-    event: 'print_job.created',
-    sessionId,
-    jobId: printJob.id,
-    details: { type: 'strip', status: 'queued' },
-  });
-
-  // ── Update session status → composed ─────────────────────────────────────
-  const { error: updateError } = await supabase
+  const { error: updError } = await supabase
     .from('sessions')
-    .update({ status: 'composed' })
-    .eq('id', sessionId);
+    .update({
+      status: 'composed',
+      completed_at: new Date().toISOString(),
+      slot_map: slotMap,
+      filter: typeof body.filter === 'string' ? body.filter.slice(0, 20) : null,
+      strip_width: intOrNull(body.stripWidth),
+      strip_height: intOrNull(body.stripHeight),
+      has_thumb: names.has('thumb.jpg'),
+      has_gif: names.has('anim.gif'),
+      has_live: names.has('live.jpg') && liveFrames > 0,
+      live_frames: names.has('live.jpg') ? liveFrames : 0,
+    })
+    .eq('id', sessionId)
+    .in('status', ['created', 'capturing']);
+  if (updError) return jsonError('Gagal menyimpan sesi', 500);
 
-  if (updateError) {
-    log({
-      level: 'error',
-      event: 'session.status_update_failed',
+  let printJobId: string | null = null;
+  if (body.autoPrint === true && event.printMode === 'station' && names.has('sheet.jpg')) {
+    const result = await enqueuePrint(supabase, {
       sessionId,
-      details: { error: updateError.message },
+      eventId: event.id,
+      type: 'strip',
+      copies: event.printCopies,
+      source: 'booth',
+      paper: event.printPaper,
     });
-    // Non-fatal: status update failure doesn't block printing
+    if ('id' in result) printJobId = result.id;
   }
 
-  // ── Emit structured log ───────────────────────────────────────────────────
-  log({
-    level: 'info',
-    event: 'session.composed',
-    sessionId,
-    details: {
-      printJobId: printJob.id,
-      sketchJobId: null,
-    },
-  });
-
-  return NextResponse.json({
-    printJobId: printJob.id,
-    sketchJobId: null,
-  });
+  log({ level: 'info', event: 'session.composed', sessionId, details: { printJobId } });
+  return NextResponse.json({ ok: true, token: session.token, printJobId });
 }

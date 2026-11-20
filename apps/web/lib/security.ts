@@ -53,7 +53,7 @@ export function getBearer(request: Request): string | null {
  * is derived from the service-role key (HMAC with a fixed label) so the raw
  * service key is never used directly as a JWT secret.
  */
-function getAdminKey(): Uint8Array {
+export function getAdminKey(): Uint8Array {
   const explicit = process.env.ADMIN_SESSION_SECRET;
   if (explicit && explicit.length >= 32) return new TextEncoder().encode(explicit);
 
@@ -71,6 +71,18 @@ export async function signAdminToken(adminId: string): Promise<string> {
     .setExpirationTime(`${ADMIN_SESSION_SECONDS}s`)
     .setIssuer(ADMIN_ISSUER)
     .sign(getAdminKey());
+}
+
+/** Returns the verified admin JWT payload (with iat/adminId) or null. */
+export async function readAdminToken(token: string | undefined | null): Promise<{ adminId: string; iat: number } | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, getAdminKey(), { issuer: ADMIN_ISSUER, algorithms: ['HS256'] });
+    if (payload.role !== 'admin') return null;
+    return { adminId: String(payload.adminId ?? ''), iat: Number(payload.iat ?? 0) };
+  } catch {
+    return null;
+  }
 }
 
 export async function verifyAdminToken(token: string | undefined | null): Promise<boolean> {

@@ -137,3 +137,58 @@ export async function captureFrame(
 export function stopCamera(stream: MediaStream): void {
   stream.getTracks().forEach((track) => track.stop());
 }
+
+// ── Device selection + error classification (v2 booth) ───────────────────────
+
+export type CameraErrorKind = 'insecure' | 'unsupported' | 'denied' | 'notfound' | 'busy' | 'unknown';
+
+export function classifyCameraError(err: unknown): CameraErrorKind {
+  if (typeof window !== 'undefined' && !window.isSecureContext) return 'insecure';
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return 'unsupported';
+  const name = (err as { name?: string })?.name ?? '';
+  if (name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError') return 'denied';
+  if (name === 'NotFoundError' || name === 'OverconstrainedError' || name === 'DevicesNotFoundError') return 'notfound';
+  if (name === 'NotReadableError' || name === 'AbortError' || name === 'TrackStartError') return 'busy';
+  return 'unknown';
+}
+
+export const CAMERA_ERROR_TEXT: Record<CameraErrorKind, { title: string; body: string }> = {
+  insecure: {
+    title: 'Kamera butuh koneksi aman (HTTPS)',
+    body: 'Browser hanya mengizinkan kamera di https:// atau localhost. Buka booth lewat domain HTTPS (mis. Vercel).',
+  },
+  unsupported: { title: 'Browser tidak mendukung kamera', body: 'Gunakan Safari (iPad) atau Chrome versi terbaru.' },
+  denied: {
+    title: 'Izin kamera ditolak',
+    body: 'iPad: Pengaturan › Safari › Kamera › Izinkan. Chrome: klik ikon kamera di address bar › Izinkan, lalu muat ulang.',
+  },
+  notfound: { title: 'Kamera tidak ditemukan', body: 'Pastikan webcam terpasang, atau pilih kamera lain.' },
+  busy: { title: 'Kamera sedang dipakai aplikasi lain', body: 'Tutup aplikasi/tab lain yang memakai kamera (Zoom, Meet, dll), lalu coba lagi.' },
+  unknown: { title: 'Kamera gagal dibuka', body: 'Coba muat ulang halaman atau pilih kamera lain.' },
+};
+
+/** Opens a camera at up to 1080p. `deviceId` wins over facingMode when given. */
+export async function openCamera(opts: { deviceId?: string | null; facingMode?: 'user' | 'environment' } = {}): Promise<MediaStream> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    throw Object.assign(new Error('unsupported'), { name: 'NotSupportedError' });
+  }
+  const base: MediaTrackConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
+  const video: MediaTrackConstraints = opts.deviceId
+    ? { ...base, deviceId: { exact: opts.deviceId } }
+    : { ...base, facingMode: { ideal: opts.facingMode ?? 'user' } };
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video, audio: false });
+  } catch (err) {
+    // A stale deviceId (camera unplugged) → fall back to any camera.
+    if (opts.deviceId && (err as { name?: string })?.name === 'OverconstrainedError') {
+      return navigator.mediaDevices.getUserMedia({ video: base, audio: false });
+    }
+    throw err;
+  }
+}
+
+export async function listCameras(): Promise<MediaDeviceInfo[]> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) return [];
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((d) => d.kind === 'videoinput');
+}

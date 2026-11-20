@@ -1,0 +1,35 @@
+/**
+ * Font registry for the frame renderer. Canvas cannot read CSS variables, so
+ * we pass the real (hashed) family names produced by next/font.
+ */
+import { bebas, caveat, jakarta, pacifico, patrickHand, playfair, spaceMono } from '@/app/fonts';
+import type { FontKey } from './types';
+
+export const FONTS: Record<FontKey, { label: string; family: string; weights: number[] }> = {
+  sans: { label: 'Sans (Jakarta)', family: jakarta.style.fontFamily, weights: [400, 500, 600, 700, 800] },
+  serif: { label: 'Serif (Playfair)', family: playfair.style.fontFamily, weights: [400, 700, 800] },
+  mono: { label: 'Mono / Struk', family: spaceMono.style.fontFamily, weights: [400, 700] },
+  display: { label: 'Display (Bebas)', family: bebas.style.fontFamily, weights: [400] },
+  hand: { label: 'Tulisan tangan', family: patrickHand.style.fontFamily, weights: [400] },
+  marker: { label: 'Marker (Caveat)', family: caveat.style.fontFamily, weights: [500, 700] },
+  script: { label: 'Script (Pacifico)', family: pacifico.style.fontFamily, weights: [400] },
+};
+
+export function nearestWeight(key: FontKey, weight: number): number {
+  const ws = FONTS[key]?.weights ?? [400];
+  return ws.reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best), ws[0]);
+}
+
+export function canvasFont(key: FontKey, weight: number, size: number, italic = false): string {
+  const f = FONTS[key] ?? FONTS.sans;
+  return `${italic ? 'italic ' : ''}${nearestWeight(key, weight)} ${size}px ${f.family}`;
+}
+
+/** Ensures the fonts used by a set of text elements are loaded before drawing. */
+export async function ensureFonts(specs: Array<{ font: FontKey; weight: number; italic?: boolean }>): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  const unique = new Set(specs.map((s) => canvasFont(s.font, s.weight, 32, s.italic)));
+  await Promise.all(
+    Array.from(unique).map((font) => document.fonts.load(font).catch(() => undefined)),
+  );
+}

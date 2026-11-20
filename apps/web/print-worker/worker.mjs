@@ -88,27 +88,31 @@ async function findSumatra() {
  * Sends an image file to the printer. Uses execFile with argument arrays —
  * never a shell — so file/printer names cannot inject commands.
  */
-async function printFile(filePath, printerName) {
+async function printFile(filePath, printerName, copies = 1) {
   if (printerName === DRY_RUN) {
     const outDir = path.resolve(process.cwd(), 'print-output');
     await fs.mkdir(outDir, { recursive: true });
-    await fs.copyFile(filePath, path.join(outDir, path.basename(filePath)));
+    for (let i = 0; i < copies; i++) {
+      const ext = path.extname(filePath);
+      const name = copies > 1 ? `${path.basename(filePath, ext)}-copy${i + 1}${ext}` : path.basename(filePath);
+      await fs.copyFile(filePath, path.join(outDir, name));
+    }
     return;
   }
 
   if (process.platform === 'win32') {
     const sumatra = await findSumatra();
     if (sumatra) {
-      await execFileAsync(sumatra, ['-silent', '-print-to', printerName, '-print-settings', 'fit', filePath]);
+      await execFileAsync(sumatra, ['-silent', '-print-to', printerName, '-print-settings', `fit,${copies}x`, filePath]);
     } else {
       // Built-in fallback: Paint can print an image to a named printer.
-      await execFileAsync('mspaint.exe', ['/pt', filePath, printerName]);
+      for (let i = 0; i < copies; i++) await execFileAsync('mspaint.exe', ['/pt', filePath, printerName]);
     }
     return;
   }
 
   const media = process.env.PRINT_MEDIA || '4x6';
-  const args = ['-d', printerName, '-o', `media=${media}`, '-o', 'fit-to-page'];
+  const args = ['-d', printerName, '-n', String(copies), '-o', `media=${media}`, '-o', 'fit-to-page'];
   for (const opt of (process.env.PRINT_LP_OPTIONS || '').split(/\s+/).filter(Boolean)) {
     args.push('-o', opt);
   }
@@ -137,6 +141,19 @@ export function startPrintWorker(opts) {
 
   let busy = false;
   let stopped = false;
+  /** Optional: only print jobs of these events (PRINT_EVENT_CODES=ABC123,XYZ789). */
+  let eventIds = null;
+  const codes = (opts.eventCodes || process.env.PRINT_EVENT_CODES || '')
+    .split(',')
+    .map((c) => c.trim().toUpperCase())
+    .filter(Boolean);
+  async function resolveEvents() {
+    if (!codes.length) return;
+    const { data } = await supabase.from('events').select('id, code').in('code', codes);
+    eventIds = (data || []).map((e) => e.id);
+    log('info', 'print_worker.event_filter', { codes, matched: eventIds.length });
+    if (!eventIds.length) eventIds = ['00000000-0000-0000-0000-000000000000'];
+  }
 
   async function heartbeat() {
     const { error } = await supabase
@@ -162,29 +179,29 @@ export function startPrintWorker(opts) {
   }
 
   async function processOne() {
-    const { data: next } = await supabase
+    let query = supabase
       .from('print_jobs')
-      .select('id, session_id, type, asset_path')
+      .select('id, session_id, type, asset_path, copies')
       .eq('status', 'queued')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .not('asset_path', 'is', null);
+    if (eventIds) query = query.in('event_id', eventIds);
+    const { data: next } = await query.order('created_at', { ascending: true }).limit(1).maybeSingle();
     if (!next) return false;
 
     // Atomic claim — only one worker can move queued → printing.
     const { data: claimed } = await supabase
       .from('print_jobs')
-      .update({ status: 'printing', error_reason: null })
+      .update({ status: 'printing', error_reason: null, station_id: stationId })
       .eq('id', next.id)
       .eq('status', 'queued')
-      .select('id, session_id, type, asset_path')
+      .select('id, session_id, type, asset_path, copies')
       .maybeSingle();
     if (!claimed) return true; // someone else got it; look again
 
     log('info', 'print_job.claimed', { jobId: claimed.id, type: claimed.type });
 
     const assetPath = claimed.asset_path;
-    if (!assetPath || !/^(sessions|sketches)\/[\w-]+\/[\w./-]+$/.test(assetPath) || assetPath.includes('..')) {
+    if (!assetPath || !/^(sessions|sketches)\/[\w-]+\/[\w.-]+$/.test(assetPath) || assetPath.includes('..')) {
       await setJob(claimed.id, 'failed', 'invalid_asset_path');
       return true;
     }
@@ -197,12 +214,15 @@ export function startPrintWorker(opts) {
       if (error || !blob) throw Object.assign(new Error(error?.message || 'download failed'), { reason: 'download_failed' });
       await fs.writeFile(tmpFile, Buffer.from(await blob.arrayBuffer()));
 
-      await printFile(tmpFile, printerName);
+      const copies = Math.min(10, Math.max(1, claimed.copies || 1));
+      await printFile(tmpFile, printerName, copies);
 
       await setJob(claimed.id, 'printed');
-      if (claimed.type === 'strip') {
-        await supabase.from('sessions').update({ status: 'printed' }).eq('id', claimed.session_id);
-      }
+      const { data: s } = await supabase.from('sessions').select('print_count').eq('id', claimed.session_id).maybeSingle();
+      await supabase
+        .from('sessions')
+        .update({ status: 'printed', print_count: (s?.print_count || 0) + copies })
+        .eq('id', claimed.session_id);
       log('info', 'print_job.printed', { jobId: claimed.id, type: claimed.type, printer: printerName });
     } catch (err) {
       const reason = err?.reason || 'print_failed';
@@ -231,6 +251,7 @@ export function startPrintWorker(opts) {
 
   void heartbeat();
   void recoverStale();
+  void resolveEvents();
   const hb = setInterval(() => void heartbeat(), HEARTBEAT_MS);
   const poll = setInterval(() => void tick(), POLL_MS);
   void tick();
