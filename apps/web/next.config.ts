@@ -17,6 +17,8 @@ const csp = [
   "font-src 'self' data:",
   `connect-src 'self' blob: data: ${supabaseUrl} ${supabaseWs}`,
   "media-src 'self' blob: mediastream:",
+  // Location card: interactive OpenStreetMap embed (UI Depok)
+  'frame-src https://www.openstreetmap.org',
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "object-src 'none'",

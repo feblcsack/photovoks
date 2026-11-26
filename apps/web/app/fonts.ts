@@ -9,6 +9,7 @@ import {
   Bebas_Neue,
   Caveat,
   Pacifico,
+  Pixelify_Sans,
   Patrick_Hand,
   Playfair_Display,
   Plus_Jakarta_Sans,
@@ -35,4 +36,7 @@ export const specialElite = Special_Elite({ subsets: ['latin'], variable: '--fon
 /** Scribbles / handwritten notes. */
 export const gochi = Gochi_Hand({ subsets: ['latin'], variable: '--font-scribble', weight: '400', display: 'swap', preload: false });
 
-export const fontVariables = `${jakarta.variable} ${spaceMono.variable} ${bagel.variable} ${specialElite.variable} ${gochi.variable}`;
+/** Retro OS (Windows-98-ish) title bars, taskbar, dialogs. */
+export const pixelify = Pixelify_Sans({ subsets: ['latin'], variable: '--font-pixelify', weight: ['400', '600', '700'], display: 'swap' });
+
+export const fontVariables = `${jakarta.variable} ${spaceMono.variable} ${bagel.variable} ${specialElite.variable} ${gochi.variable} ${pixelify.variable}`;

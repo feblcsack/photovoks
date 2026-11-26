@@ -13,6 +13,7 @@
   --font-display: var(--font-bagel), var(--font-jakarta), ui-sans-serif, sans-serif;
   --font-type: var(--font-typewriter), var(--font-spacemono), ui-monospace, monospace;
   --font-hand: var(--font-scribble), "Comic Sans MS", cursive;
+  --font-pixel: var(--font-pixelify), var(--font-spacemono), ui-monospace, monospace;
 
   --color-canvas: #F4EDDC;
   --color-surface: #FFFCF4;
@@ -51,6 +52,18 @@
   --color-paper: #FBF5E6;
   --color-sun: #FFD43B;
   --color-sun-deep: #F2B705;
+
+  /* Retro OS ("Photovoks 98") — Windows-98-style chrome built from the same
+     palette: cream-silver face, cobalt title bars, sky/lime desktop. */
+  --color-win: #E6DECB;
+  --color-win-light: #FFFDF6;
+  --color-win-mid: #F3ECDC;
+  --color-win-shadow: #8C8170;
+  --color-title-from: #2747C9;
+  --color-title-to: #6F95FF;
+  --color-tip: #FFF6C4;
+  --color-desk: #3F86E8;
+  --color-xmb: #0C1E6E;
 
   --radius-ctl: 12px;
   --radius-panel: 16px;
@@ -157,6 +170,57 @@ h1, .font-display { font-family: var(--font-display); font-weight: 400 !importan
 .developing { animation: develop 4.2s ease-out 1.2s both; }
 .machine-busy { animation: print-shake 0.12s linear 22; }
 .drop-in { animation: drop-in 420ms cubic-bezier(.2, .9, .3, 1.3) both; }
+
+/* ── Retro OS kit ("Photovoks 98") ────────────────────────────────────────── */
+.font-pixel { font-family: var(--font-pixel); letter-spacing: 0.01em; }
+/* Raised 3D bevel (windows, buttons, taskbar) */
+@utility bevel-out {
+  box-shadow: inset -1px -1px 0 var(--color-ink), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid);
+}
+/* Pressed / sunken field (inputs, status panes, screens) */
+@utility bevel-in {
+  box-shadow: inset 1px 1px 0 var(--color-win-shadow), inset -1px -1px 0 var(--color-win-light), inset 2px 2px 0 var(--color-ink), inset -2px -2px 0 var(--color-win-mid);
+}
+.win-title { background: linear-gradient(90deg, var(--color-title-from), var(--color-title-to)); }
+.win-title-idle { background: linear-gradient(90deg, #8C8170, #C9BFA9); }
+/* Dotted selection marquee like a desktop icon in focus */
+.win-focus { outline: 1px dotted var(--color-ink); outline-offset: -4px; }
+/* CRT scanlines + slight vignette for "on screen" content */
+.crt-lines {
+  background: repeating-linear-gradient(0deg, rgb(0 0 0 / 0.12) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+.pixelated { image-rendering: pixelated; }
+
+/* XMB-style ribbon waves */
+@keyframes xmb-drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes xmb-bob { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-14px) scaleY(1.12); } }
+.xmb-wave { animation: xmb-drift var(--d, 26s) linear infinite; }
+.xmb-bob { animation: xmb-bob var(--d, 9s) ease-in-out infinite; transform-origin: 50% 50%; }
+
+/* Boot / progress / misc gimmicks */
+@keyframes boot-chunks { from { background-position: 0 0; } to { background-position: 44px 0; } }
+.boot-bar { background: repeating-linear-gradient(90deg, var(--color-cobalt) 0 18px, transparent 18px 22px); animation: boot-chunks 0.6s steps(2) infinite; }
+@keyframes paper-fly { 0% { transform: translate(0, 0) rotate(0); opacity: 0; } 10% { opacity: 1; } 50% { transform: translate(var(--fx, 120px), -34px) rotate(-14deg); } 90% { opacity: 1; } 100% { transform: translate(calc(var(--fx, 120px) * 2), 0) rotate(0); opacity: 0; } }
+.paper-fly { animation: paper-fly 1.6s ease-in-out infinite; }
+@keyframes zzz { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(18px, -40px) scale(1.15); opacity: 0; } }
+.zzz { animation: zzz 2.4s ease-out infinite; }
+@keyframes balloon-in { from { opacity: 0; transform: translateY(6px) scale(.96); } to { opacity: 1; transform: none; } }
+.balloon-in { animation: balloon-in 220ms cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes cursor-bob { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, 4px); } }
+.cursor-bob { animation: cursor-bob 0.9s ease-in-out infinite; }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee { animation: marquee var(--d, 22s) linear infinite; }
+@keyframes select-glow { 0%, 100% { box-shadow: 0 0 0 3px var(--color-sun), 0 0 18px 4px rgb(255 212 59 / 0.55); } 50% { box-shadow: 0 0 0 3px #fff, 0 0 26px 8px rgb(255 212 59 / 0.85); } }
+.select-glow { animation: select-glow 1.1s ease-in-out infinite; }
+@keyframes shutdown-fade { 0% { opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Halftone dot "matrix" dissolve (guest page footer) */
+.dots-fade {
+  --dot: var(--color-brand);
+  background-image: radial-gradient(circle, var(--dot) 0 var(--r, 40%), transparent calc(var(--r, 40%) + 0.5px));
+  background-size: var(--g, 26px) var(--g, 26px);
+}
 
 /* Icons: one consistent, light stroke across the app */
 svg.lucide { stroke-width: 1.75; }

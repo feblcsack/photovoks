@@ -10,6 +10,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Check, Home, Printer, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { PixelIcon } from '@/components/os/retro';
 import { useToast } from '@/components/ui/toast';
 import { ZineStudio, type BuiltSheet, type ZinePhoto } from '@/components/zine/ZineStudio';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
@@ -18,13 +19,14 @@ import { toJpeg } from '@/lib/booth/media';
 import { printSheet } from '@/lib/print/sheet';
 import { autoFill, blankPage, pageAspect, zinePaper, ZINE_PAPERS, type ZinePage } from '@/lib/zine/layout';
 import type { EventConfig } from '@/lib/events';
+import type { MascotId } from '@/lib/mascots';
 import { CaptureStage, type Shot } from './CaptureStage';
 import type { CameraController } from './useCamera';
 
 const FIRST_SHOTS = 4;
 const MAX_SHOTS = 8;
 
-export function BoothZine({ code, event, camera, mirror, onDone }: { code: string; event: EventConfig; camera: CameraController; mirror: boolean; onDone: () => void }) {
+export function BoothZine({ code, event, camera, mirror, buddy, onDone }: { code: string; event: EventConfig; camera: CameraController; mirror: boolean; buddy?: MascotId | null; onDone: () => void }) {
   const toast = useToast();
   // Papers the booth can print on: the event's paper (when it suits a zine) + A4.
   const papers = useMemo(() => {
@@ -120,7 +122,7 @@ export function BoothZine({ code, event, camera, mirror, onDone }: { code: strin
     );
   }
 
-  const shareUrl = saved && typeof window !== 'undefined' ? `${window.location.origin}/s/${saved.token}` : '';
+  const shareUrl = saved && typeof window !== 'undefined' ? `${window.location.origin}/s/${saved.token}${buddy ? `?b=${buddy}` : ''}` : '';
   return (
     <>
       <ZineStudio
@@ -148,13 +150,13 @@ export function BoothZine({ code, event, camera, mirror, onDone }: { code: strin
           </div>
         )}
       />
-      <Dialog open={!!saved} onOpenChange={() => {}} hideClose size="sm" title="Zine kamu siap! ✶" description="Scan untuk unduh lembar zine + cara melipatnya.">
+      <Dialog win winIcon={<PixelIcon name="book" className="size-4" />} open={!!saved} onOpenChange={() => {}} hideClose size="sm" title="Zine kamu siap! ✶" description="Scan untuk unduh lembar zine + cara melipatnya.">
         <div className="flex flex-col items-center gap-4 pb-2">
-          <div className="rounded-[16px] border-2 border-ink bg-white p-3 shadow-[4px_4px_0_var(--color-ink)]">
+          <div className="bevel-in bg-white p-3">
             <QRCodeSVG value={shareUrl} size={200} level="M" marginSize={1} />
           </div>
           <p className="flex items-center gap-2 text-sm font-semibold"><Check className="size-4 text-ok" /> Tersimpan di galeri event</p>
-          <Button variant="sun" size="xl" className="w-full" onClick={onDone}><Home /> Selesai</Button>
+          <Button variant="win-go" size="xl" className="w-full" onClick={onDone}><Home /> Selesai</Button>
         </div>
       </Dialog>
     </>

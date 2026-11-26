@@ -3,7 +3,8 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Film, ImageIcon, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Segmented } from '@/components/ui/segmented';
+import { HillsWallpaper, PixelIcon, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
+import { sfx } from '@/lib/sfx';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import { allowedFilterList, filteredCopy } from '@/lib/booth/media';
 import { scaledCopy } from '@/lib/frames/render';
@@ -59,21 +60,29 @@ export function ReviewStage({
     else onSelectionChange([...selection.slice(0, slots - 1), i]);
   }
 
+  const hasLive = shots.some((s) => s.burst.length);
   return (
-    <div className="kiosk booth-paper fixed inset-0 flex flex-col text-ink">
-      <header className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-2 sm:px-6">
-        <Button variant="secondary" size="lg" onClick={onRetakeAll}>
-          <ArrowLeft /> Ulangi semua
+    <div className="kiosk fixed inset-0 flex flex-col overflow-hidden text-ink">
+      <HillsWallpaper />
+      <header className="relative z-10 flex items-center justify-between gap-3 px-3 pt-[max(10px,env(safe-area-inset-top))] pb-2 sm:px-5">
+        <Button variant="win" size="lg" onClick={() => { sfx.back(); onRetakeAll(); }}>
+          <ArrowLeft /> <span className="hidden sm:inline">Ulangi semua</span><span className="sm:hidden">Ulang</span>
         </Button>
-        <h1 className="text-center text-lg font-extrabold sm:text-xl">{choosing ? `Pilih ${slots} foto terbaik` : 'Cek hasilmu'}</h1>
-        <Button variant="sun" size="lg" onClick={onContinue} disabled={selection.length < slots}>
+        <h1 className="min-w-0 truncate text-center text-[clamp(20px,3vw,32px)] text-white [text-shadow:2px_2px_0_#1A1410]">{choosing ? `Pilih ${slots} foto terbaik` : 'Cek hasilmu ✶'}</h1>
+        <Button variant="win-go" size="lg" className="text-[17px]" onClick={() => { sfx.select(); onContinue(); }} disabled={selection.length < slots}>
           Lanjut <ArrowRight />
         </Button>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-4 px-4 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] md:gap-6">
-        {/* Preview */}
-        <div className="flex min-h-0 flex-col items-center justify-center gap-3">
+      <div className="relative z-10 grid min-h-0 flex-1 gap-3 px-3 pb-3 sm:px-5 md:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] md:gap-5">
+        {/* Preview window */}
+        <WinWindow
+          title={`Pratinjau — ${frame.name}`}
+          icon="tv"
+          className="min-h-0"
+          bodyClassName="flex min-h-0 flex-col items-center justify-center gap-3 bg-[#0C1E6E] p-3 [background-image:radial-gradient(rgb(158_216_255/0.25)_1px,transparent_1px)] [background-size:12px_12px]"
+          status={<><span className="bevel-in px-1.5">{slots} slot</span><span className="bevel-in px-1.5">Filter: {filters.find((f) => f.id === filter)?.label ?? 'Asli'}</span></>}
+        >
           <div className="flex min-h-0 w-full flex-1 items-center justify-center">
             <FrameCanvas
               design={frame.design}
@@ -82,44 +91,41 @@ export function ReviewStage({
               playing={mode === 'live'}
               tokens={tokens}
               maxRenderWidth={760}
-              className="max-h-full w-auto rounded-[6px] shadow-[0_18px_40px_-16px_rgba(14,20,36,0.45)]"
+              className="max-h-full w-auto bg-white shadow-[6px_6px_0_rgb(0_0_0/0.45)]"
               style={{ maxHeight: '100%', maxWidth: '100%' }}
             />
           </div>
-          {shots.some((s) => s.burst.length) ? (
-            <Segmented
-              value={mode}
-              onChange={setMode}
-              options={[
-                { value: 'live', label: <><Film className="size-3.5" /> Live</> },
-                { value: 'still', label: <><ImageIcon className="size-3.5" /> Foto</> },
-              ]}
-            />
+          {hasLive ? (
+            <div className="flex gap-1">
+              <Button variant="win" size="sm" className={mode === 'live' ? 'bevel-in bg-win-mid' : ''} onClick={() => setMode('live')}><Film /> Live</Button>
+              <Button variant="win" size="sm" className={mode === 'still' ? 'bevel-in bg-win-mid' : ''} onClick={() => setMode('still')}><ImageIcon /> Foto</Button>
+            </div>
           ) : null}
-        </div>
+        </WinWindow>
 
-        {/* Controls */}
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto rounded-[20px] bg-white/85 p-4 shadow-[0_1px_0_rgba(14,20,36,0.06)] backdrop-blur">
-          <div>
-            <p className="mb-2 flex items-center justify-between text-xs font-bold tracking-wider text-muted uppercase">
-              <span>{choosing ? 'Ketuk untuk memilih' : 'Foto kamu'}</span>
-              {choosing ? <span className="text-ink">{selection.length}/{slots}</span> : null}
+        {/* Files + filters window */}
+        <WinWindow title="Foto Saya" icon="folder" menu={['File', 'Edit', 'Lihat']} className="min-h-0" bodyClassName="flex min-h-0 flex-col gap-3 overflow-y-auto p-2">
+          <WinPanel>
+            <p className="mb-2 flex items-center justify-between font-pixel text-[13px] text-ink-2">
+              <span>{choosing ? 'Ketuk untuk memilih' : `${shots.length} objek`}</span>
+              {choosing ? <span className="font-bold text-ink">{selection.length}/{slots} dipilih</span> : null}
             </p>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-3">
               {shots.map((s, i) => {
                 const order = selection.indexOf(i);
                 return (
-                  <div key={i} className="relative">
+                  <div key={i} className="relative flex flex-col items-center gap-1">
                     <button
                       type="button"
                       onClick={() => toggle(i)}
-                      className={cn('block aspect-[3/4] w-full overflow-hidden rounded-[12px] border-[3px] transition', order >= 0 ? 'border-ink' : 'border-transparent opacity-60')}
+                      className={cn('block aspect-[3/4] w-full overflow-hidden border-2 bg-white p-0.5 transition', order >= 0 ? 'border-cobalt' : 'border-transparent opacity-55')}
                     >
                       <CanvasThumb canvas={filteredPreviews[i]} />
                     </button>
-                    {order >= 0 ? <span className="absolute top-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-ink text-xs font-bold text-white">{order + 1}</span> : null}
+                    <span className={cn('max-w-full truncate px-1 font-pixel text-[12px]', order >= 0 && 'win-focus bg-cobalt text-white')}>Foto_{String(i + 1).padStart(2, '0')}</span>
+                    {order >= 0 && choosing ? <span className="absolute top-1 left-1 flex size-6 items-center justify-center border-2 border-ink bg-sun font-pixel text-xs font-bold">{order + 1}</span> : null}
                     {retakesLeft > 0 ? (
-                      <button type="button" onClick={() => onRetake(i)} className="absolute right-1.5 bottom-1.5 flex size-9 items-center justify-center rounded-full bg-white/95 text-ink shadow" aria-label={`Ulangi foto ${i + 1}`}>
+                      <button type="button" onClick={() => onRetake(i)} className="bevel-out absolute right-1 bottom-6 flex size-9 items-center justify-center bg-win active:bevel-in" aria-label={`Ulangi foto ${i + 1}`}>
                         <RotateCcw className="size-4" />
                       </button>
                     ) : null}
@@ -127,28 +133,37 @@ export function ReviewStage({
                 );
               })}
             </div>
-            <p className="mt-2 text-xs text-muted">{retakesLeft > 0 ? `Bisa ulangi ${retakesLeft} foto lagi (ikon ↺).` : 'Kesempatan ulang foto habis.'}</p>
-          </div>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-2">
+              <PixelIcon name="info" className="size-4" />
+              {retakesLeft > 0 ? `Bisa ulangi ${retakesLeft} foto lagi (tombol ↺).` : 'Kesempatan ulang foto habis.'}
+            </p>
+          </WinPanel>
 
           {filters.length > 1 ? (
-            <div>
-              <p className="mb-2 text-xs font-bold tracking-wider text-muted uppercase">Filter</p>
-              <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <fieldset className="border-2 border-win-shadow px-2 pt-1 pb-2 [border-style:groove]">
+              <legend className="px-1 font-pixel text-[13px]">Filter</legend>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-2">
                 {filters.map((f) => (
                   <button
                     key={f.id}
                     type="button"
-                    onClick={() => onFilterChange(f.id)}
-                    className={cn('h-11 shrink-0 rounded-full border-2 px-4 text-sm font-bold transition', filter === f.id ? 'border-ink bg-ink text-white' : 'border-ink/15 bg-white text-ink')}
+                    onClick={() => { sfx.tick(); onFilterChange(f.id); }}
+                    className={cn('flex h-11 items-center gap-2 px-2 text-left font-pixel text-[14px]', filter === f.id ? 'bevel-in bg-win-light font-bold' : 'bevel-out bg-win active:bevel-in')}
                   >
-                    {f.label}
+                    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white', filter === f.id && 'after:size-1.5 after:rounded-full after:bg-ink')} />
+                    <span className="truncate">{f.label}</span>
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
           ) : null}
-        </div>
+        </WinWindow>
       </div>
+
+      <Taskbar className="relative z-10">
+        <TaskItem icon="camera">Kamera.exe</TaskItem>
+        <TaskItem icon="tv" active>Pratinjau</TaskItem>
+      </Taskbar>
     </div>
   );
 }

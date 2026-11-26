@@ -8,6 +8,8 @@ import type { LiveTheme } from '@/lib/events';
 import type { WallSticker } from '@/lib/y2k-stickers';
 import { LogoBadge, Magnet, PaperClip, PhotoMachineSlot, Sticker } from '@/components/brand/scrap';
 import { cn } from '@/lib/utils';
+import { PixelIcon, Taskbar, TaskItem } from '@/components/os/retro';
+import { LOCATION } from '@/lib/location';
 
 const POLL_MS = 5000;
 const FULL_REFRESH_MS = 25 * 60 * 1000; // signed URLs live 1 h
@@ -135,7 +137,7 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
           <button
             type="button"
             onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}
-            className="flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink hover:bg-sun"
+            className="bevel-out flex size-10 items-center justify-center bg-win text-ink hover:bg-sun active:bevel-in"
             aria-label={full ? 'Keluar layar penuh' : 'Layar penuh'}
           >
             {full ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
@@ -191,6 +193,13 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
           </div>
         </footer>
       ) : null}
+
+      {/* Retro OS taskbar along the bottom of the fridge */}
+      <Taskbar className="relative z-10 text-ink" tray={<><PixelIcon name="pin" className="size-4" /><span className="hidden lg:inline">{LOCATION.name}</span></>}>
+        <TaskItem icon="tv" active>Live wall</TaskItem>
+        <TaskItem icon="folder">{items.length} foto</TaskItem>
+        {guestbook ? <TaskItem icon="book">Buku tamu</TaskItem> : null}
+      </Taskbar>
     </main>
   );
 }

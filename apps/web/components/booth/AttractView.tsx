@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Camera } from 'lucide-react';
-import { Logo, LogoBadge, Sticker, Doodle } from '@/components/brand/scrap';
+import { Logo, LogoBadge } from '@/components/brand/scrap';
+import { Bubbles, CrtTv, DesktopIcon, Goldfish, HillsWallpaper, PixelIcon, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
 import { Button } from '@/components/ui/button';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import type { EventConfig } from '@/lib/events';
@@ -57,9 +58,9 @@ export function AttractView({
   const hasMedia = !!mediaUrl && !!event.attractMediaType;
   const zineButton = onZine ? (
     <Button
-      variant="bubble"
+      variant="win"
       size="xl"
-      className="h-[72px] text-lg"
+      className="h-[64px] text-lg"
       tabIndex={preview ? -1 : undefined}
       onClick={(e) => {
         e.stopPropagation();
@@ -74,8 +75,8 @@ export function AttractView({
     <div className="relative z-10 flex items-start justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] sm:px-8">
       <div className="flex items-center gap-2">
         {hasMedia ? <LogoBadge className="size-12" /> : null}
-        <span className={cn('rounded-full border-2 border-ink px-3 py-1 font-type text-[12px] font-bold tracking-[0.18em] uppercase', hasMedia ? 'bg-white text-ink' : 'bg-ink text-white')}>{event.code}</span>
-        {event.status !== 'active' ? <span className="rounded-full bg-warn-soft px-3 py-1 text-[11px] font-bold text-warn">Mode uji · event belum aktif</span> : null}
+        <span className="bevel-out bg-win px-3 py-1 font-pixel text-[14px] font-bold tracking-[0.12em] text-ink uppercase">{event.code}</span>
+        {event.status !== 'active' ? <span className="bevel-out bg-tip px-3 py-1 font-pixel text-[12px] font-bold text-warn">Mode uji · event belum aktif</span> : null}
       </div>
       {corner}
     </div>
@@ -107,7 +108,7 @@ export function AttractView({
           ) : null}
           {canStart ? (
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <span className="inline-flex h-14 items-center gap-2.5 rounded-full border-2 border-ink bg-sun px-7 text-lg font-bold text-ink shadow-[3px_3px_0_var(--color-ink)]">
+              <span className="bevel-out inline-flex h-14 items-center gap-2.5 bg-sun px-7 font-pixel text-lg font-bold text-ink">
                 <Camera className="size-5" strokeWidth={2} /> {cta}
               </span>
               {zineButton}
@@ -120,53 +121,79 @@ export function AttractView({
     );
   }
 
-  // ── Default look ───────────────────────────────────────────────────────────
-  const steps = ['Pilih frame', 'Bergaya', event.printMode === 'off' ? 'Simpan foto' : 'Cetak', 'Scan softfile'];
+  // ── Default look: the retro desktop ───────────────────────────────────────
+  const steps = ['Pilih karakter', 'Pilih frame', 'Bergaya', event.printMode === 'off' ? 'Simpan foto' : 'Cetak', 'Scan softfile'];
+  const tab = preview ? -1 : undefined;
   return (
-    <div className={cn(root, 'booth-paper')} onClick={canStart ? onStart : undefined}>
+    <div className={cn(root, 'text-ink')} onClick={canStart ? onStart : undefined}>
+      <HillsWallpaper />
+      <Goldfish className="pointer-events-none absolute top-[14%] right-[38%] hidden w-[clamp(60px,7vw,110px)] animate-float lg:block" style={{ ['--r' as string]: '-6deg' }} />
+      <Bubbles className="pointer-events-none absolute top-[8%] right-[30%] hidden w-[clamp(50px,6vw,90px)] animate-float [animation-delay:1s] md:block" />
       {topBar}
-      <Sticker id="sparkle" className="pointer-events-none absolute top-24 left-[44%] hidden w-16 animate-float md:block" style={{ ['--r' as string]: '-10deg' }} />
-      <Sticker id="heart" className="pointer-events-none absolute top-20 right-10 w-20 animate-float [animation-delay:1.2s]" style={{ ['--r' as string]: '12deg' }} />
-      <Doodle kind="stars" className="pointer-events-none absolute right-10 bottom-8 w-28 text-cobalt/60" />
-      <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 items-center gap-8 px-6 py-6 sm:px-10 md:grid-cols-[1.1fr_1fr]">
-        <div className="flex flex-col items-center text-center md:items-start md:text-left">
-          <Logo className="mb-1 w-[min(220px,22vh,40vw)] -rotate-3" />
-          <h1 className="text-[clamp(32px,min(5.5vw,7.5vh),68px)] leading-[0.98] text-ink">
-            {event.welcomeTitle || (
-              <>
-                Foto sekarang, <span className="inline-block -rotate-2 rounded-[14px] border-2 border-ink bg-brand px-3 text-white shadow-[3px_3px_0_var(--color-ink)]">cetak</span> kemudian.
-              </>
-            )}
-          </h1>
-          <p className="mt-3 max-w-md font-type text-lg text-ink-2">{event.welcomeSubtitle || event.name}</p>
-          {event.attractShowText ? (
-            <ol className="mt-4 w-full max-w-md border-y-2 border-dashed border-ink/30 py-2 font-type">
-              {steps.map((s, i) => (
-                <li key={s} className="flex items-center gap-4 py-1 text-[16px] tracking-wide uppercase">
-                  <span className="text-brand">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="font-bold">{s}</span>
-                  <span className="flex-1 border-b-2 border-dotted border-ink/20" />
-                </li>
-              ))}
-            </ol>
-          ) : null}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 md:justify-start">
-            <Button variant="sun" size="xl" className="h-[72px] min-w-44 text-2xl" onClick={onStart} disabled={!canStart} tabIndex={preview ? -1 : undefined}>
-              <Camera className="!size-7" /> Mulai
-            </Button>
-            {zineButton}
-          </div>
-          {!canStart ? <p className="mt-3 text-sm text-danger">Belum ada frame aktif untuk event ini.</p> : <p className="mt-3 font-type text-sm text-muted">{cta}</p>}
+
+      <div className="relative z-10 flex min-h-0 flex-1 gap-4 px-3 py-3 sm:px-6">
+        {/* Desktop icons */}
+        <div className="hidden flex-col gap-3 md:flex" onClick={(e) => e.stopPropagation()}>
+          <DesktopIcon icon="camera" label="Mulai Foto.exe" onClick={canStart ? onStart : undefined} />
+          {onZine ? <DesktopIcon icon="book" label="Minizine.exe" onClick={onZine} /> : null}
+          <DesktopIcon icon="folder" label="Foto Saya" />
+          <DesktopIcon icon="recycle" label="Recycle Bin" />
         </div>
-        <div className="hidden h-full min-h-0 items-center justify-center md:flex">
-          {f ? (
-            <div key={f.id} className="relative flex max-h-full animate-pop items-center justify-center" style={{ height: preview ? '70%' : 'min(70vh, 640px)' }}>
-              <span className="tape absolute -top-3 left-1/2 z-10 h-7 w-28 -translate-x-1/2 rotate-[-4deg]" />
-              <FrameCanvas design={f.design} tokens={tokens} maxRenderWidth={520} className="h-full w-auto rotate-[2deg] border-2 border-ink bg-white shadow-[8px_8px_0_var(--color-ink)]" style={{ maxHeight: '100%' }} />
+
+        <div className="grid min-h-0 flex-1 items-center gap-6 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+          <WinWindow title={`Selamat datang — ${event.name}`} icon="computer" className="mx-auto w-full max-w-xl" bodyClassName="flex flex-col items-center gap-3 p-4 text-center sm:p-6 md:items-start md:text-left">
+            <div className="flex items-center gap-3">
+              <Logo className="w-[min(110px,16vh,26vw)] -rotate-3" />
+              <p className="font-display text-[clamp(26px,3.6vw,42px)] leading-none">
+                Photovoks<span className="ml-1 align-top font-pixel text-[0.5em] text-brand">98</span>
+              </p>
             </div>
-          ) : null}
+            <h1 className="text-[clamp(26px,min(4.4vw,6vh),52px)] leading-[1.02] text-ink">
+              {event.welcomeTitle || (
+                <>
+                  Foto sekarang, <span className="inline-block -rotate-2 border-2 border-ink bg-brand px-2 text-white shadow-[3px_3px_0_var(--color-ink)]">cetak</span> kemudian.
+                </>
+              )}
+            </h1>
+            <p className="max-w-md font-type text-[clamp(14px,1.6vw,18px)] text-ink-2">{event.welcomeSubtitle || event.name}</p>
+            {event.attractShowText ? (
+              <WinPanel className="w-full max-w-md py-1.5">
+                <ol className="font-pixel">
+                  {steps.map((st, i) => (
+                    <li key={st} className="flex items-center gap-3 py-0.5 text-[15px]">
+                      <span className="text-brand tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                      <span className="font-semibold">{st}</span>
+                      <span className="flex-1 border-b-2 border-dotted border-ink/20" />
+                    </li>
+                  ))}
+                </ol>
+              </WinPanel>
+            ) : null}
+            <div className="mt-1 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+              <Button variant="win-go" size="xl" className="h-[68px] min-w-44 text-2xl" onClick={onStart} disabled={!canStart} tabIndex={tab}>
+                <Camera className="!size-7" /> Mulai
+              </Button>
+              {zineButton}
+            </div>
+            {!canStart ? <p className="text-sm text-danger">Belum ada frame aktif untuk event ini.</p> : <p className="font-pixel text-[14px] text-ink-2">{cta}</p>}
+          </WinWindow>
+
+          <div className="hidden h-full min-h-0 items-center justify-center md:flex">
+            {f ? (
+              <div className="relative flex max-h-full items-center justify-center" style={{ height: preview ? '72%' : 'min(66vh, 600px)' }}>
+                <CrtTv className="h-full" screenClassName="h-full flex items-center justify-center bg-[#0C1E6E] p-[6%] [background-image:radial-gradient(rgb(158_216_255/0.25)_1px,transparent_1px)] [background-size:10px_10px]" label="FRAME TV">
+                  <FrameCanvas key={f.id} design={f.design} tokens={tokens} maxRenderWidth={520} className="h-full w-auto animate-pop bg-white shadow-[6px_6px_0_rgb(0_0_0/0.5)]" style={{ maxHeight: '100%' }} />
+                </CrtTv>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      <Taskbar className="relative z-10" tray={<PixelIcon name="camera" className="size-4" />}>
+        <TaskItem icon="computer" active>{event.code}</TaskItem>
+        {frames.length ? <TaskItem icon="folder">{frames.length} frame</TaskItem> : null}
+      </Taskbar>
     </div>
   );
 }

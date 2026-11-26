@@ -17,11 +17,17 @@ export interface DialogProps {
   bodyClassName?: string;
   hideClose?: boolean;
   dark?: boolean;
+  /** Retro OS window chrome (booth + guest flow). */
+  win?: boolean;
+  /** Pixel icon/emoji shown in the retro title bar. */
+  winIcon?: React.ReactNode;
 }
 
 const WIDTHS = { sm: 'max-w-[420px]', md: 'max-w-[560px]', lg: 'max-w-[760px]', xl: 'max-w-[1040px]', full: 'max-w-[min(1280px,calc(100vw-24px))]' };
 
-export function Dialog({ open, onOpenChange, title, description, children, footer, size = 'md', className, bodyClassName, hideClose, dark }: DialogProps) {
+export function Dialog(props: DialogProps) {
+  if (props.win) return <WinDialog {...props} />;
+  const { open, onOpenChange, title, description, children, footer, size = 'md', className, bodyClassName, hideClose, dark } = props;
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
@@ -52,6 +58,36 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
           )}
           <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4', bodyClassName)}>{children}</div>
           {footer ? <div className={cn('flex flex-wrap items-center justify-end gap-2 px-5 py-3.5', dark ? 'border-t border-white/10' : 'border-t border-line bg-canvas/60')}>{footer}</div> : null}
+        </D.Content>
+      </D.Portal>
+    </D.Root>
+  );
+}
+
+function WinDialog({ open, onOpenChange, title, description, children, footer, size = 'md', className, bodyClassName, hideClose, winIcon }: DialogProps) {
+  return (
+    <D.Root open={open} onOpenChange={onOpenChange}>
+      <D.Portal>
+        <D.Overlay className="fixed inset-0 z-50 animate-fade-in bg-[#0C1E6E]/40" />
+        <D.Content
+          className={cn(
+            'bevel-out bg-win fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 animate-pop flex-col p-[3px] text-ink shadow-[6px_6px_0_rgb(26_20_16/0.35)] focus:outline-none',
+            WIDTHS[size],
+            className,
+          )}
+        >
+          <div className="win-title flex h-8 shrink-0 items-center gap-2 px-2 text-white">
+            {winIcon ? <span className="flex size-5 items-center justify-center [&>*]:max-h-full">{winIcon}</span> : null}
+            <D.Title className="min-w-0 flex-1 truncate font-pixel text-[15px] font-semibold">{title ?? 'Photovoks'}</D.Title>
+            {!hideClose ? (
+              <D.Close className="bevel-out bg-win flex size-6 items-center justify-center text-ink active:bevel-in" aria-label="Tutup">
+                <X className="size-4" strokeWidth={3} />
+              </D.Close>
+            ) : null}
+          </div>
+          {description ? <D.Description className="px-3 pt-3 text-[13px] leading-relaxed text-ink-2">{description}</D.Description> : null}
+          <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3', bodyClassName)}>{children}</div>
+          {footer ? <div className="flex flex-wrap items-center justify-end gap-2 px-3 pb-3">{footer}</div> : null}
         </D.Content>
       </D.Portal>
     </D.Root>

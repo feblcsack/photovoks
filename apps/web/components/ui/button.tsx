@@ -19,6 +19,10 @@ export const buttonVariants = cva(
         ink: 'border-2 border-ink bg-ink text-white shadow-[3px_3px_0_var(--color-brand)] hover:bg-[#2B231C] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--color-brand)]',
         sun: 'border-2 border-ink bg-sun text-ink shadow-[3px_3px_0_var(--color-ink)] hover:bg-[#FFDB5C] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--color-ink)]',
         bubble: 'border-2 border-ink bg-bubble text-ink shadow-[3px_3px_0_var(--color-ink)] hover:bg-[#FFB0DC] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--color-ink)]',
+        // Retro OS ("Photovoks 98") bevel buttons — booth + guest flow.
+        win: 'bevel-out bg-win font-pixel text-ink hover:bg-win-mid active:bevel-in active:translate-y-px active:pt-px',
+        'win-primary': 'bevel-out bg-win font-pixel text-ink outline outline-2 outline-ink hover:bg-win-mid active:bevel-in active:translate-y-px',
+        'win-go': 'bevel-out bg-sun font-pixel text-ink hover:bg-[#FFDB5C] active:bevel-in active:translate-y-px',
       },
       size: {
         xs: 'h-7 rounded-full px-2.5 text-xs [&_svg]:size-3.5',
@@ -31,6 +35,8 @@ export const buttonVariants = cva(
         'icon-lg': 'size-12 rounded-full [&_svg]:size-5',
       },
     },
+    // Square corners for the retro OS buttons whatever the size.
+    compoundVariants: [{ variant: ['win', 'win-primary', 'win-go'], class: 'rounded-[3px] font-semibold' }],
     defaultVariants: { variant: 'secondary', size: 'md' },
   },
 );

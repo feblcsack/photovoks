@@ -11,13 +11,13 @@ export function EnterCode() {
   const valid = /^[A-Z0-9]{4,12}$/.test(code);
   return (
     <form
-      className="rounded-[20px] bg-white p-4 shadow-[0_1px_0_rgba(14,20,36,0.06),0_20px_40px_-24px_rgba(14,20,36,0.35)]"
+      className="p-1"
       onSubmit={(e) => {
         e.preventDefault();
         if (valid) router.push(`/booth/${code}`);
       }}
     >
-      <label htmlFor="code" className="mb-2 block text-xs font-bold tracking-wider text-muted uppercase">Kode event</label>
+      <label htmlFor="code" className="mb-1.5 block font-pixel text-[14px] font-semibold"><u>K</u>ode event:</label>
       <input
         id="code"
         value={code}
@@ -25,13 +25,13 @@ export function EnterCode() {
         placeholder="QC6XJ2"
         autoCapitalize="characters"
         autoComplete="off"
-        className="h-14 w-full rounded-[12px] border border-line-strong bg-canvas px-4 font-mono text-2xl font-bold tracking-[0.3em] uppercase placeholder:text-faint focus:border-brand focus:outline-none"
+        className="bevel-in h-14 w-full bg-white px-4 font-mono text-2xl font-bold tracking-[0.3em] uppercase placeholder:text-faint focus:outline-none"
       />
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <Button type="submit" variant="ink" size="lg" disabled={!valid}><Camera /> Buka booth</Button>
-        <Button type="button" variant="secondary" size="lg" disabled={!valid} onClick={() => router.push(`/event/${code}`)}><LayoutGrid /> Kelola event</Button>
+        <Button type="submit" variant="win-go" size="lg" disabled={!valid}><Camera /> Buka booth</Button>
+        <Button type="button" variant="win" size="lg" disabled={!valid} onClick={() => router.push(`/event/${code}`)}><LayoutGrid /> Kelola event</Button>
       </div>
-      <p className="mt-3 text-xs text-muted">Booth & portal event meminta PIN event dari penyelenggara.</p>
+      <p className="mt-3 text-xs text-ink-2">Booth & portal event meminta PIN event dari penyelenggara.</p>
     </form>
   );
 }

@@ -2,16 +2,23 @@
 
 /**
  * Booth kiosk state machine:
- *   attract → frames → capture → review (→ capture for retakes) → finish → attract
+ *   attract → character → frames → capture → review (→ capture for retakes) → finish → attract
+ * (attract → character → zine for minizine mode)
+ *
+ * The chosen character ("buddy") floats in a corner as a guide and reacts to
+ * the countdown / flash.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Camera, Expand, LayoutGrid, Lock, LogOut, RefreshCcw, Settings2, Printer, X } from 'lucide-react';
+import { Camera, Expand, LayoutGrid, Lock, LogOut, RefreshCcw, Settings2, Printer, Volume2, VolumeX, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { Spinner } from '@/components/ui/spinner';
 import { Segmented } from '@/components/ui/segmented';
-import { FrameCanvas } from '@/components/frames/FrameCanvas';
+import { Buddy } from '@/components/os/Buddy';
+import { CharacterSelect } from '@/components/os/CharacterSelect';
+import { BootScreen } from '@/components/os/screens';
+import { mascotLine, type GuideMoment, type MascotId } from '@/lib/mascots';
+import { setSfxEnabled, sfx, sfxEnabled } from '@/lib/sfx';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { api } from '@/lib/fetcher';
@@ -20,12 +27,13 @@ import { aspectOfSlot, type FrameRecord } from '@/lib/frames/types';
 import type { EventConfig } from '@/lib/events';
 import { cn } from '@/lib/utils';
 import { useCamera } from './useCamera';
-import { CaptureStage, type Shot } from './CaptureStage';
+import { CaptureStage, type CaptureEvent, type Shot } from './CaptureStage';
 import { ReviewStage } from './ReviewStage';
 import { FinishStage } from './FinishStage';
 import { OfflineIndicator } from './OfflineIndicator';
 import { AttractView } from './AttractView';
 import { BoothZine } from './BoothZine';
+import { XmbFramePicker } from './XmbFramePicker';
 
 interface BoothConfig {
   event: EventConfig;
@@ -36,7 +44,7 @@ interface BoothConfig {
   media: { attractUrl: string | null };
 }
 
-type Step = 'attract' | 'frames' | 'capture' | 'review' | 'finish' | 'zine';
+type Step = 'attract' | 'character' | 'frames' | 'capture' | 'review' | 'finish' | 'zine';
 const IDLE_MS = 90_000;
 const NEVER = 2_000_000_000;
 
@@ -54,6 +62,12 @@ export function BoothApp({ code }: { code: string }) {
   const [operatorOpen, setOperatorOpen] = useState(false);
   const [mirrorOverride, setMirrorOverride] = useState<boolean | null>(null);
   const [sessionKey, setSessionKey] = useState(0);
+  // Buddy (guide character) + what it is saying right now
+  const [buddy, setBuddy] = useState<MascotId | null>(null);
+  const [route, setRoute] = useState<'photo' | 'zine'>('photo');
+  const [buddyMsg, setBuddyMsg] = useState<string | null>(null);
+  const [buddyEmote, setBuddyEmote] = useState(0);
+  const [finishPhase, setFinishPhase] = useState<'processing' | 'done' | 'error'>('processing');
   const camera = useCamera();
   // Keep the first signed URL per media path so the home-screen video stays
   // cached between guests (a new URL would re-download it every reset).
@@ -94,11 +108,15 @@ export function BoothApp({ code }: { code: string }) {
     setSelection([]);
     setFilter('original');
     setRetakesUsed(0);
+    setBuddy(null);
+    setBuddyMsg(null);
+    setRoute('photo');
+    setFinishPhase('processing');
     setSessionKey((k) => k + 1);
     void load(); // pick up frame/setting changes between guests
   }, [load]);
 
-  const idleEnabled = step === 'frames' || step === 'review';
+  const idleEnabled = step === 'frames' || step === 'review' || step === 'character';
   // (zine mode has its own close button; guests can take their time designing)
   useIdleTimer(idleEnabled ? IDLE_MS : NEVER, () => {
     if (idleEnabled) reset();
@@ -130,6 +148,17 @@ export function BoothApp({ code }: { code: string }) {
     });
   }, []);
 
+  const onCaptureEvent = useCallback(
+    (e: CaptureEvent) => {
+      if (!buddy) return;
+      if (e.type === 'countdown') setBuddyMsg(`${e.n}… ${mascotLine(buddy, 'countdown', e.n)}`);
+      else if (e.type === 'flash') setBuddyEmote((n) => n + 1);
+      else if (e.type === 'saved') setBuddyMsg(mascotLine(buddy, 'saved', e.index));
+      else setBuddyMsg(null);
+    },
+    [buddy],
+  );
+
   const onCaptureDone = useCallback(() => {
     setSelection((sel) => {
       if (!frame) return sel;
@@ -151,16 +180,25 @@ export function BoothApp({ code }: { code: string }) {
       </div>
     );
   }
-  if (!config || !event) {
-    return (
-      <div className="kiosk booth-paper flex min-h-dvh items-center justify-center">
-        <Spinner className="size-8 text-brand" />
-      </div>
-    );
-  }
+  if (!config || !event) return <BootScreen />;
 
   const retakesLeft = event.allowRetake ? Math.max(0, event.maxRetakes - retakesUsed) : 0;
   const filledShots = shots.filter((s): s is Shot => !!s);
+
+  const startFlow = (to: 'photo' | 'zine') => {
+    sfx.unlock();
+    sfx.select();
+    setRoute(to);
+    setStep('character');
+  };
+  const afterCharacter = (id: MascotId) => {
+    setBuddy(id);
+    if (route === 'zine') setStep('zine');
+    else if (config.frames.length === 1 && !event.zineEnabled) chooseFrame(config.frames[0]);
+    else setStep('frames');
+  };
+  const moment: GuideMoment | null =
+    step === 'frames' ? 'frames' : step === 'capture' ? 'ready' : step === 'review' ? 'review' : step === 'finish' ? finishPhase : null;
 
   return (
     <>
@@ -172,13 +210,24 @@ export function BoothApp({ code }: { code: string }) {
           tokens={tokens}
           mediaUrl={attractUrl}
           onMediaError={() => setMediaFresh(true)}
-          onStart={() => (config.frames.length === 1 ? chooseFrame(config.frames[0]) : setStep('frames'))}
-          onZine={event.zineEnabled ? () => setStep('zine') : undefined}
+          onStart={() => startFlow('photo')}
+          onZine={event.zineEnabled ? () => startFlow('zine') : undefined}
           corner={<HoldButton onHold={() => setOperatorOpen(true)} />}
         />
       ) : null}
 
-      {step === 'frames' ? <FramePicker frames={config.frames} tokens={tokens} onPick={chooseFrame} onBack={reset} /> : null}
+      {step === 'character' ? <CharacterSelect key={sessionKey} initial={buddy ?? undefined} onPick={afterCharacter} onBack={reset} /> : null}
+
+      {step === 'frames' ? (
+        <XmbFramePicker
+          frames={config.frames}
+          tokens={tokens}
+          eventName={event.name}
+          onPick={chooseFrame}
+          onZine={event.zineEnabled ? () => setStep('zine') : undefined}
+          onBack={() => setStep('character')}
+        />
+      ) : null}
 
       {step === 'capture' && frame ? (
         <CaptureStage
@@ -193,8 +242,9 @@ export function BoothApp({ code }: { code: string }) {
           live={event.livePhoto}
           existing={shots}
           onShot={onShot}
+          onEvent={onCaptureEvent}
           onDone={onCaptureDone}
-          onCancel={() => (filledShots.length === shotCount ? setStep('review') : config.frames.length > 1 ? setStep('frames') : reset())}
+          onCancel={() => (filledShots.length === shotCount ? setStep('review') : config.frames.length > 1 || event.zineEnabled ? setStep('frames') : reset())}
         />
       ) : null}
 
@@ -235,11 +285,17 @@ export function BoothApp({ code }: { code: string }) {
           tokens={tokens}
           printStationOnline={config.printStationOnline}
           aiConfigured={config.aiConfigured}
+          buddy={buddy}
+          onPhase={setFinishPhase}
           onDone={reset}
         />
       ) : null}
 
-      {step === 'zine' ? <BoothZine key={sessionKey} code={code} event={event} camera={camera} mirror={mirror} onDone={reset} /> : null}
+      {step === 'zine' ? <BoothZine key={sessionKey} code={code} event={event} camera={camera} mirror={mirror} buddy={buddy} onDone={reset} /> : null}
+
+      {buddy && moment ? (
+        <Buddy key={`${sessionKey}-${buddy}`} id={buddy} moment={moment} message={step === 'capture' ? buddyMsg : null} emote={buddyEmote} side={step === 'frames' ? 'right' : 'left'} />
+      ) : null}
 
       <OperatorSheet
         open={operatorOpen}
@@ -355,40 +411,6 @@ function HoldButton({ onHold }: { onHold: () => void }) {
   );
 }
 
-// ── Frame picker ─────────────────────────────────────────────────────────────
-
-function FramePicker({ frames, tokens, onPick, onBack }: { frames: FrameRecord[]; tokens: Record<string, string>; onPick: (f: FrameRecord) => void; onBack: () => void }) {
-  return (
-    <div className="kiosk booth-paper fixed inset-0 flex flex-col">
-      <header className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-3 sm:px-6">
-        <Button variant="secondary" size="lg" onClick={onBack}><ArrowLeft /> Kembali</Button>
-        <h1 className="text-2xl sm:text-3xl">Pilih frame ✶</h1>
-        <span className="w-28" />
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(20px,env(safe-area-inset-bottom))] sm:px-6">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {frames.map((f) => (
-            <button key={f.id} type="button" onClick={() => onPick(f)} className="group flex flex-col items-center gap-2.5 rounded-[20px] border-2 border-ink bg-surface p-3 text-left shadow-[4px_4px_0_var(--color-ink)] transition odd:-rotate-1 even:rotate-1 hover:rotate-0 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_var(--color-ink)]">
-              <div className="flex h-[min(42vh,340px)] w-full items-center justify-center">
-                {f.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.thumbnailUrl} alt={f.name} className="max-h-full max-w-full rounded-[4px] object-contain shadow-[0_10px_24px_-12px_rgba(14,20,36,0.5)]" />
-                ) : (
-                  <FrameCanvas design={f.design} tokens={tokens} maxRenderWidth={360} className="max-h-full w-auto rounded-[4px] shadow-[0_10px_24px_-12px_rgba(14,20,36,0.5)]" style={{ maxHeight: '100%' }} />
-                )}
-              </div>
-              <div className="flex w-full items-center justify-between gap-2 px-1">
-                <span className="truncate text-[15px] font-bold">{f.name}</span>
-                <span className="shrink-0 rounded-full border-2 border-ink bg-sun px-2.5 py-0.5 font-type text-xs font-bold">{f.slotCount} pose</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Operator sheet ───────────────────────────────────────────────────────────
 
 function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirror, onReload, onLock }: {
@@ -421,6 +443,7 @@ function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirr
             <Button variant="secondary" className="w-full" onClick={() => void camera.start()} loading={camera.starting}><Camera /> Aktifkan kamera</Button>
           )}
         </div>
+        <SoundToggle />
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">Mode cermin</span>
           <Segmented size="sm" value={mirror ? 'on' : 'off'} onChange={(v) => onMirror(v === 'on')} options={[{ value: 'on', label: 'Cermin' }, { value: 'off', label: 'Asli' }]} />
@@ -450,5 +473,24 @@ function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirr
         </div>
       </div>
     </Dialog>
+  );
+}
+
+function SoundToggle() {
+  const [on, setOn] = useState(sfxEnabled);
+  return (
+    <div className="flex items-center justify-between">
+      <span className="flex items-center gap-2 text-sm font-semibold">{on ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />} Efek suara</span>
+      <Segmented
+        size="sm"
+        value={on ? 'on' : 'off'}
+        onChange={(v) => {
+          setSfxEnabled(v === 'on');
+          setOn(v === 'on');
+          if (v === 'on') sfx.select();
+        }}
+        options={[{ value: 'on', label: 'Nyala' }, { value: 'off', label: 'Mati' }]}
+      />
+    </div>
   );
 }

@@ -18,6 +18,9 @@ PC + printer ──► /event/KODE/print  (atau `pnpm print`, worker senyap)
 |---|---|
 | **Event** | Banyak event aktif sekaligus. Tiap event punya kode unik, PIN (bcrypt, lockout 5×), frame, pengaturan booth/cetak/AI/galeri sendiri. |
 | **Booth** | Layar awal (bawaan atau **video/gambar sendiri**, ketuk layar untuk mulai) → pilih frame → kamera (preview dipotong persis ke rasio slot) → countdown → **jeda tiap foto: tamu menekan tombol lagi untuk foto berikutnya** → pilih foto terbaik + ulang foto + filter → komposisi (dengan **QR softfile di frame**) → QR, **cetak satu ketukan**, Gaya AI. Auto-kembali ke awal saat idle. |
+| **Tema "Photovoks 98"** | Alur tamu (booth, halaman QR, live wall, landing) bergaya desktop retro ala Windows 98 dengan palet Photovoks: jendela ber-title bar, taskbar, ikon pixel, wallpaper bukit. Kamera tampil di dalam TV CRT merah. Pemilih frame bergaya menu konsol (XMB). Komponen ada di `components/os/`. |
+| **Pilih karakter** | 4 pemandu 3D orisinal (three.js, dimuat terpisah): Si Bokek, Si Kaget, Si Ngantuk, Si Licik. Tamu memilih di awal, lalu karakter menemani di pojok layar dengan tips per langkah dan ikut bereaksi saat hitung mundur dan flash. Karakter terbawa ke halaman QR (`?b=`). Efek suara sintetis bisa dimatikan di pengaturan operator. |
+| **Lokasi** | Tetap di **Universitas Indonesia, Depok** (`lib/location.ts`, tidak bisa diubah per event). Kartu pos + peta OpenStreetMap interaktif di landing dan halaman tamu, tombol Buka peta / Rute. CSP mengizinkan `frame-src https://www.openstreetmap.org`. |
 | **Pengaturan Booth** | **Satu halaman** per event (`/event/KODE/booth`): layar awal + pratinjau, frame & letak QR, sesi foto, cetak, fitur tamu, galeri/live/buku tamu, status. Satu tombol Simpan. |
 | **Tamu (HP)** | Scan QR → unduh foto/GIF, **hias dengan stiker** (stiker bawaan, emoji, teks, stiker PNG dari penyelenggara) lalu simpan atau **kirim ke printer penyelenggara**, Gaya AI termasuk **prompt sendiri**, link ke buku tamu. |
 | **Galeri live** | `/live/TOKEN` — layar penuh untuk proyektor/TV; foto & GIF baru muncul ±5 detik setelah sesi selesai, pesan buku tamu berjalan di bawah. |
@@ -124,7 +127,7 @@ Menambah gaya: tambahkan item di `apps/web/lib/ai/styles.ts`. Menambah provider:
 
 1. Di iPad/laptop buka `https://domain/booth/KODE` (atau beranda → isi kode) → masukkan **PIN event** (sekali per perangkat, berlaku 12 jam).
 2. iPad: **Share › Add to Home Screen** untuk layar penuh, aktifkan **Guided Access**. Laptop: tahan ikon ⚙ (1 detik) di layar sambutan untuk memilih kamera, mode cermin, layar penuh, atau mengunci booth.
-3. Tamu: **ketuk layar → pilih frame → Mulai foto** → countdown → foto tersimpan, booth menunggu → **Ambil foto 2** saat siap (mode *Otomatis berurutan* tersedia di pengaturan) → **pilih foto terbaik** (jika jumlah foto > slot), ulang foto (↺), filter → **Lanjut** → QR + Cetak + Gaya AI → **Selesai** (otomatis kembali setelah 2 menit tanpa sentuhan).
+3. Tamu: **ketuk layar → pilih karakter → pilih frame (geser atas-bawah, kategori kiri-kanan) → Mulai foto** → countdown → foto tersimpan, booth menunggu → **Ambil foto 2** saat siap (mode *Otomatis berurutan* tersedia di pengaturan) → **pilih foto terbaik** (jika jumlah foto > slot), ulang foto (↺), filter → **Lanjut** → QR + Cetak + Gaya AI → **Selesai** (otomatis kembali setelah 2 menit tanpa sentuhan).
 4. Jika upload gagal (internet putus), foto tetap di perangkat dan tombol **Coba lagi** muncul.
 
 ## 9. Galeri

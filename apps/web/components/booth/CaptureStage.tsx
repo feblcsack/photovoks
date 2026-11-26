@@ -6,13 +6,17 @@
  * for the live-photo / GIF effect.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, RefreshCcw, SwitchCamera, X } from 'lucide-react';
+import { Camera, RefreshCcw, SwitchCamera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { Bubbles, CrtTv, DesktopIcon, Goldfish, HillsWallpaper, PixelIcon, ProgressBlocks, SwearBubble, Taskbar, TaskItem, WinWindow } from '@/components/os/retro';
+import { sfx } from '@/lib/sfx';
 import { CAMERA_ERROR_TEXT } from '@/lib/camera';
 import { LIVE_CELL_WIDTH, grabFrame, normalizeBurst } from '@/lib/booth/media';
 import { cn } from '@/lib/utils';
 import type { CameraController } from './useCamera';
+
+/** Moments the on-screen buddy reacts to. */
+export type CaptureEvent = { type: 'countdown'; n: number } | { type: 'flash' } | { type: 'saved'; index: number } | { type: 'idle' };
 
 export interface Shot {
   still: HTMLCanvasElement;
@@ -35,6 +39,7 @@ export function CaptureStage({
   onShot,
   onDone,
   onCancel,
+  onEvent,
 }: {
   camera: CameraController;
   /** Shot indices to capture, in order. */
@@ -49,6 +54,7 @@ export function CaptureStage({
   onShot: (index: number, shot: Shot) => void;
   onDone: () => void;
   onCancel: () => void;
+  onEvent?: (e: CaptureEvent) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [pos, setPos] = useState(0); // position in queue
@@ -92,10 +98,14 @@ export function CaptureStage({
     if (!el) return;
     const fit = () => {
       const r = el.getBoundingClientRect();
-      let w = r.width;
+      // Leave room for the TV bezel around the preview.
+      const bezel = 2 * (Math.min(22, Math.max(12, 0.024 * Math.min(window.innerWidth, window.innerHeight))) + 6);
+      const availW = Math.max(80, r.width - bezel);
+      const availH = Math.max(80, r.height - bezel);
+      let w = availW;
       let h = w / aspect;
-      if (h > r.height) {
-        h = r.height;
+      if (h > availH) {
+        h = availH;
         w = h * aspect;
       }
       setBox({ w: Math.floor(w), h: Math.floor(h) });
@@ -116,6 +126,8 @@ export function CaptureStage({
       for (let s = countdown; s >= 1; s--) {
         if (cancelled.current) return;
         setCount(s);
+        sfx.beep(false);
+        onEvent?.({ type: 'countdown', n: s });
         if (s === 1 && live) {
           sampler = setInterval(() => {
             try {
@@ -132,6 +144,8 @@ export function CaptureStage({
       if (cancelled.current) return;
       setCount(0);
       const still = grabFrame(v, a, mirror, STILL_MAX_WIDTH);
+      sfx.shutter();
+      onEvent?.({ type: 'flash' });
       setFlash(true);
       setTimeout(() => setFlash(false), 180);
       const after: HTMLCanvasElement[] = [];
@@ -147,16 +161,18 @@ export function CaptureStage({
       }
       const burst = live ? normalizeBurst([...ring, grabSmall(still), ...after]) : [];
       onShot(shotIndex, { still, burst });
+      onEvent?.({ type: 'saved', index: shotIndex });
       setCount(null);
       setJustTaken(scaledPreview(still));
       await sleep(1400);
       setJustTaken(null);
     },
-    [aspectFor, countdown, live, mirror, onShot],
+    [aspectFor, countdown, live, mirror, onShot, onEvent],
   );
 
   async function run() {
     if (running || !ready) return;
+    sfx.unlock();
     setRunning(true);
     try {
       if (mode === 'auto') {
@@ -180,6 +196,7 @@ export function CaptureStage({
       setCount(null);
     } finally {
       setRunning(false);
+      onEvent?.({ type: 'idle' });
     }
   }
 
@@ -195,104 +212,132 @@ export function CaptureStage({
           ? `${queue.length} foto · tekan tombol untuk setiap foto`
           : `Hitung mundur ${countdown} detik`;
 
+  const fileName = (i: number) => `Foto_${String(i + 1).padStart(2, '0')}.jpg`;
+  const switchCamera = () => {
+    const i = camera.devices.findIndex((d) => d.deviceId === camera.deviceId);
+    const next = camera.devices[(i + 1) % camera.devices.length];
+    setReady(false);
+    void camera.start(next.deviceId);
+  };
+
   return (
-    <div className="kiosk fixed inset-0 flex flex-col bg-[#07090F] text-white">
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-3 sm:px-6">
-        <Button variant="ink" size="icon-lg" className="bg-white/10 hover:bg-white/15" onClick={onCancel} aria-label="Batal" disabled={running}>
-          <X />
-        </Button>
-        <div className="flex flex-col items-center">
-          <p className="text-[11px] font-bold tracking-[0.2em] text-white/50 uppercase">Foto</p>
-          <p className="text-xl font-extrabold tabular-nums">
-            {current + 1} <span className="text-white/40">/ {totalShots}</span>
-          </p>
+    <div className="kiosk fixed inset-0 flex flex-col overflow-hidden text-ink">
+      <HillsWallpaper />
+      {/* Desktop decorations */}
+      <Goldfish className="absolute top-[9%] left-[3%] hidden w-[clamp(70px,9vw,130px)] animate-float md:block" style={{ ['--r' as string]: '-8deg' }} />
+      <Goldfish flip className="absolute top-[22%] left-[9%] hidden w-[clamp(50px,6vw,90px)] animate-float [animation-delay:1.4s] lg:block" />
+      <Bubbles className="absolute top-[6%] right-[4%] w-[clamp(60px,9vw,130px)] animate-float [animation-delay:.6s]" />
+      <Bubbles className="absolute bottom-[22%] left-[7%] hidden w-[clamp(40px,5vw,80px)] animate-float [animation-delay:2s] md:block" />
+
+      {/* Top: recycle bin = cancel, shot counter, switch camera */}
+      <div className="relative z-10 flex items-start justify-between gap-3 px-2 pt-[max(8px,env(safe-area-inset-top))] sm:px-4">
+        <DesktopIcon icon="recycle" label={running ? 'Tunggu…' : 'Batal'} onClick={running ? undefined : onCancel} className={running ? 'opacity-60' : ''} />
+        <div className="bevel-out mt-2 flex items-center gap-2 bg-win px-3 py-1.5 font-pixel">
+          <PixelIcon name="camera" className="size-5" />
+          <span className="text-[15px]">Kamera.exe</span>
+          <span className="bevel-in bg-win-light px-2 text-[17px] font-bold tabular-nums">
+            {current + 1}<span className="text-muted">/{totalShots}</span>
+          </span>
         </div>
         {camera.devices.length > 1 ? (
-          <Button
-            variant="ink"
-            size="icon-lg"
-            className="bg-white/10 hover:bg-white/15"
-            disabled={running}
-            aria-label="Ganti kamera"
-            onClick={() => {
-              const i = camera.devices.findIndex((d) => d.deviceId === camera.deviceId);
-              const next = camera.devices[(i + 1) % camera.devices.length];
-              setReady(false);
-              void camera.start(next.deviceId);
-            }}
-          >
-            <SwitchCamera />
-          </Button>
+          <button type="button" disabled={running} onClick={switchCamera} aria-label="Ganti kamera" className="flex w-24 flex-col items-center gap-1 p-1 disabled:opacity-50">
+            <span className="bevel-out flex size-12 items-center justify-center bg-win"><SwitchCamera className="size-6" /></span>
+            <span className="font-pixel text-[13px] text-white [text-shadow:1px_1px_0_#1A1410]">Ganti kamera</span>
+          </button>
         ) : (
-          <span className="size-12" />
+          <span className="w-24" />
         )}
       </div>
 
-      {/* Stage */}
-      <div ref={stageRef} className="relative mx-4 flex min-h-0 flex-1 items-center justify-center sm:mx-6">
+      {/* Stage: the camera lives inside a retro TV */}
+      <div ref={stageRef} className="relative z-10 mx-2 flex min-h-0 flex-1 items-center justify-center sm:mx-6">
         {camErr ? (
-          <div className="max-w-sm text-center">
-            <p className="text-lg font-bold">{camErr.title}</p>
-            <p className="mt-2 text-sm leading-relaxed text-white/60">{camErr.body}</p>
-            <Button variant="sun" size="lg" className="mt-5" onClick={() => camera.start()}>
-              <RefreshCcw /> Coba lagi
-            </Button>
-          </div>
+          <WinWindow title="Kamera.exe — Kesalahan" icon="warning" className="w-full max-w-sm" bodyClassName="p-4" onClose={onCancel}>
+            <div className="flex gap-3">
+              <PixelIcon name="warning" className="size-10" />
+              <div>
+                <p className="font-pixel text-[16px] font-bold">{camErr.title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-ink-2">{camErr.body}</p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="win" onClick={onCancel}>Batal</Button>
+              <Button variant="win-primary" onClick={() => camera.start()}><RefreshCcw /> Coba lagi</Button>
+            </div>
+          </WinWindow>
         ) : (
-          <div className="relative overflow-hidden rounded-[18px] bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.08)]" style={{ width: box.w, height: box.h }}>
-            <video
-              ref={videoRef}
-              playsInline
-              muted
-              autoPlay
-              onLoadedData={() => setReady(true)}
-              className="absolute inset-0 size-full object-cover"
-              style={{ transform: mirror ? 'scaleX(-1)' : undefined }}
-            />
-            {!ready ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Spinner className="size-8 text-white/70" />
+          <div className="relative">
+            <CrtTv>
+              <div className="relative overflow-hidden bg-black" style={{ width: box.w, height: box.h }}>
+                <video
+                  ref={videoRef}
+                  playsInline
+                  muted
+                  autoPlay
+                  onLoadedData={() => setReady(true)}
+                  className="absolute inset-0 size-full object-cover"
+                  style={{ transform: mirror ? 'scaleX(-1)' : undefined }}
+                />
+                {!ready ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0C1E6E] text-white">
+                    <PixelIcon name="hourglass" className="size-10 animate-wiggle" />
+                    <p className="font-pixel text-[15px]">Menyalakan kamera…</p>
+                  </div>
+                ) : null}
+                {/* rule-of-thirds guide */}
+                <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(to_right,transparent_33.2%,white_33.3%,transparent_33.4%,transparent_66.5%,white_66.6%,transparent_66.7%),linear-gradient(to_bottom,transparent_33.2%,white_33.3%,transparent_33.4%,transparent_66.5%,white_66.6%,transparent_66.7%)]" />
+                {count !== null ? (
+                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/10" aria-live="assertive">
+                    <span key={count} className="animate-pop font-display text-[clamp(96px,22vmin,220px)] leading-none text-white [text-shadow:5px_5px_0_#C4201A,9px_9px_0_#1A1410]">
+                      {count > 0 ? count : ''}
+                    </span>
+                    {count > 0 ? (
+                      <div className="absolute inset-x-[12%] bottom-[8%]">
+                        <ProgressBlocks value={((countdown - count + 1) / countdown) * 100} />
+                        <p className="mt-1 text-center font-pixel text-[13px] text-white [text-shadow:1px_1px_0_#1A1410]">Memuat senyum… {count}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {justTaken ? (
+                  <div className="pointer-events-none absolute inset-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={justTaken} alt="" className="size-full object-cover" />
+                    <span className="bevel-out absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 bg-win px-2.5 py-1 font-pixel text-[14px] whitespace-nowrap">
+                      <PixelIcon name="floppy" className="size-4" /> {fileName(current)} tersimpan
+                    </span>
+                  </div>
+                ) : null}
+                <div className={cn('pointer-events-none absolute inset-0 bg-white transition-opacity duration-200', flash ? 'opacity-90' : 'opacity-0')} />
               </div>
-            ) : null}
-            {/* rule-of-thirds guide */}
-            <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(to_right,transparent_33.2%,white_33.3%,transparent_33.4%,transparent_66.5%,white_66.6%,transparent_66.7%),linear-gradient(to_bottom,transparent_33.2%,white_33.3%,transparent_33.4%,transparent_66.5%,white_66.6%,transparent_66.7%)]" />
-            {count !== null ? (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10" aria-live="assertive">
-                <span key={count} className="animate-pop text-[clamp(96px,22vmin,220px)] leading-none font-extrabold text-white [text-shadow:0_6px_30px_rgba(0,0,0,0.45)]">
-                  {count > 0 ? count : ''}
-                </span>
-              </div>
-            ) : null}
-            {justTaken ? (
-              <div className="pointer-events-none absolute inset-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={justTaken} alt="" className="size-full object-cover" />
-                <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm font-semibold text-white">Tersimpan</span>
-              </div>
-            ) : null}
-            <div className={cn('pointer-events-none absolute inset-0 bg-white transition-opacity duration-200', flash ? 'opacity-90' : 'opacity-0')} />
+            </CrtTv>
+            <SwearBubble className={cn('absolute -top-3 -right-1 transition-transform sm:-right-4', flash ? 'scale-125' : 'animate-wiggle')} text={flash ? 'CEKREK!' : '#@%&!'} />
           </div>
         )}
       </div>
 
-      {/* Bottom: tray + shutter */}
-      <div className="flex flex-col items-center gap-4 px-4 pt-4 pb-[max(20px,env(safe-area-inset-bottom))]">
-        <div className="no-scrollbar flex max-w-full gap-2 overflow-x-auto">
-          {Array.from({ length: totalShots }).map((_, i) => {
-            const shot = existing[i];
-            return (
-              <div key={i} className={cn('relative h-16 w-12 shrink-0 overflow-hidden rounded-[8px] border-2', i === current ? 'border-sun' : 'border-white/15')}>
-                {shot ? <CanvasThumb canvas={shot.still} /> : <span className="flex size-full items-center justify-center text-sm font-bold text-white/35">{i + 1}</span>}
-              </div>
-            );
-          })}
-        </div>
-        <Button variant="sun" size="xl" className="min-w-64" onClick={run} disabled={running || !ready || !!camErr}>
+      {/* Shutter */}
+      <div className="relative z-10 flex flex-col items-end gap-1.5 px-3 pt-3 pb-2 pl-[clamp(96px,26vw,140px)] sm:items-center sm:pl-3">
+        <Button variant="win-go" size="xl" className="min-w-0 text-[20px] sm:min-w-72" onClick={run} disabled={running || !ready || !!camErr}>
           {running ? (count !== null && count > 0 ? 'Siap-siap…' : 'Senyum!') : (<><Camera /> {nextLabel}</>)}
         </Button>
-        <p className="h-5 text-sm text-white/60">{helper}</p>
+        <p className="h-5 truncate font-pixel text-[13px] text-white [text-shadow:1px_1px_0_#1A1410]">{helper}</p>
       </div>
+
+      {/* Taskbar: every shot is a "file" */}
+      <Taskbar className="relative z-10">
+        {Array.from({ length: totalShots }).map((_, i) => {
+          const shot = existing[i];
+          return (
+            <TaskItem key={i} active={i === current} className="gap-1.5 pl-1">
+              <span className="relative block h-7 w-5 shrink-0 overflow-hidden bg-ink/15">
+                {shot ? <CanvasThumb canvas={shot.still} /> : <span className="flex size-full items-center justify-center text-[11px] font-bold text-ink/40">{i + 1}</span>}
+              </span>
+              <span className="hidden sm:inline">{fileName(i)}</span>
+            </TaskItem>
+          );
+        })}
+      </Taskbar>
     </div>
   );
 }
