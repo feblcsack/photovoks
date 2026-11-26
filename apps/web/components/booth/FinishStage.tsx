@@ -12,7 +12,7 @@ import { PrintDialog } from '@/components/print/PrintDialog';
 import { AiStudio } from '@/components/session/AiStudio';
 import { useGuestSession } from '@/components/session/useGuestSession';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
-import { canvasToBlob, createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
+import { createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
 import { boomerang, buildSprite, encodeGif, filteredCopy, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
 import { printSheet, renderSheet, sheetToJpeg } from '@/lib/print/sheet';
 import type { SheetPlan } from '@/lib/print/papers';
@@ -22,6 +22,7 @@ import { primarySlotAspect } from '@/lib/frames/types';
 import type { AiGenerationView } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
 import type { Shot } from './CaptureStage';
+import { PhotoMachineSlot } from '@/components/brand/scrap';
 
 type Phase = 'compose' | 'animate' | 'upload' | 'save' | 'done' | 'error';
 const PHASES: Array<{ id: Phase; label: string }> = [
@@ -31,6 +32,9 @@ const PHASES: Array<{ id: Phase; label: string }> = [
   { id: 'save', label: 'Menyimpan ke galeri event' },
 ];
 const AUTO_RETURN_S = 120;
+const STRIP_JPEG_QUALITY = 0.9;
+const SHOT_MAX_SIDE = 1200;
+const SHOT_JPEG_QUALITY = 0.85;
 
 interface Result {
   sessionId: string;
@@ -92,14 +96,18 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
 
       // 2 · Compose full-resolution strip with filtered stills.
       const assets = await prepareDesign(frame.design);
-      const fullPhotos = Array.from({ length: frame.slotCount }, (_, i) => filteredCopy(shots[selection[i]].still, filter));
+      // Filter each shot once (slots may repeat the same shot).
+      const filteredStills = shots.map((s) => filteredCopy(s.still, filter));
+      const fullPhotos = Array.from({ length: frame.slotCount }, (_, i) => filteredStills[selection[i]]);
       const strip = createCanvas(frame.design.width, frame.design.height);
       renderDesign(strip.getContext('2d')!, frame.design, { photos: fullPhotos, assets, tokens, qrValue });
-      const stripBlob = await canvasToBlob(strip, 'image/png');
-      const thumbBlob = await toJpeg(scaledCopy(strip, 480), 0.82);
+      // Egress: a high-quality JPEG is ~5–10× smaller than PNG and still
+      // prints cleanly at 300 DPI. Raw shots are only for softfile/AI → ≤1200px.
+      const stripBlob = await toJpeg(strip, STRIP_JPEG_QUALITY);
+      const thumbBlob = await toJpeg(scaledCopy(strip, 480), 0.8);
       const sheet = renderSheet(strip, strip.width, strip.height, event.printPaper, 'auto', 0);
       const sheetBlob = await sheetToJpeg(sheet.canvas);
-      const shotBlobs = await Promise.all(shots.map((s) => toJpeg(filteredCopy(s.still, filter), 0.9)));
+      const shotBlobs = await Promise.all(filteredStills.map((c) => toJpeg(scaledCopy(c, SHOT_MAX_SIDE, SHOT_MAX_SIDE), SHOT_JPEG_QUALITY)));
 
       // 3 · Live photo: sprite (all shots) + animated GIF of the whole frame.
       let spriteBlob: Blob | null = null;
@@ -129,7 +137,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       // 4 · Upload everything straight to storage.
       setPhase('upload');
       const uploads: Array<[string, Blob, string]> = [
-        ['strip.png', stripBlob, 'image/png'],
+        ['strip.jpg', stripBlob, 'image/jpeg'],
         ['thumb.jpg', thumbBlob, 'image/jpeg'],
         ['sheet.jpg', sheetBlob, 'image/jpeg'],
         ...shotBlobs.map((b, i): [string, Blob, string] => [`photo_${i}.jpg`, b, 'image/jpeg']),
@@ -254,7 +262,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
     return (
       <div className="kiosk booth-paper fixed inset-0 flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-sm">
-          <h1 className="mb-6 text-center text-2xl font-extrabold">{phase === 'error' ? 'Ups, ada kendala' : 'Sebentar ya…'}</h1>
+          <h1 className="mb-6 text-center text-3xl">{phase === 'error' ? 'Ups, ada kendala' : 'Sebentar ya…'}</h1>
           <ol className="flex flex-col gap-3">
             {PHASES.map((p, i) => {
               const done = i < idx;
@@ -297,19 +305,25 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       </header>
       <div className="grid min-h-0 flex-1 gap-5 px-4 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 md:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
         <div className="flex min-h-0 flex-col items-center justify-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={view === 'live' && result.gifUrl ? result.gifUrl : result.stripUrl}
-            alt="Hasil foto"
-            className="max-h-[calc(100dvh-200px)] max-w-full rounded-[6px] object-contain shadow-[0_18px_40px_-16px_rgba(14,20,36,0.45)]"
-          />
+          <PhotoMachineSlot printing trayClassName="flex w-full max-w-full justify-center" sub="ambil hasilmu">
+            <div className="print-out">
+              <div className="bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(14,20,36,0.55)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={view === 'live' && result.gifUrl ? result.gifUrl : result.stripUrl}
+                  alt="Hasil foto"
+                  className="developing block max-h-[calc(100dvh-280px)] max-w-full object-contain"
+                />
+              </div>
+            </div>
+          </PhotoMachineSlot>
           {result.gifUrl ? (
             <Segmented value={view} onChange={setView} options={[{ value: 'live', label: <><Film className="size-3.5" /> Live</> }, { value: 'strip', label: <><ImageIcon className="size-3.5" /> Foto</> }]} />
           ) : null}
         </div>
         <div className="flex flex-col gap-3 md:justify-center">
-          <div className="rounded-[20px] bg-white p-5 text-center shadow-[0_1px_0_rgba(14,20,36,0.06)]">
-            <p className="text-lg font-extrabold">Scan untuk ambil softfile</p>
+          <div className="rounded-[22px] border-2 border-ink bg-surface p-5 text-center shadow-[5px_5px_0_var(--color-ink)]">
+            <p className="font-display text-2xl">Scan paspor fotomu ✶</p>
             <p className="mb-4 text-sm text-muted">Arahkan kamera HP ke kode ini</p>
             <div className="mx-auto w-fit rounded-[12px] bg-white p-2 ring-1 ring-line">
               <QRCodeSVG value={shareUrl} size={196} level="M" marginSize={1} />

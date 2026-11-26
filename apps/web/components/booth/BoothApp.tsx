@@ -25,6 +25,7 @@ import { ReviewStage } from './ReviewStage';
 import { FinishStage } from './FinishStage';
 import { OfflineIndicator } from './OfflineIndicator';
 import { AttractView } from './AttractView';
+import { BoothZine } from './BoothZine';
 
 interface BoothConfig {
   event: EventConfig;
@@ -35,7 +36,7 @@ interface BoothConfig {
   media: { attractUrl: string | null };
 }
 
-type Step = 'attract' | 'frames' | 'capture' | 'review' | 'finish';
+type Step = 'attract' | 'frames' | 'capture' | 'review' | 'finish' | 'zine';
 const IDLE_MS = 90_000;
 const NEVER = 2_000_000_000;
 
@@ -98,6 +99,7 @@ export function BoothApp({ code }: { code: string }) {
   }, [load]);
 
   const idleEnabled = step === 'frames' || step === 'review';
+  // (zine mode has its own close button; guests can take their time designing)
   useIdleTimer(idleEnabled ? IDLE_MS : NEVER, () => {
     if (idleEnabled) reset();
   });
@@ -151,8 +153,8 @@ export function BoothApp({ code }: { code: string }) {
   }
   if (!config || !event) {
     return (
-      <div className="kiosk flex min-h-dvh items-center justify-center bg-[#0B0F1A]">
-        <Spinner className="size-8 text-white/70" />
+      <div className="kiosk booth-paper flex min-h-dvh items-center justify-center">
+        <Spinner className="size-8 text-brand" />
       </div>
     );
   }
@@ -171,6 +173,7 @@ export function BoothApp({ code }: { code: string }) {
           mediaUrl={attractUrl}
           onMediaError={() => setMediaFresh(true)}
           onStart={() => (config.frames.length === 1 ? chooseFrame(config.frames[0]) : setStep('frames'))}
+          onZine={event.zineEnabled ? () => setStep('zine') : undefined}
           corner={<HoldButton onHold={() => setOperatorOpen(true)} />}
         />
       ) : null}
@@ -235,6 +238,8 @@ export function BoothApp({ code }: { code: string }) {
           onDone={reset}
         />
       ) : null}
+
+      {step === 'zine' ? <BoothZine key={sessionKey} code={code} event={event} camera={camera} mirror={mirror} onDone={reset} /> : null}
 
       <OperatorSheet
         open={operatorOpen}
@@ -357,13 +362,13 @@ function FramePicker({ frames, tokens, onPick, onBack }: { frames: FrameRecord[]
     <div className="kiosk booth-paper fixed inset-0 flex flex-col">
       <header className="flex items-center justify-between gap-3 px-4 pt-[max(12px,env(safe-area-inset-top))] pb-3 sm:px-6">
         <Button variant="secondary" size="lg" onClick={onBack}><ArrowLeft /> Kembali</Button>
-        <h1 className="text-xl font-extrabold sm:text-2xl">Pilih frame</h1>
+        <h1 className="text-2xl sm:text-3xl">Pilih frame ✶</h1>
         <span className="w-28" />
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(20px,env(safe-area-inset-bottom))] sm:px-6">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {frames.map((f) => (
-            <button key={f.id} type="button" onClick={() => onPick(f)} className="group flex flex-col items-center gap-2.5 rounded-[18px] bg-white/70 p-3 text-left shadow-[0_1px_0_rgba(14,20,36,0.06)] transition active:scale-[0.98]">
+            <button key={f.id} type="button" onClick={() => onPick(f)} className="group flex flex-col items-center gap-2.5 rounded-[20px] border-2 border-ink bg-surface p-3 text-left shadow-[4px_4px_0_var(--color-ink)] transition odd:-rotate-1 even:rotate-1 hover:rotate-0 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0_var(--color-ink)]">
               <div className="flex h-[min(42vh,340px)] w-full items-center justify-center">
                 {f.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -374,7 +379,7 @@ function FramePicker({ frames, tokens, onPick, onBack }: { frames: FrameRecord[]
               </div>
               <div className="flex w-full items-center justify-between gap-2 px-1">
                 <span className="truncate text-[15px] font-bold">{f.name}</span>
-                <span className="shrink-0 rounded-full bg-ink px-2.5 py-0.5 text-xs font-bold text-white">{f.slotCount} pose</span>
+                <span className="shrink-0 rounded-full border-2 border-ink bg-sun px-2.5 py-0.5 font-type text-xs font-bold">{f.slotCount} pose</span>
               </div>
             </button>
           ))}

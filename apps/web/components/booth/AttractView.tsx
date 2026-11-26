@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { BookOpen, Camera } from 'lucide-react';
+import { Logo, LogoBadge, Sticker, Doodle } from '@/components/brand/scrap';
 import { Button } from '@/components/ui/button';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import type { EventConfig } from '@/lib/events';
@@ -27,6 +28,7 @@ export function AttractView({
   tokens,
   mediaUrl,
   onStart,
+  onZine,
   onMediaError,
   corner,
   preview = false,
@@ -36,6 +38,8 @@ export function AttractView({
   tokens: Record<string, string>;
   mediaUrl: string | null;
   onStart?: () => void;
+  /** Opens minizine mode (shown only when the event allows it). */
+  onZine?: () => void;
   onMediaError?: () => void;
   /** Top-right slot (operator settings button). */
   corner?: React.ReactNode;
@@ -51,11 +55,26 @@ export function AttractView({
   const canStart = frames.length > 0;
   const cta = event.attractCta || 'Ketuk layar untuk mulai';
   const hasMedia = !!mediaUrl && !!event.attractMediaType;
+  const zineButton = onZine ? (
+    <Button
+      variant="bubble"
+      size="xl"
+      className="h-[72px] text-lg"
+      tabIndex={preview ? -1 : undefined}
+      onClick={(e) => {
+        e.stopPropagation();
+        onZine();
+      }}
+    >
+      <BookOpen className="!size-6" /> Bikin minizine
+    </Button>
+  ) : null;
 
   const topBar = (
     <div className="relative z-10 flex items-start justify-between px-5 pt-[max(16px,env(safe-area-inset-top))] sm:px-8">
       <div className="flex items-center gap-2">
-        <span className={cn('rounded-full px-3 py-1 font-mono text-[11px] font-bold tracking-[0.18em] uppercase', hasMedia ? 'bg-black/55 text-white' : 'bg-ink text-white')}>{event.code}</span>
+        {hasMedia ? <LogoBadge className="size-12" /> : null}
+        <span className={cn('rounded-full border-2 border-ink px-3 py-1 font-type text-[12px] font-bold tracking-[0.18em] uppercase', hasMedia ? 'bg-white text-ink' : 'bg-ink text-white')}>{event.code}</span>
         {event.status !== 'active' ? <span className="rounded-full bg-warn-soft px-3 py-1 text-[11px] font-bold text-warn">Mode uji · event belum aktif</span> : null}
       </div>
       {corner}
@@ -87,9 +106,12 @@ export function AttractView({
             </div>
           ) : null}
           {canStart ? (
-            <span className="inline-flex h-14 items-center gap-2.5 rounded-full bg-white px-7 text-lg font-bold text-ink shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]">
-              <Camera className="size-5" strokeWidth={2} /> {cta}
-            </span>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <span className="inline-flex h-14 items-center gap-2.5 rounded-full border-2 border-ink bg-sun px-7 text-lg font-bold text-ink shadow-[3px_3px_0_var(--color-ink)]">
+                <Camera className="size-5" strokeWidth={2} /> {cta}
+              </span>
+              {zineButton}
+            </div>
           ) : (
             <span className="rounded-full bg-danger px-4 py-2 text-sm font-semibold">Belum ada frame aktif untuk event ini</span>
           )}
@@ -103,36 +125,44 @@ export function AttractView({
   return (
     <div className={cn(root, 'booth-paper')} onClick={canStart ? onStart : undefined}>
       {topBar}
+      <Sticker id="sparkle" className="pointer-events-none absolute top-24 left-[44%] hidden w-16 animate-float md:block" style={{ ['--r' as string]: '-10deg' }} />
+      <Sticker id="heart" className="pointer-events-none absolute top-20 right-10 w-20 animate-float [animation-delay:1.2s]" style={{ ['--r' as string]: '12deg' }} />
+      <Doodle kind="stars" className="pointer-events-none absolute right-10 bottom-8 w-28 text-cobalt/60" />
       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 items-center gap-8 px-6 py-6 sm:px-10 md:grid-cols-[1.1fr_1fr]">
         <div className="flex flex-col items-center text-center md:items-start md:text-left">
-          <h1 className="text-[clamp(40px,7vw,84px)] leading-[0.95] font-extrabold tracking-tight text-ink">
+          <Logo className="mb-1 w-[min(220px,22vh,40vw)] -rotate-3" />
+          <h1 className="text-[clamp(32px,min(5.5vw,7.5vh),68px)] leading-[0.98] text-ink">
             {event.welcomeTitle || (
               <>
-                Foto sekarang, <span className="rounded-[10px] bg-sun px-2">cetak</span> kemudian.
+                Foto sekarang, <span className="inline-block -rotate-2 rounded-[14px] border-2 border-ink bg-brand px-3 text-white shadow-[3px_3px_0_var(--color-ink)]">cetak</span> kemudian.
               </>
             )}
           </h1>
-          <p className="mt-4 max-w-md text-lg text-ink-2">{event.welcomeSubtitle || event.name}</p>
+          <p className="mt-3 max-w-md font-type text-lg text-ink-2">{event.welcomeSubtitle || event.name}</p>
           {event.attractShowText ? (
-            <ol className="mt-8 w-full max-w-md border-y-2 border-dashed border-ink/25 py-3 font-mono">
+            <ol className="mt-4 w-full max-w-md border-y-2 border-dashed border-ink/30 py-2 font-type">
               {steps.map((s, i) => (
-                <li key={s} className="flex items-center gap-4 py-1.5 text-[17px] tracking-wide uppercase">
-                  <span className="text-ink/40">{String(i + 1).padStart(2, '0')}</span>
+                <li key={s} className="flex items-center gap-4 py-1 text-[16px] tracking-wide uppercase">
+                  <span className="text-brand">{String(i + 1).padStart(2, '0')}</span>
                   <span className="font-bold">{s}</span>
                   <span className="flex-1 border-b-2 border-dotted border-ink/20" />
                 </li>
               ))}
             </ol>
           ) : null}
-          <Button variant="sun" size="xl" className="mt-8 h-20 min-w-72 text-2xl" onClick={onStart} disabled={!canStart} tabIndex={preview ? -1 : undefined}>
-            <Camera className="!size-7" /> Mulai
-          </Button>
-          {!canStart ? <p className="mt-3 text-sm text-danger">Belum ada frame aktif untuk event ini.</p> : <p className="mt-3 text-sm text-muted">{cta}</p>}
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 md:justify-start">
+            <Button variant="sun" size="xl" className="h-[72px] min-w-44 text-2xl" onClick={onStart} disabled={!canStart} tabIndex={preview ? -1 : undefined}>
+              <Camera className="!size-7" /> Mulai
+            </Button>
+            {zineButton}
+          </div>
+          {!canStart ? <p className="mt-3 text-sm text-danger">Belum ada frame aktif untuk event ini.</p> : <p className="mt-3 font-type text-sm text-muted">{cta}</p>}
         </div>
         <div className="hidden h-full min-h-0 items-center justify-center md:flex">
           {f ? (
-            <div key={f.id} className="flex max-h-full animate-pop items-center justify-center" style={{ height: preview ? '70%' : 'min(70vh, 640px)' }}>
-              <FrameCanvas design={f.design} tokens={tokens} maxRenderWidth={520} className="h-full w-auto rotate-[2deg] rounded-[4px] shadow-[0_30px_60px_-20px_rgba(14,20,36,0.45)]" style={{ maxHeight: '100%' }} />
+            <div key={f.id} className="relative flex max-h-full animate-pop items-center justify-center" style={{ height: preview ? '70%' : 'min(70vh, 640px)' }}>
+              <span className="tape absolute -top-3 left-1/2 z-10 h-7 w-28 -translate-x-1/2 rotate-[-4deg]" />
+              <FrameCanvas design={f.design} tokens={tokens} maxRenderWidth={520} className="h-full w-auto rotate-[2deg] border-2 border-ink bg-white shadow-[8px_8px_0_var(--color-ink)]" style={{ maxHeight: '100%' }} />
             </div>
           ) : null}
         </div>

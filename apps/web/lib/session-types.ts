@@ -1,3 +1,5 @@
+import type { WallSticker } from './y2k-stickers';
+
 /** Client-safe session shapes returned by the API. */
 
 export type AiStatus = 'pending' | 'processing' | 'done' | 'failed' | 'failed_safety';
@@ -30,6 +32,8 @@ export interface SessionSummary {
   createdAt: string;
   status: string;
   frameName: string | null;
+  /** 'zine' = minizine sheet made in the booth. */
+  kind: 'strip' | 'zine';
   shotCount: number;
   liveFrames: number;
   isHidden: boolean;
@@ -64,6 +68,8 @@ export interface GuestEventInfo {
   stickers: string[];
   /** Public token of the guestbook microsite (null when disabled). */
   guestbookToken: string | null;
+  liveEnabled: boolean;
+  zineEnabled: boolean;
 }
 
 export interface GuestSessionData {
@@ -72,4 +78,6 @@ export interface GuestSessionData {
   aiConfigured: boolean;
   printStationOnline: boolean;
   expiresAt: string | null;
+  /** Y2K stickers the guest placed on their photo for the live wall. */
+  wallStickers: WallSticker[];
 }

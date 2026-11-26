@@ -166,22 +166,29 @@ export function nextSlotIndex(d: FrameDesign): number {
 }
 
 /** Re-lays out photo slots in a grid (keeps other elements). */
-export function autoLayoutSlots(d: FrameDesign, opts: { count: number; cols: number; padding: number; gap: number; footer: number; radius: number }): FrameDesign {
+/**
+ * `repeat`: every column repeats the same photos (twin strips on one sheet —
+ * e.g. 4R with 3 photos on the left and the same 3 on the right). `count`
+ * is then the number of photos per column and the guest only takes `count`.
+ */
+export function autoLayoutSlots(d: FrameDesign, opts: { count: number; cols: number; padding: number; gap: number; footer: number; radius: number; repeat?: boolean }): FrameDesign {
   const others = d.elements.filter((e) => e.type !== 'photo');
   const existing = d.elements.filter((e): e is PhotoElement => e.type === 'photo').sort((a, b) => a.slot - b.slot);
-  const rows = Math.ceil(opts.count / opts.cols);
+  const repeat = !!opts.repeat && opts.cols > 1;
+  const total = repeat ? opts.count * opts.cols : opts.count;
+  const rows = repeat ? opts.count : Math.ceil(opts.count / opts.cols);
   const innerW = d.width - opts.padding * 2;
   const innerH = d.height - opts.padding * 2 - opts.footer;
   const w = (innerW - opts.gap * (opts.cols - 1)) / opts.cols;
   const h = (innerH - opts.gap * (rows - 1)) / rows;
-  const slots: PhotoElement[] = Array.from({ length: opts.count }, (_, i) => {
+  const slots: PhotoElement[] = Array.from({ length: total }, (_, i) => {
     const r = Math.floor(i / opts.cols);
     const c = i % opts.cols;
     const base = existing[i];
     return {
       id: base?.id ?? newId(),
       type: 'photo',
-      slot: i,
+      slot: repeat ? r : i,
       x: Math.round(opts.padding + c * (w + opts.gap)),
       y: Math.round(opts.padding + r * (h + opts.gap)),
       w: Math.round(w),

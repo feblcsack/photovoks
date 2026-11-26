@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Aperture,
   ArrowLeft,
   CalendarDays,
   Camera,
@@ -21,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/brand/scrap';
 import { useActivityTimer } from '@/hooks/useActivityTimer';
 
 interface NavItem {
@@ -80,11 +80,11 @@ export function PortalShell({ mode, event, children }: { mode: 'admin' | 'event'
 
   const nav = (
     <nav className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <span className="flex size-8 items-center justify-center rounded-[9px] bg-ink text-white"><Aperture className="size-[18px]" /></span>
+      <div className="flex h-20 items-center gap-2.5 px-4">
+        <Logo size="sm" className="w-14 shrink-0 -rotate-3" alt="" />
         <div className="leading-tight">
-          <p className="text-[15px] font-extrabold tracking-tight">Photovoks</p>
-          <p className="text-[10px] font-bold tracking-[0.14em] text-muted uppercase">{mode === 'event' ? 'Portal Event' : 'Portal Pemilik'}</p>
+          <p className="font-display text-lg">Photovoks</p>
+          <p className="text-[10px] font-bold tracking-[0.14em] text-muted">{mode === 'event' ? 'Portal Event' : 'Portal Pemilik'}</p>
         </div>
       </div>
 
@@ -106,7 +106,7 @@ export function PortalShell({ mode, event, children }: { mode: 'admin' | 'event'
             <li key={item.href}>
               <Link
                 href={item.href}
-                className={cn('flex h-10 items-center gap-3 rounded-[10px] px-3 text-sm font-semibold transition-colors', on ? 'bg-brand text-white shadow-[0_2px_6px_-2px_rgb(38_67_214/0.6)]' : 'text-ink-2 hover:bg-ink/[0.05] hover:text-ink')}
+                className={cn('flex h-10 items-center gap-3 rounded-full px-3 text-sm font-semibold transition-colors', on ? 'border-2 border-ink bg-brand text-white shadow-[2px_2px_0_var(--color-ink)]' : 'border-2 border-transparent text-ink-2 hover:bg-ink/[0.05] hover:text-ink')}
               >
                 <item.icon className="size-[18px]" />
                 {item.label}

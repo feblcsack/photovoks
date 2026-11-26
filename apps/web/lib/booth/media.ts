@@ -10,15 +10,28 @@ import { createCanvas, canvasToBlob } from '@/lib/frames/render';
 
 // ── Filters ──────────────────────────────────────────────────────────────────
 
-export const FILTERS: Array<{ id: string; label: string }> = [
+export const FILTERS: Array<{ id: string; label: string; family?: 'vintage' }> = [
   { id: 'original', label: 'Original' },
   { id: 'bw', label: 'B&W' },
   { id: 'warm', label: 'Hangat' },
   { id: 'cool', label: 'Sejuk' },
   { id: 'vintage', label: 'Vintage' },
+  { id: 'sepia', label: 'Booth Sepia', family: 'vintage' },
+  { id: 'noir', label: 'Booth Noir', family: 'vintage' },
+  { id: 'film', label: 'Film 90an', family: 'vintage' },
+  { id: 'flash', label: 'Kamera Sekali Pakai', family: 'vintage' },
   { id: 'vivid', label: 'Vivid' },
   { id: 'fade', label: 'Pudar' },
 ];
+
+/**
+ * Filters an event allows. Enabling "Vintage" in the event settings also
+ * unlocks the whole vintage family (sepia booth, noir, film, flash), so older
+ * events get the new looks without re-saving settings.
+ */
+export function allowedFilterList(allowed: string[]) {
+  return FILTERS.filter((f) => allowed.includes(f.id) || (f.family === 'vintage' && allowed.includes('vintage')));
+}
 
 /** CSS preview equivalents (live camera preview only — output uses pixel math). */
 export const FILTER_CSS: Record<string, string> = {
@@ -29,6 +42,19 @@ export const FILTER_CSS: Record<string, string> = {
   vintage: 'sepia(0.45) contrast(0.92) brightness(1.04) saturate(0.85)',
   vivid: 'saturate(1.35) contrast(1.08)',
   fade: 'contrast(0.85) brightness(1.08) saturate(0.8)',
+  sepia: 'grayscale(1) sepia(0.75) contrast(1.15) brightness(1.02)',
+  noir: 'grayscale(1) contrast(1.35) brightness(0.96)',
+  film: 'sepia(0.22) saturate(0.85) contrast(0.9) brightness(1.06) hue-rotate(-8deg)',
+  flash: 'saturate(1.25) contrast(1.15) brightness(1.08) sepia(0.12)',
+};
+
+/** Filters that add film grain + vignette on top of the colour transform. */
+const TEXTURED: Record<string, { grain: number; vignette: number }> = {
+  vintage: { grain: 10, vignette: 0.28 },
+  sepia: { grain: 18, vignette: 0.42 },
+  noir: { grain: 22, vignette: 0.5 },
+  film: { grain: 14, vignette: 0.3 },
+  flash: { grain: 9, vignette: 0.55 },
 };
 
 function clamp(v: number) {
@@ -39,14 +65,58 @@ export function applyFilter(canvas: HTMLCanvasElement, id: string) {
   if (!id || id === 'original') return;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const W = canvas.width;
+  const H = canvas.height;
+  const img = ctx.getImageData(0, 0, W, H);
   const d = img.data;
+  const tex = TEXTURED[id];
+  // Grain is scaled to the image so a 300 px burst frame and a 2000 px still look alike.
+  const grainAmt = tex ? tex.grain * Math.min(1.4, Math.max(0.6, W / 1000)) : 0;
+  let seed = 1234567;
+  const cx = W / 2;
+  const cy = H / 2;
+  const maxD2 = cx * cx + cy * cy;
   for (let i = 0; i < d.length; i += 4) {
     let r = d[i];
     let g = d[i + 1];
     let b = d[i + 2];
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
     switch (id) {
+      case 'sepia': {
+        // Classic chemical booth strip: mono, lifted blacks, warm paper tone.
+        const c = Math.max(0, (lum - 128) * 1.18 + 128);
+        const v = 26 + c * 0.86;
+        r = v * 1.07 + 6;
+        g = v * 0.95 + 2;
+        b = v * 0.78 - 4;
+        break;
+      }
+      case 'noir': {
+        const c = (lum - 124) * 1.4 + 124;
+        r = g = b = 12 + c * 0.92;
+        break;
+      }
+      case 'film': {
+        // Faded print: lifted shadows with a green-teal cast, warm highlights.
+        r = lum + (r - lum) * 0.82;
+        g = lum + (g - lum) * 0.82;
+        b = lum + (b - lum) * 0.82;
+        const t = lum / 255;
+        r = 24 + r * 0.86 + t * 14;
+        g = 28 + g * 0.84 + t * 6;
+        b = 30 + b * 0.76 - t * 6;
+        break;
+      }
+      case 'flash': {
+        // Disposable camera: punchy, warm, slightly blown highlights.
+        r = lum + (r - lum) * 1.28;
+        g = lum + (g - lum) * 1.22;
+        b = lum + (b - lum) * 1.1;
+        r = (r - 128) * 1.14 + 140;
+        g = (g - 128) * 1.12 + 132;
+        b = (b - 128) * 1.08 + 120;
+        break;
+      }
       case 'bw': {
         const c = (lum - 128) * 1.08 + 128;
         r = g = b = c;
@@ -88,6 +158,19 @@ export function applyFilter(canvas: HTMLCanvasElement, id: string) {
         g = (lum + (g - lum) * 0.8 - 128) * 0.85 + 146;
         b = (lum + (b - lum) * 0.8 - 128) * 0.85 + 150;
         break;
+    }
+    if (tex) {
+      const p = i >> 2;
+      const x = p % W;
+      const y = (p / W) | 0;
+      const dx = x - cx;
+      const dy = y - cy;
+      const vig = 1 - tex.vignette * Math.pow((dx * dx + dy * dy) / maxD2, 1.3);
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      const n = ((seed / 4294967296) - 0.5) * grainAmt;
+      r = r * vig + n;
+      g = g * vig + n;
+      b = b * vig + n;
     }
     d[i] = clamp(r);
     d[i + 1] = clamp(g);

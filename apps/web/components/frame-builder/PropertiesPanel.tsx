@@ -133,7 +133,7 @@ function CanvasProps({ editor, onUploadImage, uploading }: { editor: Editor; onU
   const [h, setH] = useState(design.height);
   const preset = CANVAS_PRESETS.find((p) => p.width === design.width && p.height === design.height)?.id ?? 'custom';
   const slots = design.elements.filter((e): e is PhotoElement => e.type === 'photo');
-  const [layout, setLayout] = useState({ count: Math.max(1, slotCountOf(design)), cols: 1, padding: Math.round(design.width * 0.06), gap: Math.round(design.width * 0.04), footer: Math.round(design.height * 0.14), radius: slots[0]?.radius ?? 0 });
+  const [layout, setLayout] = useState({ count: Math.max(1, slotCountOf(design)), cols: 1, padding: Math.round(design.width * 0.06), gap: Math.round(design.width * 0.04), footer: Math.round(design.height * 0.14), radius: slots[0]?.radius ?? 0, repeat: false });
 
   return (
     <>
@@ -187,7 +187,7 @@ function CanvasProps({ editor, onUploadImage, uploading }: { editor: Editor; onU
       </Section>
       <Section title="Tata letak slot otomatis">
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Jumlah foto">
+          <Field label={layout.repeat ? 'Foto per kolom' : 'Jumlah foto'}>
             <Select value={layout.count} onChange={(e) => setLayout({ ...layout, count: Number(e.target.value) })}>
               {[1, 2, 3, 4, 5, 6, 8].map((n) => <option key={n} value={n}>{n}</option>)}
             </Select>
@@ -198,6 +198,12 @@ function CanvasProps({ editor, onUploadImage, uploading }: { editor: Editor; onU
             </Select>
           </Field>
         </div>
+        <label className={cn('mt-3 flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-line p-2.5', layout.cols < 2 && 'opacity-50')}>
+          <input type="checkbox" className="mt-0.5 size-4 accent-[var(--color-brand)]" disabled={layout.cols < 2} checked={layout.repeat && layout.cols > 1} onChange={(e) => setLayout({ ...layout, repeat: e.target.checked })} />
+          <span className="text-[12px] leading-snug text-ink-2">
+            <b>Kembar per kolom</b> — tiap kolom memakai foto yang sama (mis. 4R: 3 foto kiri + 3 foto kanan, tamu cukup foto 3×). Cocok untuk dicetak lalu digunting jadi 2 strip.
+          </span>
+        </label>
         <div className="mt-3 flex flex-col gap-3">
           <Slider label="Padding tepi" value={layout.padding} min={0} max={Math.round(design.width / 4)} onChange={(v) => setLayout({ ...layout, padding: v })} format={(v) => `${v}px`} />
           <Slider label="Jarak antar foto" value={layout.gap} min={0} max={Math.round(design.width / 6)} onChange={(v) => setLayout({ ...layout, gap: v })} format={(v) => `${v}px`} />

@@ -26,25 +26,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const event = access.event;
   if (event.status === 'archived') return jsonError('Event sudah diarsipkan', 409);
 
-  if (!isUuid(body.frameId)) return jsonError('Frame tidak valid', 400);
   const supabase = createServerClient();
-  const { data: link } = await supabase
-    .from('event_frames')
-    .select('frame_id, frames(id, design, storage_path, slot_geometry, is_active)')
-    .eq('event_id', event.id)
-    .eq('frame_id', body.frameId)
-    .maybeSingle();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const frameRow = (link as any)?.frames;
-  if (!frameRow || !frameRow.is_active) return jsonError('Frame tidak tersedia untuk event ini', 400);
-  const slots = slotCountOf(rowToDesign(frameRow));
+  // Minizine sessions (booth) have no frame: the uploaded "strip" is the zine sheet.
+  const isZine = body.kind === 'zine';
+  let slots = 1;
+  if (!isZine) {
+    if (!isUuid(body.frameId)) return jsonError('Frame tidak valid', 400);
+    const { data: link } = await supabase
+      .from('event_frames')
+      .select('frame_id, frames(id, design, storage_path, slot_geometry, is_active)')
+      .eq('event_id', event.id)
+      .eq('frame_id', body.frameId)
+      .maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const frameRow = (link as any)?.frames;
+    if (!frameRow || !frameRow.is_active) return jsonError('Frame tidak tersedia untuk event ini', 400);
+    slots = slotCountOf(rowToDesign(frameRow));
+  } else if (!event.zineEnabled) {
+    return jsonError('Minizine tidak aktif untuk event ini', 403);
+  }
 
   const shotCount = Number(body.shotCount);
   if (!Number.isInteger(shotCount) || shotCount < Math.max(1, slots) || shotCount > 8) {
     return jsonError('Jumlah foto tidak valid', 400);
   }
-  const wantLive = body.live === true;
-  const wantGif = body.gif === true;
+  const wantLive = !isZine && body.live === true;
+  const wantGif = !isZine && body.gif === true;
 
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + event.retentionDays * 86_400_000).toISOString();
@@ -54,7 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .insert({
       token,
       event_id: event.id,
-      frame_id: body.frameId,
+      frame_id: isZine ? null : body.frameId,
       status: 'capturing',
       shot_count: shotCount,
       selected_photo_index: 0,
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const files = [
     ...Array.from({ length: shotCount }, (_, i) => `photo_${i}.jpg`),
-    'strip.png',
+    'strip.jpg',
     'sheet.jpg',
     'thumb.jpg',
     ...(wantLive ? ['live.jpg'] : []),

@@ -15,7 +15,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: ${supabaseUrl}`,
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseUrl} ${supabaseWs}`,
+  `connect-src 'self' blob: data: ${supabaseUrl} ${supabaseWs}`,
   "media-src 'self' blob: mediastream:",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",

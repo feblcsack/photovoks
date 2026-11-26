@@ -67,7 +67,7 @@ pnpm install
 
 1. Buat project di [Supabase](https://supabase.com) (gratis).
 2. Siapkan database: `pnpm -s db:sql | pbcopy` (macOS) atau `pnpm -s db:sql > setup.sql`, lalu paste ke **Supabase › SQL Editor › Run**.
-   *Sudah pernah setup versi lama?* Jalankan migrasi yang belum ada secara berurutan — `…07_v2_events_frames_gallery.sql`, lalu `…08_v3_booth_live_guestbook.sql`. Keduanya aditif & aman dijalankan ulang; data lama tetap ada.
+   *Sudah pernah setup versi lama?* Jalankan migrasi yang belum ada secara berurutan — `…07_v2_events_frames_gallery.sql`, lalu `…08_v3_booth_live_guestbook.sql`, lalu `…09_v4_y2k_zine_wall.sql` (stiker live wall, tema kulkas, minizine). Semuanya aditif & aman dijalankan ulang; data lama tetap ada.
 3. `pnpm configure` — wizard mengisi `apps/web/.env.local`, PIN admin, dan membuat event pertama (kode + PIN).
 4. `pnpm dev` → buka `http://localhost:3000`.
 

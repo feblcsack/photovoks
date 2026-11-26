@@ -4,6 +4,9 @@ import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore }
 import { QRCodeSVG } from 'qrcode.react';
 import { Maximize, Minimize } from 'lucide-react';
 import type { GuestbookEntryView, LiveItem } from '@/lib/community';
+import type { LiveTheme } from '@/lib/events';
+import type { WallSticker } from '@/lib/y2k-stickers';
+import { LogoBadge, Magnet, PaperClip, PhotoMachineSlot, Sticker } from '@/components/brand/scrap';
 import { cn } from '@/lib/utils';
 
 const POLL_MS = 5000;
@@ -21,7 +24,7 @@ function merge<T extends { id: string }>(fresh: T[], old: T[], max: number): T[]
  * Full-screen wall for a projector / TV. New sessions appear within a few
  * seconds (polling — works behind any network without websockets).
  */
-export function LiveWall({ token, eventName, initialItems, initialMessages, guestbook }: { token: string; eventName: string; initialItems: LiveItem[]; initialMessages: GuestbookEntryView[]; guestbook: boolean }) {
+export function LiveWall({ token, eventName, initialItems, initialMessages, guestbook, theme = 'silver' }: { token: string; eventName: string; initialItems: LiveItem[]; initialMessages: GuestbookEntryView[]; guestbook: boolean; theme?: LiveTheme }) {
   const [items, setItems] = useState(initialItems);
   const [messages, setMessages] = useState(initialMessages);
   const [spot, setSpot] = useState(0);
@@ -38,12 +41,26 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
     if (!needFull) {
       if (items[0]) params.set('after', items[0].at);
       if (messages[0]) params.set('msgAfter', messages[0].createdAt);
+      params.set('ids', items.slice(0, 30).map((x) => x.id).join(','));
     }
     try {
       const res = await fetch(`/api/live/${token}?${params}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as { items: LiveItem[]; messages: GuestbookEntryView[] };
+      const data = (await res.json()) as { items: LiveItem[]; messages: GuestbookEntryView[]; stickers?: Record<string, WallSticker[]> };
       setOffline(false);
+      if (data.stickers && !needFull) {
+        const st = data.stickers;
+        setItems((old) => {
+          let changed = false;
+          const next = old.map((it) => {
+            const fresh = st[it.id] ?? [];
+            if (JSON.stringify(fresh) === JSON.stringify(it.stickers ?? [])) return it;
+            changed = true;
+            return { ...it, stickers: fresh };
+          });
+          return changed ? next : old;
+        });
+      }
       if (needFull) {
         lastFull.current = Date.now();
         setItems(data.items);
@@ -94,22 +111,31 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
   const current = items[spot] ?? items[0] ?? null;
   const rest = items.filter((x) => x.id !== current?.id).slice(0, 12);
   const msg = messages[msgIdx] ?? null;
+  const dark = theme === 'red' || theme === 'green' || theme === 'maroon';
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#0B0C10] text-white">
-      <header className="flex shrink-0 items-center justify-between gap-6 px-8 pt-6 pb-4">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-white/50 uppercase">
-            <span className={cn('size-2 rounded-full', offline ? 'bg-white/30' : 'animate-pulse bg-[#FF3B30]')} /> {offline ? 'Menyambung ulang…' : 'Live'}
-          </p>
-          <h1 className="truncate text-[clamp(22px,3vw,40px)] font-extrabold tracking-tight">{eventName}</h1>
+    <main className={cn('relative flex h-dvh flex-col overflow-hidden', `fridge-${theme}`, dark ? 'text-white' : 'text-ink')}>
+      {/* Fridge door details: freezer seam + chrome handle */}
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-[9%] h-[3px] bg-black/15 shadow-[0_1px_0_rgba(255,255,255,0.35)]" />
+      <span aria-hidden className="pointer-events-none absolute top-[16%] right-3 bottom-[16%] w-4 rounded-full bg-[linear-gradient(90deg,#8c9097,#f4f5f7_40%,#a7abb2_70%,#e2e4e7)] shadow-[2px_4px_8px_rgba(0,0,0,0.35)]" />
+
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-6 px-8 pt-5 pb-3">
+        <div className="flex min-w-0 items-center gap-4">
+          <LogoBadge className="size-16 shrink-0 -rotate-6" />
+          {/* Label-maker tape */}
+          <div className="min-w-0 rotate-[-1.5deg] bg-ink px-4 py-1.5 shadow-[2px_3px_0_rgba(0,0,0,0.3)]">
+            <h1 className="truncate font-type !font-normal text-[clamp(20px,2.6vw,36px)] tracking-[0.12em] text-white uppercase">{eventName}</h1>
+          </div>
+          <span className={cn('flex shrink-0 items-center gap-2 rounded-full border-2 border-ink bg-white px-3 py-1 font-type text-xs font-bold tracking-[0.2em] text-ink uppercase')}>
+            <span className={cn('size-2.5 rounded-full', offline ? 'bg-ink/30' : 'animate-pulse bg-brand')} /> {offline ? 'Menyambung…' : 'Live'}
+          </span>
         </div>
-        <div className="flex items-center gap-4">
-          <p className="hidden text-right text-sm text-white/50 sm:block">{items.length} foto</p>
+        <div className="mr-6 flex items-center gap-4">
+          <p className="hidden font-type text-sm sm:block">{items.length} foto</p>
           <button
             type="button"
             onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}
-            className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white/80 hover:bg-white/15"
+            className="flex size-10 items-center justify-center rounded-full border-2 border-ink bg-white text-ink hover:bg-sun"
             aria-label={full ? 'Keluar layar penuh' : 'Layar penuh'}
           >
             {full ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
@@ -118,54 +144,97 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
       </header>
 
       {items.length ? (
-        <div className="grid min-h-0 flex-1 gap-6 px-8 pb-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <div className="relative flex min-h-0 items-center justify-center">
+        <div className="relative z-10 grid min-h-0 flex-1 gap-6 px-8 pr-14 pb-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+          {/* Spotlight: newest photo prints out of the machine slot */}
+          <div className="relative flex min-h-0 flex-col items-center justify-start pt-2">
             {current ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={current.id}
-                src={current.gif ?? current.strip ?? current.thumb ?? ''}
-                alt=""
-                className={cn('max-h-full max-w-full animate-pop rounded-[6px] object-contain shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]', fresh === current.id && 'ring-4 ring-sun')}
-              />
+              <PhotoMachineSlot key={current.id} printing trayClassName="flex w-full justify-center" label="Photos delivered here" sub="in 3 seconds">
+                <div className="print-out pb-6">
+                  <Pinned item={current} big fresh={fresh === current.id} />
+                </div>
+              </PhotoMachineSlot>
             ) : null}
-            {fresh === current?.id ? <span className="absolute top-3 left-3 rounded-full bg-sun px-3 py-1 text-sm font-bold text-ink">Baru!</span> : null}
           </div>
-          <div className="hidden min-h-0 grid-cols-3 content-start gap-3 overflow-hidden lg:grid xl:grid-cols-4">
+          {/* Collage */}
+          <div className="hidden min-h-0 grid-cols-3 content-start gap-x-4 gap-y-6 overflow-hidden pt-4 lg:grid xl:grid-cols-4">
             {rest.map((it) => (
-              <div key={it.id} className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[10px] bg-white/[0.04] p-1.5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={it.thumb ?? it.strip ?? ''} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+              <div key={it.id} className="flex items-start justify-center">
+                <Pinned item={it} />
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          <p className="text-3xl font-extrabold">Belum ada foto</p>
-          <p className="text-white/50">Foto dari booth muncul di sini beberapa detik setelah selesai.</p>
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4 text-center">
+          <Sticker id="camera" className="w-28 animate-float" />
+          <p className="font-display text-4xl">Kulkasnya masih kosong!</p>
+          <p className="font-type opacity-70">Foto dari booth ditempel di sini beberapa detik setelah selesai.</p>
         </div>
       )}
 
       {guestbook ? (
-        <footer className="flex shrink-0 items-center gap-6 border-t border-white/10 px-8 py-4">
+        <footer className="relative z-10 mx-8 mr-14 mb-5 flex shrink-0 rotate-[-0.5deg] items-center gap-6 border-2 border-ink bg-[#FFFDF5] px-6 py-3 text-ink shadow-[4px_4px_0_rgba(0,0,0,0.35)] [background-image:repeating-linear-gradient(transparent_0_27px,rgba(39,71,201,0.15)_27px_28px)]">
+          <Magnet className="-top-3 left-6" color="#2747C9" />
+          <Magnet className="-top-3 right-6" color="#C4201A" />
           <div className="min-w-0 flex-1">
             {msg ? (
-              <p key={msg.id} className="animate-fade-in truncate text-[clamp(16px,1.6vw,22px)]">
-                <span className="font-bold">{msg.name}</span>
-                <span className="text-white/40"> · </span>
-                <span className="text-white/85">{msg.message}</span>
+              <p key={msg.id} className="animate-fade-in truncate font-hand text-[clamp(20px,2vw,30px)] leading-tight">
+                <span className="text-brand">{msg.name}:</span> <span>{msg.message}</span>
               </p>
             ) : (
-              <p className="text-white/50">Belum ada pesan. Scan QR untuk menulis di buku tamu.</p>
+              <p className="font-hand text-2xl text-muted">Belum ada pesan. Scan QR untuk menulis di buku tamu ✎</p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <p className="text-right text-sm leading-tight text-white/60">Tulis pesan<br />& kesan</p>
-            <div className="rounded-[8px] bg-white p-1.5"><QRCodeSVG value={`${origin}/m/${token}`} size={72} marginSize={0} /></div>
+            <p className="text-right font-type text-sm leading-tight">Tulis pesan<br />&amp; kesan</p>
+            <div className="border-2 border-ink bg-white p-1.5"><QRCodeSVG value={`${origin}/m/${token}`} size={72} marginSize={0} /></div>
           </div>
         </footer>
       ) : null}
     </main>
+  );
+}
+
+/** Deterministic pseudo-random numbers from an id (stable layout between polls). */
+function seeded(id: string) {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return (n: number) => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507) ^ n;
+    return ((h >>> 0) % 1000) / 1000;
+  };
+}
+
+const DECOR = ['sparkle', 'star', 'heart', 'cherry', 'smiley', 'butterfly', 'daisy', 'cd', 'bow'];
+const MAGNETS = ['#C4201A', '#2747C9', '#FF9BD2', '#C9F25C', '#FFD43B'];
+
+/** One print stuck on the fridge, with its fastener + the guest's stickers. */
+function Pinned({ item, big = false, fresh = false }: { item: LiveItem; big?: boolean; fresh?: boolean }) {
+  const r = seeded(item.id);
+  const rot = big ? (r(1) - 0.5) * 5 : (r(1) - 0.5) * 12;
+  const fastener = Math.floor(r(2) * 4);
+  const decor = !big && r(3) > 0.55 ? DECOR[Math.floor(r(4) * DECOR.length)] : null;
+  const src = big ? item.gif ?? item.strip ?? item.thumb : item.thumb ?? item.strip;
+  return (
+    <div className={cn('relative w-fit', !big && 'drop-in')} style={{ ['--r' as string]: `${rot}deg`, transform: `rotate(${rot}deg)` }}>
+      {fastener === 0 ? <Magnet className="-top-3 left-1/2 -translate-x-1/2" color={MAGNETS[Math.floor(r(5) * MAGNETS.length)]} /> : null}
+      {fastener === 1 ? <span className="tape absolute -top-3 left-1/2 z-10 h-6 w-20 -translate-x-1/2 rotate-[-6deg]" /> : null}
+      {fastener === 2 ? <PaperClip className="-top-6 left-4 w-5" /> : null}
+      {fastener === 3 ? (
+        <>
+          <span className="tape tape-pink absolute -top-2 -left-4 z-10 h-5 w-14 -rotate-45" />
+          <span className="tape tape-blue absolute -right-4 -bottom-2 z-10 h-5 w-14 -rotate-45" />
+        </>
+      ) : null}
+      <div className={cn('relative bg-white p-1.5 shadow-[0_14px_22px_-10px_rgba(0,0,0,0.6)]', big ? 'p-2' : '', fresh && 'ring-4 ring-sun')}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src ?? ''} alt="" loading={big ? 'eager' : 'lazy'} className={cn('block w-auto object-contain', big ? 'developing max-h-[calc(100dvh-380px)] max-w-full' : 'max-h-[30vh] max-w-[22vw]')} />
+        {item.stickers?.map((s, i) => (
+          <Sticker key={i} id={s.id} rotate={s.r} className="absolute" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.s * 100}%`, translate: '-50% -50%' }} />
+        ))}
+      </div>
+      {decor ? <Sticker id={decor} rotate={(r(6) - 0.5) * 40} className="absolute -right-5 -bottom-4 w-14" /> : null}
+      {fresh ? <Sticker id="flash" rotate={-12} className="drop-in absolute -top-6 -left-8 w-24" /> : null}
+    </div>
   );
 }

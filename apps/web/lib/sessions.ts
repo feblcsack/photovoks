@@ -7,12 +7,13 @@ import { isSessionToken } from '@/lib/security';
 import { signMedia } from '@/lib/event-media';
 import { isAiConfigured } from '@/lib/ai/provider';
 import type { AiGenerationView, GuestSessionData, PrintJobView, SessionSummary } from '@/lib/session-types';
+import { sanitizeWallStickers, type WallSticker } from '@/lib/y2k-stickers';
 
 export const HEARTBEAT_ONLINE_THRESHOLD_MS = 90_000;
 
 export const SESSION_COLUMNS =
   'id, token, event_id, frame_id, status, created_at, expires_at, shot_count, live_frames, has_live, has_gif, has_thumb, ' +
-  'is_hidden, print_count, strip_width, strip_height, frames(name)';
+  'is_hidden, print_count, strip_width, strip_height, filter, frames(name)';
 
 export const MEDIA_TTL_SECONDS = 3600;
 
@@ -69,7 +70,7 @@ export async function buildSummaries(
   const sessionPaths: string[] = [];
   for (const r of rows) {
     const shots = r.shot_count ?? 3;
-    sessionPaths.push(sessionPath(r.id, 'strip.png'), sessionPath(r.id, 'sheet.jpg'));
+    sessionPaths.push(sessionPath(r.id, 'strip.jpg'), sessionPath(r.id, 'strip.png'), sessionPath(r.id, 'sheet.jpg'));
     if (r.has_thumb) sessionPaths.push(sessionPath(r.id, 'thumb.jpg'));
     if (r.has_gif) sessionPaths.push(sessionPath(r.id, 'anim.gif'));
     if (r.has_live) sessionPaths.push(sessionPath(r.id, 'live.jpg'));
@@ -136,7 +137,7 @@ export async function buildSummaries(
       const u = sessionUrls.get(sessionPath(r.id, `photo_${i}.jpg`));
       if (u) shots.push(u);
     }
-    const strip = sessionUrls.get(sessionPath(r.id, 'strip.png')) ?? null;
+    const strip = sessionUrls.get(sessionPath(r.id, 'strip.jpg')) ?? sessionUrls.get(sessionPath(r.id, 'strip.png')) ?? null;
     return {
       id: r.id,
       ...(opts.withToken ? { token: r.token } : {}),
@@ -144,6 +145,7 @@ export async function buildSummaries(
       createdAt: r.created_at,
       status: r.status,
       frameName: r.frames?.name ?? null,
+      kind: r.filter === 'zine' ? 'zine' : 'strip',
       shotCount: r.shot_count ?? 3,
       liveFrames: r.has_live ? r.live_frames ?? 0 : 0,
       isHidden: Boolean(r.is_hidden),
@@ -197,7 +199,7 @@ export async function getGuestSession(token: string): Promise<GuestSessionData |
   ]);
   if (!ev) return null;
   const stickerPaths: string[] = ev.stickers_enabled ? ev.sticker_paths ?? [] : [];
-  const stickerUrls = await signMedia(supabase, stickerPaths, 6 * 3600);
+  const [stickerUrls, extras] = await Promise.all([signMedia(supabase, stickerPaths, 6 * 3600), v4Extras(supabase, r.id, r.event_id)]);
 
   return {
     session: summary,
@@ -215,10 +217,28 @@ export async function getGuestSession(token: string): Promise<GuestSessionData |
       stickersEnabled: ev.stickers_enabled ?? true,
       stickers: stickerPaths.map((p) => stickerUrls.get(p)).filter((u): u is string => !!u),
       guestbookToken: ev.guestbook_enabled ? ev.public_token : null,
+      liveEnabled: !!ev.live_enabled,
+      zineEnabled: extras.zineEnabled,
     },
+    wallStickers: extras.wallStickers,
     aiConfigured: isAiConfigured(),
     printStationOnline: online,
     expiresAt: r.expires_at,
+  };
+}
+
+/**
+ * v4 columns (wall stickers, zine switch) read separately and tolerantly, so
+ * the app keeps working before migration 0009 is applied.
+ */
+async function v4Extras(supabase: SupabaseClient, sessionId: string, eventId: string): Promise<{ wallStickers: WallSticker[]; zineEnabled: boolean }> {
+  const [s, e] = await Promise.all([
+    supabase.from('sessions').select('wall_stickers').eq('id', sessionId).maybeSingle(),
+    supabase.from('events').select('zine_enabled').eq('id', eventId).maybeSingle(),
+  ]);
+  return {
+    wallStickers: s.error ? [] : sanitizeWallStickers(s.data?.wall_stickers),
+    zineEnabled: e.error ? true : e.data?.zine_enabled !== false,
   };
 }
 

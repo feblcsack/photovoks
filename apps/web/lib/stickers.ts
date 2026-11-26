@@ -4,6 +4,8 @@
  * Each sticker is a 200×200 SVG turned into a data URL.
  */
 
+import { Y2K_STICKERS } from './y2k-stickers';
+
 const OUTLINE = 'stroke="#fff" stroke-width="12" stroke-linejoin="round" paint-order="stroke"';
 
 function svg(body: string, viewBox = '0 0 200 200'): string {
@@ -107,6 +109,8 @@ export const BUILTIN_STICKERS: BuiltinSticker[] = [
   { id: 'besties', label: 'Besties', svg: label('BESTIES', '#FF6FA5', '#ffffff', 170) },
   { id: 'bestday', label: 'Best day', svg: label('BEST DAY', '#3D5AFE', '#ffffff', 170) },
   { id: 'love', label: 'Love', svg: label('LOVE YOU', '#E8364F', '#ffffff', 176) },
+  // Y2K set (shared with the live wall + minizine).
+  ...Y2K_STICKERS.map((y) => ({ id: `y2k-${y.id}`, label: y.label, svg: y.svg })),
 ];
 
 export function stickerDataUrl(s: BuiltinSticker): string {

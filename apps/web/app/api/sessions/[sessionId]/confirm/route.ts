@@ -52,8 +52,10 @@ export async function POST(request: NextRequest, ctx: Ctx): Promise<NextResponse
 
   const { data: files } = await supabase.storage.from('sessions').list(`sessions/${sessionId}`, { limit: 100 });
   const names = new Set((files ?? []).map((f) => f.name));
-  const required = [...Array.from({ length: session.shot_count }, (_, i) => `photo_${i}.jpg`), 'strip.png'];
+  const required = Array.from({ length: session.shot_count }, (_, i) => `photo_${i}.jpg`);
   const missing = required.filter((f) => !names.has(f));
+  // strip.jpg since v4 (egress); strip.png from older booth builds.
+  if (!names.has('strip.jpg') && !names.has('strip.png')) missing.push('strip.jpg');
   if (missing.length) return jsonError('Upload belum lengkap', 422, { missing });
 
   const shotCount = session.shot_count as number;

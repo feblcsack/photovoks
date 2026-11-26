@@ -6,7 +6,8 @@
  * Elements are drawn in array order (first = bottom).
  */
 
-export type FontKey = 'sans' | 'serif' | 'mono' | 'display' | 'hand' | 'marker' | 'script';
+export type FontKey = 'sans' | 'serif' | 'mono' | 'display' | 'hand' | 'marker' | 'script' | 'bubble' | 'typewriter' | 'scribble';
+export const FONT_KEYS: readonly FontKey[] = ['sans', 'serif', 'mono', 'display', 'hand', 'marker', 'script', 'bubble', 'typewriter', 'scribble'];
 
 export interface AssetRef {
   /** Path inside the `frames` bucket, e.g. "frames/assets/<uuid>.png" */
@@ -213,7 +214,7 @@ export function sanitizeDesign(input: unknown): FrameDesign | null {
           ...base,
           type: 'text',
           text: typeof e.text === 'string' ? e.text.slice(0, 500) : '',
-          font: (['sans', 'serif', 'mono', 'display', 'hand', 'marker', 'script'] as const).includes(e.font as FontKey) ? (e.font as FontKey) : 'sans',
+          font: FONT_KEYS.includes(e.font as FontKey) ? (e.font as FontKey) : 'sans',
           size: num(e.size, 48, 4, 1000),
           weight: ([400, 500, 600, 700, 800] as const).includes(Number(e.weight) as 400) ? (Number(e.weight) as 400) : 400,
           italic: e.italic === true,

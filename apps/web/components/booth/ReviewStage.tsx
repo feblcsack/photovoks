@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, Film, ImageIcon, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/segmented';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
-import { FILTERS, filteredCopy } from '@/lib/booth/media';
+import { allowedFilterList, filteredCopy } from '@/lib/booth/media';
 import { scaledCopy } from '@/lib/frames/render';
 import type { FrameRecord } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
@@ -50,7 +50,7 @@ export function ReviewStage({
   const photos = useMemo(() => Array.from({ length: slots }, (_, i) => (selection[i] !== undefined ? filteredPreviews[selection[i]] : null)), [slots, selection, filteredPreviews]);
   const live = useMemo(() => Array.from({ length: slots }, (_, i) => (selection[i] !== undefined ? filteredBursts[selection[i]] : null)), [slots, selection, filteredBursts]);
 
-  const filters = FILTERS.filter((f) => allowedFilters.includes(f.id));
+  const filters = allowedFilterList(allowedFilters);
 
   function toggle(i: number) {
     if (!choosing) return;

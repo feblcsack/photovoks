@@ -29,8 +29,8 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
         <D.Content
           aria-describedby={description ? undefined : undefined}
           className={cn(
-            'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 animate-pop flex-col overflow-hidden rounded-[18px] shadow-pop focus:outline-none',
-            dark ? 'bg-[#0B0F1A] text-white' : 'bg-surface',
+            'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-24px)] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 animate-pop flex-col overflow-hidden rounded-[20px] border-2 border-ink shadow-pop focus:outline-none',
+            dark ? 'bg-[#15110D] text-white' : 'bg-surface',
             WIDTHS[size],
             className,
           )}
@@ -38,7 +38,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
           {title ? (
             <div className={cn('flex items-start justify-between gap-4 px-5 pt-5 pb-3', dark ? '' : 'border-b border-line')}>
               <div className="min-w-0">
-                <D.Title className="text-base font-bold">{title}</D.Title>
+                <D.Title className="font-display text-lg">{title}</D.Title>
                 {description ? <D.Description className={cn('mt-0.5 text-[13px] leading-relaxed', dark ? 'text-white/60' : 'text-muted')}>{description}</D.Description> : null}
               </div>
               {!hideClose ? (

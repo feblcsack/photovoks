@@ -49,18 +49,21 @@ export interface EventConfig {
   stickersEnabled: boolean;
   stickerPaths: string[];
   aiGuestPrompt: boolean;
+  liveTheme: LiveTheme;
+  zineEnabled: boolean;
 }
 
 export type AttractMediaType = 'video' | 'image';
 
-/** Columns selected for an EventConfig. Never includes pin_hash. */
-export const EVENT_COLUMNS =
-  'id, code, name, status, description, welcome_title, welcome_subtitle, pin_hash, retention_days, ' +
-  'shot_count, countdown_seconds, capture_mode, allow_retake, max_retakes, live_photo, mirror_preview, filters, ' +
-  'print_mode, print_paper, print_copies, max_guest_prints, ai_enabled, ai_styles, ai_per_session, daily_sketch_cap, ' +
-  'gallery_visibility, gallery_token, active_prompt_template_id, created_at, ' +
-  'attract_media_path, attract_media_type, attract_cta, attract_show_text, live_enabled, guestbook_enabled, public_token, ' +
-  'stickers_enabled, sticker_paths, ai_guest_prompt';
+/**
+ * Columns selected for an EventConfig. `*` keeps older databases working when
+ * a newer migration (e.g. v4 live_theme / zine_enabled) hasn't been applied
+ * yet — mapEvent() only exposes mapped fields (pin_hash → hasPin boolean).
+ */
+export const EVENT_COLUMNS = '*';
+
+export const LIVE_THEMES = ['silver', 'red', 'mint', 'green', 'maroon'] as const;
+export type LiveTheme = (typeof LIVE_THEMES)[number];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapEvent(row: any): EventConfig {
@@ -104,6 +107,8 @@ export function mapEvent(row: any): EventConfig {
     stickersEnabled: row.stickers_enabled ?? true,
     stickerPaths: row.sticker_paths ?? [],
     aiGuestPrompt: row.ai_guest_prompt ?? false,
+    liveTheme: (LIVE_THEMES as readonly string[]).includes(row.live_theme) ? row.live_theme : 'silver',
+    zineEnabled: row.zine_enabled ?? true,
   };
 }
 
@@ -158,6 +163,8 @@ export interface EventUpdateInput {
   stickersEnabled?: boolean;
   stickerPaths?: string[];
   aiGuestPrompt?: boolean;
+  liveTheme?: LiveTheme;
+  zineEnabled?: boolean;
 }
 
 /** Paths inside the private `event-media` bucket. */
@@ -215,6 +222,8 @@ const FIELDS: Record<keyof EventUpdateInput, [column: string, validate: Validato
   stickersEnabled: ['stickers_enabled', bool],
   stickerPaths: ['sticker_paths', (v) => (Array.isArray(v) && v.length <= 40 && v.every((x) => typeof x === 'string' && EVENT_MEDIA_RE.test(x) && x.startsWith('stickers/')) ? Array.from(new Set(v as string[])) : undefined)],
   aiGuestPrompt: ['ai_guest_prompt', bool],
+  liveTheme: ['live_theme', oneOf([...LIVE_THEMES])],
+  zineEnabled: ['zine_enabled', bool],
 };
 
 /**

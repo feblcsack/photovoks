@@ -3,6 +3,9 @@
  * Self-hosted by next/font at build time — no runtime requests to Google.
  */
 import {
+  Bagel_Fat_One,
+  Gochi_Hand,
+  Special_Elite,
   Bebas_Neue,
   Caveat,
   Pacifico,
@@ -25,4 +28,11 @@ export const caveat = Caveat({ subsets: ['latin'], weight: ['500', '700'], displ
 export const patrickHand = Patrick_Hand({ subsets: ['latin'], weight: '400', display: 'swap', preload: false });
 export const pacifico = Pacifico({ subsets: ['latin'], weight: '400', display: 'swap', preload: false });
 
-export const fontVariables = `${jakarta.variable} ${spaceMono.variable}`;
+/** Y2K display face — bubbly, like the Photovoks logo. */
+export const bagel = Bagel_Fat_One({ subsets: ['latin'], variable: '--font-bagel', weight: '400', display: 'swap' });
+/** Typewriter — passport fields, receipts, zine captions. */
+export const specialElite = Special_Elite({ subsets: ['latin'], variable: '--font-typewriter', weight: '400', display: 'swap' });
+/** Scribbles / handwritten notes. */
+export const gochi = Gochi_Hand({ subsets: ['latin'], variable: '--font-scribble', weight: '400', display: 'swap', preload: false });
+
+export const fontVariables = `${jakarta.variable} ${spaceMono.variable} ${bagel.variable} ${specialElite.variable} ${gochi.variable}`;

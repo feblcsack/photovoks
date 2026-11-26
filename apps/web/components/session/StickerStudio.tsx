@@ -21,7 +21,7 @@ type Item =
   | { id: string; kind: 'text'; text: string; font: FontKey; color: string; pill: boolean; x: number; y: number; size: number; rot: number };
 
 const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-const TEXT_FONTS: FontKey[] = ['sans', 'display', 'marker', 'script', 'serif'];
+const TEXT_FONTS: FontKey[] = ['bubble', 'typewriter', 'scribble', 'sans', 'display', 'marker', 'script', 'serif'];
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 function textMetrics(it: Extract<Item, { kind: 'text' }>) {

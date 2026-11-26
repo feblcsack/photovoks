@@ -20,7 +20,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[max(16px,env(safe-area-inset-bottom))] z-[100] flex flex-col items-center gap-2 px-4">
         {items.map((t) => (
-          <div key={t.id} className={cn('pointer-events-auto flex max-w-md animate-pop items-center gap-2.5 rounded-[12px] px-4 py-3 text-sm font-medium text-white shadow-pop', t.tone === 'error' ? 'bg-danger' : t.tone === 'info' ? 'bg-ink' : 'bg-[#0F2A1C]')}>
+          <div key={t.id} className={cn('pointer-events-auto flex max-w-md animate-pop items-center gap-2.5 rounded-full border-2 border-ink px-4 py-3 text-sm font-semibold text-white shadow-[3px_3px_0_var(--color-ink)]', t.tone === 'error' ? 'bg-danger' : t.tone === 'info' ? 'bg-cobalt' : 'bg-booth-green')}>
             {t.tone === 'error' ? <AlertCircle className="size-[18px] shrink-0" /> : t.tone === 'info' ? <Info className="size-[18px] shrink-0" /> : <CheckCircle2 className="size-[18px] shrink-0 text-[#4ADE80]" />}
             {t.message}
           </div>

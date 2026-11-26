@@ -6,6 +6,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase/server';
 import { buildSummaries, SESSION_COLUMNS } from '@/lib/sessions';
 import { signMedia } from '@/lib/event-media';
+import { sanitizeWallStickers, type WallSticker } from '@/lib/y2k-stickers';
+import { LIVE_THEMES, type LiveTheme } from '@/lib/events';
 
 export const PUBLIC_TOKEN_RE = /^[a-f0-9]{32}$/;
 const VISIBLE = ['composed', 'printing', 'printed', 'completed'];
@@ -45,6 +47,8 @@ export interface LiveItem {
   gif: string | null;
   w: number | null;
   h: number | null;
+  kind: 'strip' | 'zine';
+  stickers: WallSticker[];
 }
 
 export interface GuestbookEntryView {
@@ -71,7 +75,11 @@ export async function liveItems(eventId: string, after: string | null, limit = 3
     .limit(limit);
   if (after) q = q.gt('completed_at', after);
   const { data: rows } = await q;
-  const summaries = await buildSummaries(supabase, rows ?? [], { onlyDoneAi: true });
+  const [summaries, stickers] = await Promise.all([
+    buildSummaries(supabase, rows ?? [], { onlyDoneAi: true }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    wallStickers((rows ?? []).map((r: any) => r.id as string)),
+  ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const at = new Map((rows ?? []).map((r: any) => [r.id as string, r.completed_at as string]));
   return summaries.map((s) => ({
@@ -82,7 +90,32 @@ export async function liveItems(eventId: string, after: string | null, limit = 3
     gif: s.urls.gif,
     w: s.stripWidth,
     h: s.stripHeight,
+    kind: s.kind,
+    stickers: stickers.get(s.id) ?? [],
   }));
+}
+
+/**
+ * Guest wall stickers for sessions (tiny DB read, no storage egress). Tolerant:
+ * returns nothing before migration v4 is applied.
+ */
+export async function wallStickers(ids: string[]): Promise<Map<string, WallSticker[]>> {
+  const map = new Map<string, WallSticker[]>();
+  if (!ids.length) return map;
+  const { data, error } = await createServerClient().from('sessions').select('id, wall_stickers').in('id', ids.slice(0, 80));
+  if (error) return map;
+  for (const r of data ?? []) {
+    const list = sanitizeWallStickers(r.wall_stickers);
+    if (list.length) map.set(r.id as string, list);
+  }
+  return map;
+}
+
+/** The event's live-wall fridge colour (tolerant of a missing column). */
+export async function liveTheme(eventId: string): Promise<LiveTheme> {
+  const { data, error } = await createServerClient().from('events').select('live_theme').eq('id', eventId).maybeSingle();
+  const t = !error && data ? (data.live_theme as string) : 'silver';
+  return (LIVE_THEMES as readonly string[]).includes(t) ? (t as LiveTheme) : 'silver';
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

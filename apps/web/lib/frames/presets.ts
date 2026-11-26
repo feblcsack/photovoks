@@ -127,6 +127,41 @@ export const FRAME_TEMPLATES: FrameTemplate[] = [
     },
   },
   {
+    id: 'twin-4r',
+    name: '4R Kembar · 3 pose ×2',
+    description: '2 strip identik di 4×6" — tamu foto 3×, kiri & kanan sama',
+    build: () => {
+      // Each half is a 2×6" strip: cut down the middle → two strips.
+      const half = 600;
+      const els: FrameElement[] = [];
+      for (let c = 0; c < 2; c++) {
+        const ox = c * half;
+        els.push(...stack(3, ox + 40, 40, 520, 1460, 24, { radius: 6 }));
+        els.push(text('{event}', ox + 40, 1530, 520, 90, { font: 'display', size: 76, weight: 400, color: '#C3201A', letterSpacing: 4 }));
+        els.push(text('{date}', ox + 40, 1640, 520, 60, { font: 'mono', size: 28, weight: 700, color: '#1B1B1F', letterSpacing: 3 }));
+      }
+      els.push({ id: newId(), name: 'Garis potong', type: 'line', x: 596, y: 0, w: 8, h: 1800, color: '#D8D1C2', thickness: 2, dash: 14 });
+      return { version: 2, width: 1200, height: 1800, background: { color: '#FFF8EC' }, elements: els };
+    },
+  },
+  {
+    id: 'vintage-stars',
+    name: 'Vintage Booth · 4 pose',
+    description: 'Strip sepia merah marun, gaya photobooth jadul',
+    build: () => ({
+      version: 2,
+      width: 600,
+      height: 1800,
+      background: { color: '#7A0E10' },
+      elements: [
+        { id: newId(), type: 'rect', x: 50, y: 50, w: 500, h: 1580, fill: '#EFE6D2', stroke: 'transparent', strokeWidth: 0, radius: 2 },
+        ...stack(4, 68, 68, 464, 1544, 14),
+        text('★ {event} ★', 40, 1655, 520, 70, { font: 'display', size: 60, weight: 400, color: '#F6E7C8', letterSpacing: 4 }),
+        text('{date}', 40, 1730, 520, 44, { font: 'mono', size: 22, weight: 400, color: '#E6C9A3', letterSpacing: 4 }),
+      ],
+    }),
+  },
+  {
     id: 'polaroid',
     name: 'Polaroid · 1 pose',
     description: '4×6" satu foto besar + caption',

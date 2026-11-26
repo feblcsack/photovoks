@@ -16,6 +16,7 @@ import { api } from '@/lib/fetcher';
 import type { EventConfig, GalleryVisibility, PrintMode } from '@/lib/events';
 import type { FrameRecord, QrPlacement } from '@/lib/frames/types';
 import { FILTERS } from '@/lib/booth/media';
+import { LIVE_THEMES } from '@/lib/events';
 import { AI_STYLES, CUSTOM_STYLE_ID } from '@/lib/ai/styles';
 import { PAPERS } from '@/lib/print/papers';
 import { cn } from '@/lib/utils';
@@ -284,7 +285,7 @@ export function BoothSettings({
               </div>
               <Field label="Filter untuk tamu">
                 <div className="flex flex-wrap gap-2">
-                  {FILTERS.map((f) => <Chip key={f.id} on={form.filters.includes(f.id)} onClick={() => f.id !== 'original' && toggleIn('filters', f.id)}>{f.label}</Chip>)}
+                  {FILTERS.filter((f) => !f.family).map((f) => <Chip key={f.id} on={form.filters.includes(f.id)} onClick={() => f.id !== 'original' && toggleIn('filters', f.id)}>{f.id === 'vintage' ? 'Vintage + Booth Sepia, Noir, Film 90an, Sekali Pakai' : f.label}</Chip>)}
                 </div>
               </Field>
             </div>
@@ -402,6 +403,23 @@ export function BoothSettings({
               <div className="border-t border-line pt-4">
                 <SwitchRow title="Galeri live" description="Halaman layar penuh untuk proyektor/TV. Foto & GIF baru muncul otomatis beberapa detik setelah sesi selesai." checked={form.liveEnabled} onChange={(v) => set('liveEnabled', v)} />
                 {form.liveEnabled && initial.liveEnabled ? <LinkRow label="Galeri live" url={liveUrl} onCopy={copy} /> : form.liveEnabled ? <p className="text-xs text-muted">Simpan untuk mendapatkan link.</p> : null}
+                {form.liveEnabled ? (
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-[13px] font-semibold text-ink-2">Warna pintu kulkas</p>
+                    <div className="flex flex-wrap gap-2">
+                      {LIVE_THEMES.map((t) => (
+                        <button key={t} type="button" onClick={() => set('liveTheme', t)} className={cn('flex h-12 w-20 items-end justify-start rounded-[10px] border-2 p-1.5 text-[10px] font-bold capitalize', `fridge-${t}`, form.liveTheme === t ? 'border-ink shadow-[3px_3px_0_var(--color-ink)]' : 'border-ink/20', ['red', 'green', 'maroon'].includes(t) ? 'text-white' : 'text-ink')}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted">Foto ditempel ala kulkas (magnet, selotip, klip). Tamu bisa menempel stiker Y2K ke fotonya dari halaman QR.</p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-line pt-4">
+                <SwitchRow title="Minizine" description="Tamu bisa membuat zine 8 halaman dari fotonya (di HP lewat QR, atau di booth lewat tombol 'Bikin minizine'). Lengkap dengan panduan lipat & ukuran kertas." checked={form.zineEnabled} onChange={(v) => set('zineEnabled', v)} />
               </div>
 
               <div className="border-t border-line pt-4">

@@ -321,14 +321,38 @@ export function renderDesign(ctx: Ctx, design: FrameDesign, opts: RenderOptions 
 
 const assetCache = new Map<string, Promise<ImageBitmap | null>>();
 
-/** Loads an image URL via fetch → ImageBitmap (CORS-safe, keeps canvas untainted). */
+/** Decodes via an <img> element (fallback when fetch() is blocked, e.g. by CSP or CORS). */
+function loadViaImage(url: string): Promise<ImageBitmap | HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    if (!url.startsWith('blob:') && !url.startsWith('data:')) img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+    img.onload = () => {
+      if (typeof createImageBitmap === 'function') createImageBitmap(img).then(resolve, () => resolve(img));
+      else resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/**
+ * Loads an image URL → ImageBitmap (CORS-safe, keeps canvas untainted).
+ * fetch() first; falls back to an <img> decode so freshly uploaded assets
+ * (blob: URLs) and odd CDN responses never end up as a grey placeholder.
+ * Failed loads are NOT cached, so a later retry can succeed.
+ */
 export function loadBitmap(url: string): Promise<ImageBitmap | null> {
   const cached = assetCache.get(url);
   if (cached) return cached;
   const p = fetch(url)
     .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`))))
     .then((b) => createImageBitmap(b))
-    .catch(() => null);
+    .catch(() => loadViaImage(url) as Promise<ImageBitmap | null>)
+    .then((bmp) => {
+      if (!bmp) assetCache.delete(url);
+      return bmp;
+    });
   assetCache.set(url, p);
   return p;
 }
