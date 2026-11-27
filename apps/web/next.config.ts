@@ -15,6 +15,9 @@ const s3Endpoint = (() => {
 })();
 // QRIS payments (Aulaa embedded checkout popup).
 const aulaa = 'https://payment.aulaa.co';
+// DOKU Checkout (Jokul popup script + hosted page, sandbox and production).
+const doku = 'https://sandbox.doku.com https://jokul.doku.com https://checkout.doku.com https://*.doku.com';
+const gateways = `${aulaa} ${doku}`;
 const storageOrigins = [supabaseUrl, supabaseUrl2, s3Endpoint].filter(Boolean).join(' ');
 
 /**
@@ -24,19 +27,19 @@ const storageOrigins = [supabaseUrl, supabaseUrl2, s3Endpoint].filter(Boolean).j
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} ${aulaa}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} ${gateways}`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${storageOrigins}`,
+  `img-src 'self' data: blob: ${storageOrigins} ${doku}`,
   "font-src 'self' data:",
-  `connect-src 'self' blob: data: ${storageOrigins} ${supabaseWs} ${aulaa}`,
+  `connect-src 'self' blob: data: ${storageOrigins} ${supabaseWs} ${gateways}`,
   `media-src 'self' blob: mediastream: ${storageOrigins}`,
   // Location card: interactive OpenStreetMap embed (UI Depok) + QRIS popup
-  `frame-src https://www.openstreetmap.org ${aulaa}`,
+  `frame-src https://www.openstreetmap.org ${gateways}`,
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  `form-action 'self' ${doku}`,
 ]
   .join('; ')
   .replace(/\s+/g, ' ');
@@ -46,7 +49,7 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'no-referrer' },
-  { key: 'Permissions-Policy', value: `camera=(self), microphone=(), geolocation=(), payment=(self "${aulaa}")` },
+  { key: 'Permissions-Policy', value: `camera=(self), microphone=(), geolocation=(), payment=(self "${aulaa}" "https://sandbox.doku.com" "https://jokul.doku.com")` },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 ];
 

@@ -7,6 +7,7 @@ import { DRIVERS, BUCKETS, type BucketName } from '@/lib/storage/drivers';
 import { envOverrides, getStoredSettings, settingsReachable } from '@/lib/settings';
 import { isAiConfigured, getProvider } from '@/lib/ai/provider';
 import { aulaaConfigured, aulaaWebhookConfigured } from '@/lib/payments/aulaa';
+import { dokuConfigured, dokuIsProduction } from '@/lib/payments/doku';
 import { memoStats } from '@/lib/storage/memo-cache';
 import { usageHistory } from '@/lib/usage';
 import type { StorageDriverId } from '@/lib/settings-shared';
@@ -101,7 +102,8 @@ export async function healthChecks(): Promise<Check[]> {
     supa,
     s3,
     { id: 'ai', label: 'Provider AI', ok: isAiConfigured(), optional: true, detail: isAiConfigured() ? `${provider.id} · ${provider.model()}` : 'OPENROUTER_API_KEY kosong' },
-    { id: 'qris', label: 'QRIS (Aulaa)', ok: aulaaConfigured(), optional: true, detail: aulaaConfigured() ? `API key terpasang · webhook ${aulaaWebhookConfigured() ? 'terverifikasi' : 'BELUM (AULAA_WEBHOOK_SECRET)'}` : 'AULAA_API_KEY kosong — pakai pembayaran kasir' },
+    { id: 'doku', label: 'QRIS (DOKU Checkout)', ok: dokuConfigured(), optional: true, detail: dokuConfigured() ? `Terpasang · ${dokuIsProduction() ? 'PRODUCTION' : 'SANDBOX'} · ${process.env.DOKU_ALL_METHODS === '1' ? 'semua metode' : 'QRIS saja'}` : 'DOKU_CLIENT_ID / DOKU_SECRET_KEY kosong' },
+    { id: 'qris', label: 'QRIS (Aulaa)', ok: aulaaConfigured(), optional: true, detail: aulaaConfigured() ? `API key terpasang · webhook ${aulaaWebhookConfigured() ? 'terverifikasi' : 'BELUM (AULAA_WEBHOOK_SECRET)'}` : 'AULAA_API_KEY kosong' },
     { id: 'secret', label: 'Rahasia sesi', ok: (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= 32, detail: (process.env.ADMIN_SESSION_SECRET?.length ?? 0) >= 32 ? 'ADMIN_SESSION_SECRET ≥ 32 karakter' : 'ADMIN_SESSION_SECRET terlalu pendek/kosong' },
   ];
 }

@@ -211,6 +211,13 @@ export function DeveloperPanel() {
             </div>
             <div className="py-2">
               <SwitchRow title="Pembayaran" description="Matikan = semua sesi & AI gratis (mis. saat QRIS bermasalah)." checked={draft.payments.enabled} onChange={(v) => setD('payments', { enabled: v })} />
+              <Field label="Gateway QRIS" className="pb-2" hint="Otomatis = DOKU jika terpasang, lalu Aulaa. Tanpa gateway, tamu bayar di kasir.">
+                <Select value={draft.payments.provider} onChange={(e) => setD('payments', { provider: e.target.value as AppSettings['payments']['provider'] })}>
+                  <option value="auto">Otomatis</option>
+                  <option value="doku">DOKU Checkout</option>
+                  <option value="aulaa">Aulaa</option>
+                </Select>
+              </Field>
               <div className="grid grid-cols-2 gap-3 pb-2">
                 <Field label="Harga AI default" hint={formatRupiah(draft.payments.defaultAiPrice)}>
                   <Input type="number" min={0} step={500} value={draft.payments.defaultAiPrice} onChange={(e) => setD('payments', { defaultAiPrice: Number(e.target.value) || 0 })} />

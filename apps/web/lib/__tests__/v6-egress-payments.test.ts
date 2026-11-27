@@ -14,7 +14,7 @@ import { verifyAulaaSignature } from '@/lib/payments/aulaa';
 import { WORDART_STYLES, cssExtrusion, cssGradient, isWordArtStyle } from '@/lib/wordart';
 import { autoFill, blankPage, slotCount, ZINE_THEMES } from '@/lib/zine/layout';
 import { sanitizeWallStickers, Y2K_STICKERS, y2kStickerUrl } from '@/lib/y2k-stickers';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 
 beforeEach(() => {
   process.env.ADMIN_SESSION_SECRET = 'x'.repeat(40);
@@ -152,5 +152,28 @@ describe('sticker packs', () => {
   });
   it('accepts new stickers on the live wall', () => {
     expect(sanitizeWallStickers([{ id: 'gemoy', x: 0.5, y: 0.5, s: 0.2, r: 0 }])).toHaveLength(1);
+  });
+});
+
+describe('DOKU Checkout', () => {
+  it('signs requests per the non-SNAP spec (with and without Digest)', async () => {
+    const { dokuSignature } = await import('@/lib/payments/doku');
+    const body = '{"order":{"amount":1500,"invoice_number":"PV-1"}}';
+    const digest = createHash('sha256').update(body).digest('base64');
+    const comp = `Client-Id:C1\nRequest-Id:R1\nRequest-Timestamp:2026-11-27T12:00:00Z\nRequest-Target:/checkout/v1/payment\nDigest:${digest}`;
+    expect(dokuSignature({ clientId: 'C1', requestId: 'R1', timestamp: '2026-11-27T12:00:00Z', target: '/checkout/v1/payment', body, secret: 'S' })).toBe(`HMACSHA256=${createHmac('sha256', 'S').update(comp).digest('base64')}`);
+    const get = `Client-Id:C1\nRequest-Id:R1\nRequest-Timestamp:T\nRequest-Target:/orders/v1/status/PV-1`;
+    expect(dokuSignature({ clientId: 'C1', requestId: 'R1', timestamp: 'T', target: '/orders/v1/status/PV-1', secret: 'S' })).toBe(`HMACSHA256=${createHmac('sha256', 'S').update(get).digest('base64')}`);
+  });
+  it('verifies notifications against our notify path only', async () => {
+    process.env.DOKU_CLIENT_ID = 'C1';
+    process.env.DOKU_SECRET_KEY = 'S';
+    const { dokuSignature, verifyDokuNotification, DOKU_NOTIFY_PATH } = await import('@/lib/payments/doku');
+    const body = '{"order":{"invoice_number":"PV-1","amount":1500},"transaction":{"status":"SUCCESS"}}';
+    const sig = dokuSignature({ clientId: 'C1', requestId: 'N1', timestamp: 'T', target: DOKU_NOTIFY_PATH, body, secret: 'S' });
+    const h = (s: string) => new Headers({ 'client-id': 'C1', 'request-id': 'N1', 'request-timestamp': 'T', signature: s });
+    expect(verifyDokuNotification(h(sig), body)).toBe(true);
+    expect(verifyDokuNotification(h(sig), body.replace('1500', '15'))).toBe(false);
+    expect(verifyDokuNotification(h('HMACSHA256=nope'), body)).toBe(false);
   });
 });
