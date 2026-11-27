@@ -148,11 +148,17 @@ export async function startHostRound(playerName: string | null, eventId: string 
 
 export async function guestRounds(sessionId: string): Promise<{ rounds: SongRoundView[]; canStart: boolean; enabled: boolean; prize: string; guessesPerRound: number }> {
   const { song } = await getSettings();
-  const { data, error } = await createServerClient().from('song_rounds').select(ROUND_COLS).eq('session_id', sessionId).order('created_at', { ascending: true });
+  const supabase = createServerClient();
+  const [{ data, error }, { count: activeTracks }] = await Promise.all([
+    supabase.from('song_rounds').select(ROUND_COLS).eq('session_id', sessionId).order('created_at', { ascending: true }),
+    supabase.from('song_tracks').select('id', { count: 'exact', head: true }).eq('is_active', true),
+  ]);
   if (error) return { rounds: [], canStart: false, enabled: false, prize: song.guestPrize, guessesPerRound: song.guessesPerRound };
   const rounds = (data ?? []).map((r) => toView(r, song.guessesPerRound, song.artistHint));
   const playing = rounds.some((r) => r.status === 'playing');
-  return { rounds, canStart: song.guestEnabled && !playing && rounds.length < song.roundsPerSession, enabled: song.guestEnabled, prize: song.guestPrize, guessesPerRound: song.guessesPerRound };
+  // Hidden until the owner has added at least one song (unless rounds already exist).
+  const enabled = song.guestEnabled && ((activeTracks ?? 0) > 0 || rounds.length > 0);
+  return { rounds, canStart: enabled && !playing && rounds.length < song.roundsPerSession && (activeTracks ?? 0) > 0, enabled, prize: song.guestPrize, guessesPerRound: song.guessesPerRound };
 }
 
 export async function startGuestRound(sessionId: string, eventId: string): Promise<SongRoundView> {
