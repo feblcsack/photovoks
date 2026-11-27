@@ -14,6 +14,7 @@ import { PrintStatusBadge } from '@/components/gallery/SessionGallery';
 import { api, formatDateTime, timeAgo } from '@/lib/fetcher';
 import { loadPrintable, printSheet, renderSheet, sheetToJpeg } from '@/lib/print/sheet';
 import { paperById } from '@/lib/print/papers';
+import { variant } from '@/lib/media-variant';
 
 interface Job {
   id: string;
@@ -32,7 +33,7 @@ interface Job {
 
 interface QueueData { workerOnline: boolean; printMode: string; paper: string; jobs: Job[] }
 
-export function PrintStation({ code, defaultPaper }: { code: string; defaultPaper: string }) {
+export function PrintStation({ code, defaultPaper, pollMs = 4000 }: { code: string; defaultPaper: string; pollMs?: number }) {
   const toast = useToast();
   const [data, setData] = useState<QueueData | null>(null);
   const [printing, setPrinting] = useState<Job | null>(null);
@@ -50,9 +51,12 @@ export function PrintStation({ code, defaultPaper }: { code: string; defaultPape
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch
     void load();
-    const t = setInterval(() => void load(), 3000);
+    // Light JSON poll (images use stable cached URLs); paused in background tabs.
+    const t = setInterval(() => {
+      if (!document.hidden) void load();
+    }, pollMs);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, pollMs]);
 
   const act = useCallback(
     async (job: Job, action: 'claim' | 'printed' | 'failed' | 'requeue' | 'cancel', quiet = false) => {
@@ -147,7 +151,7 @@ export function PrintStation({ code, defaultPaper }: { code: string; defaultPape
                   <div className="flex h-20 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-canvas">
                     {j.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={j.url} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                      <img src={variant(j.url, { w: 160 })} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">

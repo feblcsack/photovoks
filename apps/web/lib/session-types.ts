@@ -1,4 +1,5 @@
 import type { WallSticker } from './y2k-stickers';
+import type { PaymentRequirement } from './payments/types';
 
 /** Client-safe session shapes returned by the API. */
 
@@ -70,6 +71,17 @@ export interface GuestEventInfo {
   guestbookToken: string | null;
   liveEnabled: boolean;
   zineEnabled: boolean;
+  /** Admin-uploaded sticker library (global, all events). */
+  libraryStickers: LibrarySticker[];
+  /** What one AI generation costs the guest (required=false → free). */
+  aiPayment: PaymentRequirement;
+}
+
+export interface LibrarySticker {
+  id: string;
+  name: string;
+  category: string;
+  url: string;
 }
 
 export interface GuestSessionData {

@@ -8,9 +8,12 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 @theme {
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-nunito), var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-impact: var(--font-anton), Impact, "Arial Narrow Bold", sans-serif;
+  --font-heavy: var(--font-archivo-black), "Arial Black", sans-serif;
+  --font-techno: var(--font-orbitron), var(--font-spacemono), ui-monospace, monospace;
   --font-mono: var(--font-spacemono), ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: var(--font-bagel), var(--font-jakarta), ui-sans-serif, sans-serif;
+  --font-display: var(--font-bagel), var(--font-nunito), ui-sans-serif, sans-serif;
   --font-type: var(--font-typewriter), var(--font-spacemono), ui-monospace, monospace;
   --font-hand: var(--font-scribble), "Comic Sans MS", cursive;
   --font-pixel: var(--font-pixelify), var(--font-spacemono), ui-monospace, monospace;
@@ -95,7 +98,7 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.27 0 0 0 0 0.16 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11";
+  font-feature-settings: "kern", "liga";
 }
 ::selection { background: var(--color-bubble); color: var(--color-ink); }
 

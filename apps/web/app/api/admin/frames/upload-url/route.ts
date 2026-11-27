@@ -5,10 +5,10 @@
  * Paths are generated server-side (no client-controlled paths).
  *   asset → frames/assets/<uuid>.<ext>   (backgrounds, stickers, overlays)
  *   thumb → frames/thumbs/<uuid>.jpg
- * Response also includes a 6-hour signed read URL for immediate preview.
+ * Response also includes a stable read URL for immediate preview.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createUploadUrl, mediaUrl } from '@/lib/storage';
 import { requireAdmin } from '@/lib/security';
 import { readJson, jsonError } from '@/lib/http';
 
@@ -24,9 +24,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const id = crypto.randomUUID();
   const path = kind === 'thumb' ? `frames/thumbs/${id}.jpg` : `frames/assets/${id}.${EXT[contentType]}`;
-  const supabase = createServerClient();
-  const { data, error } = await supabase.storage.from('frames').createSignedUploadUrl(path);
-  if (error || !data) return jsonError('Gagal membuat URL upload', 500);
-  const { data: read } = await supabase.storage.from('frames').createSignedUrl(path, 6 * 3600);
-  return NextResponse.json({ path, signedUrl: data.signedUrl, readUrl: read?.signedUrl ?? null });
+  const signedUrl = await createUploadUrl('frames', path).catch(() => null);
+  if (!signedUrl) return jsonError('Gagal membuat URL upload', 500);
+  return NextResponse.json({ path, signedUrl, readUrl: mediaUrl('frames', path) });
 }

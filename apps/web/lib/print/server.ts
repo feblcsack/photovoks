@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { planSheet } from './papers';
 import { log } from '@/lib/logger';
+import { downloadObject, listFiles, uploadObject } from '@/lib/storage';
 
 /** Renders any image to a print-ready JPEG for `paperId` (auto layout). */
 export async function composeSheetServer(image: Buffer, paperId: string): Promise<Buffer> {
@@ -16,7 +17,7 @@ export async function composeSheetServer(image: Buffer, paperId: string): Promis
       input: await sharp(rotated)
         .resize(Math.round(p.w), Math.round(p.h), { fit: p.fit, background: '#ffffff' })
         .flatten({ background: '#ffffff' })
-        .png()
+        .jpeg({ quality: 95 })
         .toBuffer(),
       left: Math.round(p.x),
       top: Math.round(p.y),
@@ -24,7 +25,7 @@ export async function composeSheetServer(image: Buffer, paperId: string): Promis
   );
   return sharp({ create: { width: plan.widthPx, height: plan.heightPx, channels: 3, background: '#ffffff' } })
     .composite(layers)
-    .jpeg({ quality: 93 })
+    .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer();
 }
 
@@ -60,13 +61,16 @@ export async function enqueuePrint(supabase: SupabaseClient, input: EnqueueInput
       return { error: 'AI result belum siap' };
     }
     const sheetPath = `sketches/${input.sessionId}/ai_${gen.id}_${input.paper}.jpg`;
-    const { data: existing } = await supabase.storage.from('sketches').list(`sketches/${input.sessionId}`, { search: `ai_${gen.id}_${input.paper}.jpg` });
-    if (!existing?.length) {
-      const { data: blob } = await supabase.storage.from('sketches').download(gen.result_path);
-      if (!blob) return { error: 'Gagal mengunduh hasil AI' };
-      const sheet = await composeSheetServer(Buffer.from(await blob.arrayBuffer()), input.paper);
-      const { error } = await supabase.storage.from('sketches').upload(sheetPath, sheet, { contentType: 'image/jpeg', upsert: true });
-      if (error) return { error: 'Gagal menyiapkan file cetak' };
+    const existing = await listFiles('sketches', `sketches/${input.sessionId}`);
+    if (!existing.includes(`ai_${gen.id}_${input.paper}.jpg`)) {
+      const obj = await downloadObject('sketches', gen.result_path);
+      if (!obj) return { error: 'Gagal mengunduh hasil AI' };
+      const sheet = await composeSheetServer(obj.body, input.paper);
+      try {
+        await uploadObject('sketches', sheetPath, sheet, 'image/jpeg');
+      } catch {
+        return { error: 'Gagal menyiapkan file cetak' };
+      }
     }
     assetPath = sheetPath;
   }
@@ -75,11 +79,14 @@ export async function enqueuePrint(supabase: SupabaseClient, input: EnqueueInput
     const edit = input.editPath ?? '';
     if (!EDIT_PATH_RE.test(edit) || !edit.startsWith(`sessions/${input.sessionId}/`)) return { error: 'File stiker tidak valid' };
     const sheetPath = edit.replace(/\.jpg$/, `_${input.paper}.jpg`);
-    const { data: blob } = await supabase.storage.from('sessions').download(edit);
-    if (!blob) return { error: 'File stiker belum terunggah' };
-    const sheet = await composeSheetServer(Buffer.from(await blob.arrayBuffer()), input.paper);
-    const { error } = await supabase.storage.from('sessions').upload(sheetPath, sheet, { contentType: 'image/jpeg', upsert: true });
-    if (error) return { error: 'Gagal menyiapkan file cetak' };
+    const obj = await downloadObject('sessions', edit);
+    if (!obj) return { error: 'File stiker belum terunggah' };
+    const sheet = await composeSheetServer(obj.body, input.paper);
+    try {
+      await uploadObject('sessions', sheetPath, sheet, 'image/jpeg');
+    } catch {
+      return { error: 'Gagal menyiapkan file cetak' };
+    }
     assetPath = sheetPath;
   }
 

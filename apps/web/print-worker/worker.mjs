@@ -21,6 +21,7 @@ import { promisify } from 'node:util';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const execFileAsync = promisify(execFile);
@@ -33,6 +34,28 @@ const DRY_RUN = 'dry-run';
 /** @param {string} level @param {string} event @param {Record<string, unknown>} [details] */
 function log(level, event, details) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), level, event, source: 'print-worker', ...details }));
+}
+
+// ── Asset download ───────────────────────────────────────────────────────────
+// Files may live in Supabase Storage or (after switching in the developer
+// panel) in S3/R2. With APP_URL set, the worker fetches through the app's
+// signed /media route, which knows every provider; otherwise Supabase.
+
+function mediaSig(bucket, assetPath) {
+  const base = process.env.MEDIA_SIGNING_SECRET || process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const key = createHmac('sha256', base).update('photovoks-media-v1').digest();
+  return createHmac('sha256', key).update(`${bucket}/${assetPath}`).digest('base64url').slice(0, 22);
+}
+
+async function downloadAsset(supabase, bucket, assetPath) {
+  const { data: blob } = await supabase.storage.from(bucket).download(assetPath);
+  if (blob) return Buffer.from(await blob.arrayBuffer());
+  const appUrl = process.env.APP_URL?.replace(/\/+$/, '');
+  if (appUrl) {
+    const res = await fetch(`${appUrl}/media/${bucket}/${assetPath}?s=${mediaSig(bucket, assetPath)}`);
+    if (res.ok) return Buffer.from(await res.arrayBuffer());
+  }
+  throw Object.assign(new Error('download failed'), { reason: 'download_failed' });
 }
 
 // ── Printer drivers ───────────────────────────────────────────────────────────
@@ -210,9 +233,7 @@ export function startPrintWorker(opts) {
     const tmpFile = path.join(os.tmpdir(), `photovoks-${claimed.id}${path.extname(assetPath) || '.jpg'}`);
 
     try {
-      const { data: blob, error } = await supabase.storage.from(bucket).download(assetPath);
-      if (error || !blob) throw Object.assign(new Error(error?.message || 'download failed'), { reason: 'download_failed' });
-      await fs.writeFile(tmpFile, Buffer.from(await blob.arrayBuffer()));
+      await fs.writeFile(tmpFile, await downloadAsset(supabase, bucket, assetPath));
 
       const copies = Math.min(10, Math.max(1, claimed.copies || 1));
       await printFile(tmpFile, printerName, copies);

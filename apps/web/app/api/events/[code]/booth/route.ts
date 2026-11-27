@@ -11,6 +11,9 @@ import { framesForEvent } from '@/lib/frames/server';
 import { isAiConfigured } from '@/lib/ai/provider';
 import { isPrintStationOnline } from '@/lib/sessions';
 import { signMedia } from '@/lib/event-media';
+import { getSettings } from '@/lib/settings';
+import { paymentRequirement } from '@/lib/payments';
+import { stickerLibrary } from '@/lib/sticker-library';
 
 type Ctx = { params: Promise<{ code: string }> };
 
@@ -20,14 +23,26 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   if (!access.ok) return access.response;
   const supabase = createServerClient();
   const ev = access.event;
-  const [frames, online, urls] = await Promise.all([
+  const [frames, online, urls, settings, payment, libraryStickers] = await Promise.all([
     framesForEvent(supabase, ev.id, true, true),
     isPrintStationOnline(supabase),
-    signMedia(supabase, ev.attractMediaPath ? [ev.attractMediaPath] : [], 24 * 3600),
+    signMedia(supabase, ev.attractMediaPath ? [ev.attractMediaPath] : []),
+    getSettings(),
+    paymentRequirement(ev, 'session'),
+    ev.stickersEnabled ? stickerLibrary() : Promise.resolve([]),
   ]);
   const media = { attractUrl: ev.attractMediaPath ? urls.get(ev.attractMediaPath) ?? null : null };
   return NextResponse.json(
-    { event: ev, role: access.role, frames, aiConfigured: isAiConfigured(), printStationOnline: online, media },
+    {
+      event: { ...ev, aiEnabled: ev.aiEnabled && settings.ai.enabled },
+      role: access.role,
+      frames,
+      aiConfigured: isAiConfigured(),
+      printStationOnline: online,
+      media,
+      payment,
+      libraryStickers,
+    },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

@@ -23,7 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
 import {
@@ -35,6 +35,18 @@ import {
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+/**
+ * bcryptjs is pure JavaScript: cost 12 takes ~0.5–1 s on a small serverless
+ * CPU (the main reason PIN login felt slow). A 4–8 digit PIN is protected by
+ * the lockout above, not by hash cost, so hashes are upgraded to cost 10
+ * (~4× faster) transparently on the next successful login.
+ */
+const TARGET_COST = 10;
+
+function costOf(bcryptHash: string): number {
+  const m = /^\$2[abxy]?\$(\d{2})\$/.exec(bcryptHash);
+  return m ? Number(m[1]) : TARGET_COST;
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── Parse body ────────────────────────────────────────────────────────────
@@ -166,11 +178,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 });
   }
 
-  // ── Handle success — reset failure counters ───────────────────────────────
-  await supabase
-    .from('admin_users')
-    .update({ failed_attempts: 0, locked_until: null })
-    .eq('id', adminUser.id);
+  // ── Handle success — reset counters / upgrade hash only when needed ──────
+  const needsReset = (adminUser.failed_attempts ?? 0) !== 0 || adminUser.locked_until !== null;
+  const needsRehash = costOf(adminUser.pin_hash) > TARGET_COST;
+  if (needsReset || needsRehash) {
+    const update: Record<string, unknown> = { failed_attempts: 0, locked_until: null };
+    if (needsRehash) update.pin_hash = await hash(pin, TARGET_COST);
+    // Not awaited on the critical path of the response body, but awaited
+    // before returning so serverless runtimes don't drop the write.
+    await supabase.from('admin_users').update(update).eq('id', adminUser.id);
+  }
 
   // ── Issue admin session in an httpOnly cookie (never exposed to JS) ─────
   let token: string;

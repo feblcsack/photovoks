@@ -1,10 +1,11 @@
 /**
- * Event media (SERVER ONLY): home-screen video/image, sticker packs and
- * guestbook photos in the private `event-media` bucket. Everything is served
- * through short-lived signed URLs.
+ * Event media (SERVER ONLY): home-screen video/image, sticker packs,
+ * guestbook photos and the global sticker library in the private
+ * `event-media` bucket. Served through stable /media URLs.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { EVENT_MEDIA_RE } from '@/lib/events';
+import { createUploadUrl, mediaUrl, objectExists, removeObjects } from '@/lib/storage';
 
 export const EVENT_MEDIA_BUCKET = 'event-media';
 export type EventMediaKind = 'attract' | 'stickers' | 'guestbook';
@@ -34,35 +35,40 @@ export function ownsMedia(path: unknown, eventId: string, kind: EventMediaKind):
   return typeof path === 'string' && EVENT_MEDIA_RE.test(path) && path.startsWith(`${kind}/${eventId}/`);
 }
 
-export async function createMediaUpload(supabase: SupabaseClient, path: string): Promise<string | null> {
-  const { data, error } = await supabase.storage.from(EVENT_MEDIA_BUCKET).createSignedUploadUrl(path);
-  return error || !data ? null : data.signedUrl;
+// The SupabaseClient parameters below are kept for call-site compatibility;
+// storage now goes through the provider-neutral facade.
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export async function createMediaUpload(_supabase: SupabaseClient, path: string): Promise<string | null> {
+  return createUploadUrl('event-media', path).catch(() => null);
 }
 
-export async function mediaExists(supabase: SupabaseClient, path: string): Promise<boolean> {
-  const dir = path.slice(0, path.lastIndexOf('/'));
-  const name = path.slice(path.lastIndexOf('/') + 1);
-  const { data } = await supabase.storage.from(EVENT_MEDIA_BUCKET).list(dir, { search: name, limit: 1 });
-  return !!data?.some((f) => f.name === name);
+export async function mediaExists(_supabase: SupabaseClient, path: string): Promise<boolean> {
+  return objectExists('event-media', path);
 }
 
-export async function signMedia(supabase: SupabaseClient, paths: string[], ttlSeconds = 6 * 3600): Promise<Map<string, string>> {
+/** Stable URLs for event-media paths (sync — no storage round-trip). */
+export function mediaUrls(paths: string[]): Map<string, string> {
   const out = new Map<string, string>();
-  const list = Array.from(new Set(paths.filter(Boolean)));
-  if (!list.length) return out;
-  const { data } = await supabase.storage.from(EVENT_MEDIA_BUCKET).createSignedUrls(list, ttlSeconds);
-  data?.forEach((d) => d.path && d.signedUrl && out.set(d.path, d.signedUrl));
+  for (const p of new Set(paths.filter(Boolean))) {
+    const u = mediaUrl('event-media', p);
+    if (u) out.set(p, u);
+  }
   return out;
 }
 
-export async function removeMedia(supabase: SupabaseClient, paths: string[]) {
-  const list = paths.filter((p) => EVENT_MEDIA_RE.test(p));
-  if (list.length) await supabase.storage.from(EVENT_MEDIA_BUCKET).remove(list);
+/** @deprecated kept for older call sites — URLs no longer expire. */
+export async function signMedia(_supabase: SupabaseClient, paths: string[], _ttlSeconds?: number): Promise<Map<string, string>> {
+  return mediaUrls(paths);
 }
 
-/** Public-facing media of an event: home screen + stickers, with signed URLs. */
-export async function eventMediaUrls(supabase: SupabaseClient, event: { attractMediaPath: string | null; stickerPaths: string[] }) {
-  const urls = await signMedia(supabase, [...(event.attractMediaPath ? [event.attractMediaPath] : []), ...event.stickerPaths]);
+export async function removeMedia(_supabase: SupabaseClient, paths: string[]) {
+  await removeObjects('event-media', paths.filter((p) => EVENT_MEDIA_RE.test(p)));
+}
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
+/** Public-facing media of an event: home screen + stickers. */
+export function eventMediaUrls(event: { attractMediaPath: string | null; stickerPaths: string[] }) {
+  const urls = mediaUrls([...(event.attractMediaPath ? [event.attractMediaPath] : []), ...event.stickerPaths]);
   return {
     attractUrl: event.attractMediaPath ? urls.get(event.attractMediaPath) ?? null : null,
     stickers: event.stickerPaths.map((p) => ({ path: p, url: urls.get(p) ?? null })).filter((s): s is { path: string; url: string } => !!s.url),

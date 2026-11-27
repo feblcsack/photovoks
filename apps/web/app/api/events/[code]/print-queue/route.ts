@@ -13,6 +13,7 @@ import { requireEventAccess } from '@/lib/access';
 import { readJson, jsonError } from '@/lib/http';
 import { isUuid } from '@/lib/security';
 import { isPrintStationOnline } from '@/lib/sessions';
+import { mediaUrl } from '@/lib/storage';
 
 type Ctx = { params: Promise<{ code: string }> };
 
@@ -32,15 +33,10 @@ export async function GET(_request: NextRequest, ctx: Ctx) {
     .order('created_at', { ascending: false })
     .limit(100);
 
-  const bySessionBucket = (jobs ?? []).filter((j) => j.asset_path?.startsWith('sessions/')).map((j) => j.asset_path as string);
-  const bySketchBucket = (jobs ?? []).filter((j) => j.asset_path?.startsWith('sketches/')).map((j) => j.asset_path as string);
-  const [a, b, online] = await Promise.all([
-    bySessionBucket.length ? supabase.storage.from('sessions').createSignedUrls(bySessionBucket, 3600) : Promise.resolve({ data: [] }),
-    bySketchBucket.length ? supabase.storage.from('sketches').createSignedUrls(bySketchBucket, 3600) : Promise.resolve({ data: [] }),
-    isPrintStationOnline(supabase),
-  ]);
-  const urls = new Map<string, string>();
-  for (const e of [...(a.data ?? []), ...(b.data ?? [])]) if (e.path && e.signedUrl) urls.set(e.path, e.signedUrl);
+  const online = await isPrintStationOnline(supabase);
+  // Stable URLs: the station polls every few seconds, but each print sheet is
+  // downloaded once and then served from the browser cache.
+  const assetUrl = (p: string | null) => (!p ? null : p.startsWith('sketches/') ? mediaUrl('sketches', p) : mediaUrl('sessions', p));
 
   return NextResponse.json(
     {
@@ -64,7 +60,7 @@ export async function GET(_request: NextRequest, ctx: Ctx) {
           errorReason: j.error_reason,
           createdAt: j.created_at,
           updatedAt: j.updated_at,
-          url: j.asset_path ? urls.get(j.asset_path) ?? null : null,
+          url: assetUrl(j.asset_path),
         };
       }),
     },

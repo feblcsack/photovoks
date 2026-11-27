@@ -16,6 +16,7 @@ import { getBearer, isUuid, safeEqual } from '@/lib/security';
 import { readJson, jsonError } from '@/lib/http';
 import { EVENT_COLUMNS, mapEvent } from '@/lib/events';
 import { enqueuePrint } from '@/lib/print/server';
+import { listFiles } from '@/lib/storage';
 
 type Ctx = { params: Promise<{ sessionId: string }> };
 
@@ -50,8 +51,7 @@ export async function POST(request: NextRequest, ctx: Ctx): Promise<NextResponse
     return NextResponse.json({ ok: true, token: session.token, printJobId: job?.id ?? null });
   }
 
-  const { data: files } = await supabase.storage.from('sessions').list(`sessions/${sessionId}`, { limit: 100 });
-  const names = new Set((files ?? []).map((f) => f.name));
+  const names = new Set(await listFiles('sessions', `sessions/${sessionId}`));
   const required = Array.from({ length: session.shot_count }, (_, i) => `photo_${i}.jpg`);
   const missing = required.filter((f) => !names.has(f));
   // strip.jpg since v4 (egress); strip.png from older booth builds.

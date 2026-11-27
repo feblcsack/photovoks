@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { api, timeAgo, uploadToSignedUrl } from '@/lib/fetcher';
 import type { GuestbookEntryView } from '@/lib/community';
+import { variant } from '@/lib/media-variant';
 
 const NAME_KEY = 'photovoks.guestName';
 
@@ -131,7 +132,7 @@ export function GuestbookMicrosite({ token, eventName, initial, galleryToken, li
                 {entries.map((e) => (
                   <article key={e.id} className="mb-4 break-inside-avoid overflow-hidden rounded-[18px] bg-white shadow-panel">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {e.photo ? <img src={e.photo} alt="" loading="lazy" className="w-full" /> : null}
+                    {e.photo ? <img src={variant(e.photo, { w: 720 })} alt="" loading="lazy" className="w-full" /> : null}
                     <div className="p-4">
                       <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink">{e.message}</p>
                       <p className="mt-3 text-sm"><span className="font-bold">{e.name}</span> <span className="text-muted">· {timeAgo(e.createdAt)}</span></p>

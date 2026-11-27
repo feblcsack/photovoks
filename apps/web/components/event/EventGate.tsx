@@ -26,6 +26,8 @@ export function EventGate({ code, name, hasPin }: { code: string; name: string; 
                 try {
                   await api(`/api/events/${code}/unlock`, { method: 'POST', json: { pin } });
                   router.refresh();
+                  // Keep the spinner until the refreshed page replaces this gate.
+                  await new Promise((r) => setTimeout(r, 6000));
                   return null;
                 } catch (e) {
                   return e instanceof Error ? e.message : 'PIN salah';

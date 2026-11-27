@@ -6,8 +6,8 @@
  * Elements are drawn in array order (first = bottom).
  */
 
-export type FontKey = 'sans' | 'serif' | 'mono' | 'display' | 'hand' | 'marker' | 'script' | 'bubble' | 'typewriter' | 'scribble';
-export const FONT_KEYS: readonly FontKey[] = ['sans', 'serif', 'mono', 'display', 'hand', 'marker', 'script', 'bubble', 'typewriter', 'scribble'];
+export type FontKey = 'sans' | 'serif' | 'mono' | 'display' | 'hand' | 'marker' | 'script' | 'bubble' | 'typewriter' | 'scribble' | 'rounded' | 'impact' | 'heavy' | 'techno';
+export const FONT_KEYS: readonly FontKey[] = ['sans', 'serif', 'mono', 'display', 'hand', 'marker', 'script', 'bubble', 'typewriter', 'scribble', 'rounded', 'impact', 'heavy', 'techno'];
 
 export interface AssetRef {
   /** Path inside the `frames` bucket, e.g. "frames/assets/<uuid>.png" */

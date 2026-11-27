@@ -1,7 +1,9 @@
 /**
  * POST /api/sessions  — booth starts a session (requires event PIN or admin).
  *
- * Body: { eventCode, frameId, shotCount, live?: boolean, gif?: boolean }
+ * Body: { eventCode, frameId, shotCount, live?: boolean, gif?: boolean, paymentToken? }
+ * When the event charges per session, `paymentToken` must name a paid /
+ * approved, unused payment (see lib/payments) — it is consumed here.
  * Returns: { sessionId, sessionToken, uploadUrls: Record<filename, signedUrl> }
  *
  * The browser uploads files straight to Supabase Storage with the short-lived
@@ -16,6 +18,8 @@ import { readJson, jsonError } from '@/lib/http';
 import { requireEventAccess } from '@/lib/access';
 import { rowToDesign } from '@/lib/frames/server';
 import { slotCountOf } from '@/lib/frames/types';
+import { createUploadUrl } from '@/lib/storage';
+import { consumePayment, paymentRequirement } from '@/lib/payments';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = await readJson(request);
@@ -53,6 +57,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const wantLive = !isZine && body.live === true;
   const wantGif = !isZine && body.gif === true;
 
+  const payReq = await paymentRequirement(event, 'session');
+  if (payReq.required && typeof body.paymentToken !== 'string') return jsonError('Selesaikan pembayaran dulu', 402);
+
   const token = generateSessionToken();
   const expiresAt = new Date(Date.now() + event.retentionDays * 86_400_000).toISOString();
 
@@ -74,6 +81,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return jsonError('Gagal membuat sesi', 500);
   }
 
+  if (payReq.required) {
+    const paid = await consumePayment(body.paymentToken, { eventId: event.id, purpose: 'session', sessionId: session.id });
+    if ('error' in paid) {
+      await supabase.from('sessions').delete().eq('id', session.id);
+      return jsonError(paid.error, 402);
+    }
+    await supabase.from('sessions').update({ payment_id: paid.id }).eq('id', session.id);
+  }
+
   const files = [
     ...Array.from({ length: shotCount }, (_, i) => `photo_${i}.jpg`),
     'strip.jpg',
@@ -83,17 +99,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     ...(wantGif ? ['anim.gif'] : []),
   ];
   const results = await Promise.all(
-    files.map((f) => supabase.storage.from('sessions').createSignedUploadUrl(`sessions/${session.id}/${f}`, { upsert: true })),
+    files.map((f) => createUploadUrl('sessions', `sessions/${session.id}/${f}`).then((url) => ({ url, error: null as string | null }), (e: Error) => ({ url: '', error: e.message }))),
   );
-  const failed = results.findIndex((r) => r.error || !r.data);
+  const failed = results.findIndex((r) => r.error || !r.url);
   if (failed !== -1) {
     await supabase.from('sessions').delete().eq('id', session.id);
-    log({ level: 'error', event: 'session.upload_url_failed', sessionId: session.id, details: { file: files[failed], error: results[failed].error?.message } });
+    log({ level: 'error', event: 'session.upload_url_failed', sessionId: session.id, details: { file: files[failed], error: results[failed].error } });
     return jsonError('Gagal menyiapkan upload', 500);
   }
 
   const uploadUrls: Record<string, string> = {};
-  files.forEach((f, i) => (uploadUrls[f] = results[i].data!.signedUrl));
+  files.forEach((f, i) => (uploadUrls[f] = results[i].url));
 
   log({ level: 'info', event: 'session.created', sessionId: session.id, details: { eventId: event.id, shotCount } });
   return NextResponse.json({ sessionId: session.id, sessionToken: token, uploadUrls }, { status: 201 });

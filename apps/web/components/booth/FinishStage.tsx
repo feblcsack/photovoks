@@ -26,6 +26,7 @@ import type { AiGenerationView } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
 import type { Shot } from './CaptureStage';
 import { PhotoMachineSlot } from '@/components/brand/scrap';
+import { WordArt } from '@/components/brand/WordArt';
 
 type Phase = 'compose' | 'animate' | 'upload' | 'save' | 'done' | 'error';
 const PHASES: Array<{ id: Phase; label: string; joke: string }> = [
@@ -50,7 +51,7 @@ interface Result {
   sheetPlan: SheetPlan;
 }
 
-export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, buddy, onPhase, onDone }: {
+export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, buddy, onPhase, onDone, paymentToken = null, onPaymentUsed }: {
   code: string;
   event: EventConfig;
   frame: FrameRecord;
@@ -64,6 +65,9 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   buddy?: MascotId | null;
   onPhase?: (p: 'processing' | 'done' | 'error') => void;
   onDone: () => void;
+  /** Paid session ticket (events that charge per session). */
+  paymentToken?: string | null;
+  onPaymentUsed?: () => void;
 }) {
   const toast = useToast();
   const [phase, setPhaseState] = useState<Phase>('compose');
@@ -97,8 +101,9 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
         createdRef.current ??
         (await api<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> }>('/api/sessions', {
           method: 'POST',
-          json: { eventCode: code, frameId: frame.id, shotCount: shots.length, live: hasLiveShots, gif: hasLiveShots },
+          json: { eventCode: code, frameId: frame.id, shotCount: shots.length, live: hasLiveShots, gif: hasLiveShots, paymentToken },
         }));
+      if (!createdRef.current) onPaymentUsed?.();
       createdRef.current = created;
       const qrValue = `${window.location.origin}/s/${created.sessionToken}`;
 
@@ -202,7 +207,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       sfx.error();
       onPhase?.('error');
     }
-  }, [code, event, filter, frame, selection, shots, tokens, onPhase]);
+  }, [code, event, filter, frame, selection, shots, tokens, onPhase, paymentToken, onPaymentUsed]);
 
   useEffect(() => {
     if (started.current) return;
@@ -219,6 +224,15 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
     },
     [result],
   );
+
+  // While photos exist only on this device (uploading / upload failed), warn
+  // before the tab is closed or reloaded so a network outage never loses them.
+  useEffect(() => {
+    if (phase === 'done') return;
+    const h = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [phase]);
 
   // Auto-return countdown (paused while a dialog is open; reset on touch).
   useEffect(() => {
@@ -372,6 +386,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       </header>
       <div className="relative z-10 grid min-h-0 flex-1 gap-4 overflow-y-auto px-3 pb-3 sm:px-5 md:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] md:overflow-visible">
         <div className="flex min-h-0 flex-col items-center justify-center gap-3">
+          <WordArt variant="arc" className="-mb-2 text-[clamp(30px,4.6vw,52px)]">Keren Banget!</WordArt>
           <PhotoMachineSlot printing trayClassName="flex w-full max-w-full justify-center" sub="ambil hasilmu">
             <div className="print-out">
               <div className="bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(14,20,36,0.55)]">

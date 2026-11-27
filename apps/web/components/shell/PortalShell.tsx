@@ -17,6 +17,9 @@ import {
   MessageSquareText,
   Palette,
   SlidersHorizontal,
+  Sticker,
+  Wallet,
+  Wrench,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,7 +38,10 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/events', label: 'Event', icon: CalendarDays },
   { href: '/admin/frames', label: 'Frame Builder', icon: Frame },
   { href: '/admin/gallery', label: 'Galeri', icon: GalleryHorizontalEnd },
+  { href: '/admin/payments', label: 'Pembayaran', icon: Wallet },
+  { href: '/admin/stickers', label: 'Stiker & Ikon', icon: Sticker },
   { href: '/admin/prompts', label: 'Prompt AI', icon: Palette },
+  { href: '/admin/developer', label: 'Developer', icon: Wrench },
 ];
 
 function eventNav(code: string): NavItem[] {
@@ -47,6 +53,7 @@ function eventNav(code: string): NavItem[] {
     { href: `${base}/sessions`, label: 'Riwayat Sesi', icon: History },
     { href: `${base}/guestbook`, label: 'Buku Tamu', icon: MessageSquareText },
     { href: `${base}/print`, label: 'Print Station', icon: Printer },
+    { href: `${base}/payments`, label: 'Pembayaran', icon: Wallet },
   ];
 }
 

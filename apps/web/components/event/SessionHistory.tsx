@@ -13,6 +13,7 @@ import { PrintStatusBadge, SessionLightbox } from '@/components/gallery/SessionG
 import { formatDateTime } from '@/lib/fetcher';
 import type { SessionSummary } from '@/lib/session-types';
 import { useEventSessions, type Range } from './useEventSessions';
+import { variant } from '@/lib/media-variant';
 
 function toCsv(rows: SessionSummary[]): string {
   const head = ['waktu', 'frame', 'foto', 'status', 'dicetak', 'hasil_ai', 'live', 'disembunyikan'];
@@ -89,7 +90,7 @@ export function SessionHistory({ code, printPaper }: { code: string; printPaper:
                         <div className="flex h-14 w-11 items-center justify-center overflow-hidden rounded-[6px] bg-canvas">
                           {s.urls.thumb ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={s.urls.thumb} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+                            <img src={variant(s.urls.thumb, { w: 160 })} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
                           ) : <ImageIcon className="size-4 text-faint" />}
                         </div>
                       </td>

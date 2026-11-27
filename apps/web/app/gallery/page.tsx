@@ -2,11 +2,16 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Aperture, Images } from 'lucide-react';
 import { publicEvents } from '@/lib/public-gallery';
+import { variant } from '@/lib/media-variant';
+import { maintenanceMessage } from '@/lib/maintenance';
+import { MaintenanceScreen } from '@/components/os/MaintenanceScreen';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Galeri publik' };
 
 export default async function GlobalGalleryPage() {
+  const down = await maintenanceMessage('guest');
+  if (down) return <MaintenanceScreen message={down} />;
   const events = await publicEvents();
   return (
     <main className="mx-auto min-h-dvh max-w-6xl px-4 py-8 sm:px-6">
@@ -25,7 +30,7 @@ export default async function GlobalGalleryPage() {
                 {e.cover.map((s) => (
                   <div key={s.id} className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[6px] bg-canvas">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {s.urls.thumb ? <img src={s.urls.thumb} alt="" loading="lazy" className="max-h-full max-w-full object-contain" /> : null}
+                    {s.urls.thumb ? <img src={variant(s.urls.thumb, { w: 320 })} alt="" loading="lazy" className="max-h-full max-w-full object-contain" /> : null}
                   </div>
                 ))}
               </div>

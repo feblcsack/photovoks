@@ -28,8 +28,11 @@ function AdminPin() {
             onSubmit={async (pin) => {
               try {
                 await api('/api/admin/verify-pin', { method: 'POST', json: { pin } });
+                // One navigation (no extra refresh round-trip). Keep the pad
+                // in its loading state while the dashboard streams in
+                // (admin/(portal)/loading.tsx shows instantly).
                 router.replace(target);
-                router.refresh();
+                await new Promise((r) => setTimeout(r, 8000));
                 return null;
               } catch (e) {
                 const status = (e as { status?: number }).status;

@@ -47,7 +47,11 @@ Alternatif jika butuh semuanya dalam satu mesin (mis. event tanpa internet stabi
 
 Catatan Vercel:
 - Plan Hobby: fungsi maks. 60 detik — cukup untuk kebanyakan model gambar. Job AI berjalan di `after()` dalam fungsi yang sama.
-- Upload foto langsung dari browser ke Supabase (signed URL), jadi tidak terkena batas body 4,5 MB Vercel.
+- Upload foto langsung dari browser ke Supabase / R2 (signed URL), jadi tidak terkena batas body 4,5 MB Vercel.
+- **Region**: `vercel.json` mengunci fungsi ke `syd1` (Sydney) karena database Supabase ada di `ap-southeast-2`. Jika project Supabase dipindah (mis. Singapura), ganti ke `sin1` — region fungsi harus dekat database, setiap halaman melakukan beberapa query berurutan.
+- **Foto & egress**: semua gambar dilayani lewat `/media/...` dengan cache 1 tahun (browser) + 30 hari (CDN Vercel), jadi Supabase hanya melayani tiap file sekali. Pantau di **Portal Pemilik › Developer**.
+- **QRIS (Aulaa)**: isi `AULAA_API_KEY`, `AULAA_WEBHOOK_SECRET`; di dashboard Aulaa set callback `https://<domain>/api/payments/aulaa/webhook` dan daftarkan domain website (popup QRIS). Sandbox bisa dites dari `localhost`.
+- **Monitor uptime**: arahkan UptimeRobot / Better Stack ke `https://<domain>/api/health` (200 = sehat, 503 = database tidak terjangkau).
 
 ## 3. Domain & HTTPS
 

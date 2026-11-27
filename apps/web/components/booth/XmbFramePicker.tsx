@@ -14,6 +14,7 @@ import { XmbBackdrop, useClock } from '@/components/os/retro';
 import type { FrameRecord } from '@/lib/frames/types';
 import { sfx } from '@/lib/sfx';
 import { cn } from '@/lib/utils';
+import { variant } from '@/lib/media-variant';
 
 type Item = { kind: 'frame'; frame: FrameRecord } | { kind: 'zine' };
 type CatId = 'all' | 'strip' | 'portrait' | 'landscape' | 'zine';
@@ -219,7 +220,7 @@ export function XmbFramePicker({ frames, tokens, eventName, onPick, onZine, onBa
                   </span>
                 ) : it.frame.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.frame.thumbnailUrl} alt="" className="max-h-full max-w-full bg-white object-contain shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)]" draggable={false} />
+                  <img src={variant(it.frame.thumbnailUrl, { w: 720 })} alt="" className="max-h-full max-w-full bg-white object-contain shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)]" draggable={false} />
                 ) : (
                   <FrameCanvas design={it.frame.design} tokens={tokens} maxRenderWidth={on ? 420 : 160} className="max-h-full w-auto bg-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.6)]" style={{ maxHeight: '100%', maxWidth: '100%' }} />
                 )}

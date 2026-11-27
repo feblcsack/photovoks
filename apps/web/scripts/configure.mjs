@@ -117,7 +117,8 @@ async function setPin(supabase) {
     }
     break;
   }
-  const hash = await bcrypt.hash(pin, 12);
+  // Cost 10: fast login on serverless; the 5-try lockout is what protects a PIN.
+  const hash = await bcrypt.hash(pin, 10);
   const { error } = await supabase
     .from('admin_users')
     .upsert({ username: 'admin', pin_hash: hash, failed_attempts: 0, locked_until: null }, { onConflict: 'username' });

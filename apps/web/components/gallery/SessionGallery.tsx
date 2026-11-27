@@ -13,6 +13,7 @@ import { aiStyleLabel } from '@/lib/ai/styles';
 import type { SessionSummary } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
 import { LivePlayer } from './LivePlayer';
+import { variant } from '@/lib/media-variant';
 
 // ── Grid ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ export function SessionGrid({ sessions, onOpen, dense = false }: { sessions: Ses
 function SessionCard({ session, onOpen }: { session: SessionSummary; onOpen: () => void }) {
   const [hover, setHover] = useState(false);
   const aiDone = session.ai.filter((a) => a.status === 'done').length;
-  const src = hover && session.urls.gif ? session.urls.gif : session.urls.thumb;
+  const src = hover && session.urls.gif ? variant(session.urls.gif, { w: 320 }) : variant(session.urls.thumb, { w: 480 });
   return (
     <button
       type="button"
@@ -155,7 +156,7 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
               </a>
             ) : null}
             {s.urls.strip ? (
-              <a href={s.urls.strip} target="_blank" rel="noreferrer" download>
+              <a href={variant(s.urls.strip, { download: 'photovoks.jpg' })} target="_blank" rel="noreferrer" download>
                 <Button variant="secondary" size="sm"><Download /> Unduh</Button>
               </a>
             ) : null}
@@ -171,7 +172,7 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
             <div className="flex justify-center rounded-[12px] bg-[#EEF0F4] p-4">
               {s.urls.strip ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.urls.strip} alt="Hasil" className="max-h-[62vh] w-auto rounded-[4px] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.4)]" />
+                <img src={variant(s.urls.strip, { w: 1080 })} alt="Hasil" className="max-h-[62vh] w-auto rounded-[4px] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.4)]" />
               ) : (
                 <p className="py-20 text-sm text-muted">File tidak tersedia</p>
               )}
@@ -182,8 +183,8 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
               {s.urls.gif ? (
                 <div className="flex flex-col items-center gap-2 rounded-[12px] bg-[#EEF0F4] p-4">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.urls.gif} alt="Live" className="max-h-[54vh] w-auto rounded-[4px]" />
-                  <a href={s.urls.gif} target="_blank" rel="noreferrer" download className="text-xs font-semibold text-brand">Unduh GIF</a>
+                  <img src={variant(s.urls.gif, { w: 720 })} alt="Live" className="max-h-[54vh] w-auto rounded-[4px]" />
+                  <a href={variant(s.urls.gif, { download: 'photovoks-live.gif' })} target="_blank" rel="noreferrer" download className="text-xs font-semibold text-brand">Unduh GIF</a>
                 </div>
               ) : null}
               {s.urls.live && s.liveFrames ? (
@@ -199,7 +200,7 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
               {s.urls.shots.map((u, i) => (
                 <a key={u} href={u} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-[10px] bg-canvas">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={u} alt={`Foto ${i + 1}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                  <img src={variant(u, { w: 480 })} alt={`Foto ${i + 1}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
                 </a>
               ))}
             </div>
@@ -209,11 +210,11 @@ export function SessionLightbox({ session, onClose, manage, printPaper = '4x6' }
               {aiDone.map((a) => (
                 <div key={a.id} className="overflow-hidden rounded-[12px] border border-line">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={a.url!} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                  <img src={variant(a.url, { w: 480 })} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
                   <div className="flex items-center justify-between gap-1 px-2 py-1.5">
                     <Badge tone="ai">{aiStyleLabel(a.styleId)}</Badge>
                     <div className="flex">
-                      <a href={a.url!} target="_blank" rel="noreferrer" download className="flex size-8 items-center justify-center rounded-[8px] text-muted hover:bg-ink/5" aria-label="Unduh"><Download className="size-4" /></a>
+                      <a href={variant(a.url, { download: 'photovoks-ai.jpg' })} target="_blank" rel="noreferrer" download className="flex size-8 items-center justify-center rounded-[8px] text-muted hover:bg-ink/5" aria-label="Unduh"><Download className="size-4" /></a>
                       {manage ? (
                         <button type="button" onClick={() => setPrintSrc({ url: a.url!, type: 'ai', aiId: a.id })} className="flex size-8 items-center justify-center rounded-[8px] text-muted hover:bg-ink/5" aria-label="Cetak"><Printer className="size-4" /></button>
                       ) : null}

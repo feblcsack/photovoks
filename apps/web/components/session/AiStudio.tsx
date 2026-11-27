@@ -10,6 +10,10 @@ import { AI_STYLES, aiStyleLabel, CUSTOM_STYLE_ID, GUEST_PROMPT_ID, GUEST_PROMPT
 import { api } from '@/lib/fetcher';
 import type { AiGenerationView, GuestSessionData } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
+import { PaymentPanel } from '@/components/payments/PaymentPanel';
+import { formatRupiah } from '@/lib/settings-shared';
+import type { PaymentMethod, PaymentView } from '@/lib/payments/types';
+import { variant } from '@/lib/media-variant';
 
 const FAIL_TEXT: Record<string, string> = {
   not_configured: 'AI belum dikonfigurasi.',
@@ -39,11 +43,15 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
   const [submitting, setSubmitting] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
+  // Paid-but-unused AI ticket (kept if starting the job fails, so the guest never pays twice).
+  const [credit, setCredit] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const pay = event.aiPayment;
   const isPrompt = styleId === GUEST_PROMPT_ID;
   const promptOk = !isPrompt || prompt.trim().length >= 3;
 
   const used = session.ai.filter((a) => a.status !== 'failed' && a.status !== 'failed_safety' && !a.id.startsWith('legacy')).length;
-  const remaining = Math.max(0, event.aiPerSession - used);
+  const remaining = pay?.required ? Infinity : Math.max(0, event.aiPerSession - used);
   const results = [...session.ai].reverse();
   const current = results.find((r) => r.id === active) ?? results[0] ?? null;
 
@@ -52,18 +60,27 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
     return <p className={cn('rounded-[12px] px-4 py-3 text-sm', dark ? 'bg-white/5 text-white/60' : 'bg-canvas text-muted')}>Gaya AI belum diaktifkan oleh penyelenggara (API key belum dikonfigurasi).</p>;
   }
 
-  async function generate() {
+  async function generate(paymentToken: string | null = credit) {
+    if (pay?.required && !paymentToken) {
+      setPaying(true);
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await api<{ id: string }>(`/api/s/${token}/ai`, { method: 'POST', json: { styleId, shotIndex: shot, ...(isPrompt ? { prompt: prompt.trim() } : {}) } });
+      const res = await api<{ id: string }>(`/api/s/${token}/ai`, { method: 'POST', json: { styleId, shotIndex: shot, ...(isPrompt ? { prompt: prompt.trim() } : {}), ...(paymentToken ? { paymentToken } : {}) } });
+      setCredit(null);
       setActive(res.id);
       await refresh();
     } catch (e) {
+      if (paymentToken) setCredit(paymentToken);
       toast(e instanceof Error ? e.message : 'Gagal memulai AI', 'error');
     } finally {
       setSubmitting(false);
     }
   }
+
+  const createAiPayment = async (method: PaymentMethod) =>
+    (await api<{ payment: PaymentView }>('/api/payments', { method: 'POST', json: { purpose: 'ai', sessionToken: token, method } })).payment;
 
   async function retry(id: string) {
     try {
@@ -76,6 +93,25 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
   }
 
   const muted = dark ? 'text-white/55' : 'text-muted';
+
+  // In place of the studio (works inside the booth's dialog and on phones).
+  if (paying && pay) {
+    return (
+      <div className="flex justify-center py-1 text-ink">
+        <PaymentPanel
+          what="1 gambar Gaya AI"
+          requirement={pay}
+          create={createAiPayment}
+          onPaid={(p) => {
+            setPaying(false);
+            setCredit(p.token);
+            void generate(p.token);
+          }}
+          onCancel={() => setPaying(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="@container">
@@ -92,7 +128,7 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
               aria-label={`Foto ${i + 1}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="size-full object-cover" />
+              <img src={variant(url, { w: 160 })} alt="" className="size-full object-cover" />
             </button>
           ))}
         </div>
@@ -141,10 +177,12 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
           </div>
         ) : null}
         <div className="mt-4 flex items-center gap-3">
-          <Button variant="ai" size="lg" onClick={generate} loading={submitting} disabled={!styleId || remaining === 0 || !promptOk}>
-            Buat gambar
+          <Button variant="ai" size="lg" onClick={() => void generate()} loading={submitting} disabled={!styleId || remaining === 0 || !promptOk}>
+            Buat gambar{pay?.required && !credit ? ` · ${formatRupiah(pay.amount)}` : ''}
           </Button>
-          <span className={cn('text-xs', muted)}>{remaining > 0 ? `Sisa ${remaining} kali` : 'Kuota AI sesi ini habis'}</span>
+          <span className={cn('text-xs', muted)}>
+            {pay?.required ? (credit ? 'Sudah dibayar — tekan Buat gambar' : `${formatRupiah(pay.amount)} per gambar · QRIS / kasir`) : remaining > 0 ? `Sisa ${remaining} kali` : 'Kuota AI sesi ini habis'}
+          </span>
         </div>
       </div>
 
@@ -155,9 +193,9 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
               {current.status === 'done' && current.url ? (
                 <div className="grid size-full grid-cols-2 gap-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={session.urls.shots[current.shotIndex] ?? session.urls.shots[0]} alt="Asli" className="size-full object-cover" />
+                  <img src={variant(session.urls.shots[current.shotIndex] ?? session.urls.shots[0], { w: 720 })} alt="Asli" className="size-full object-cover" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={current.url} alt="Hasil AI" className="size-full object-cover" />
+                  <img src={variant(current.url, { w: 720 })} alt="Hasil AI" className="size-full object-cover" />
                   <Badge tone="dark" className="absolute top-2 left-2">Asli</Badge>
                   <Badge tone="ai" className="absolute top-2 left-[calc(50%+8px)]">{aiStyleLabel(current.styleId)}</Badge>
                 </div>
@@ -180,7 +218,7 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
             </div>
             {current.status === 'done' && current.url ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                <a href={current.url} download={`photovoks-ai-${current.styleId}.png`} target="_blank" rel="noreferrer">
+                <a href={variant(current.url, { download: `photovoks-ai-${current.styleId}.jpg` })} download={`photovoks-ai-${current.styleId}.jpg`} target="_blank" rel="noreferrer">
                   <Button variant={dark ? 'ink' : 'secondary'} size="sm">
                     <Download /> Unduh
                   </Button>
@@ -198,7 +236,7 @@ export function AiStudio({ token, data, refresh, onPrint, dark = false, compact 
                   <button key={r.id} type="button" onClick={() => setActive(r.id)} className={cn('relative h-16 w-14 shrink-0 overflow-hidden rounded-[8px]', current.id === r.id ? 'ring-2 ring-ai' : 'opacity-70')}>
                     {r.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={r.url} alt="" className="size-full object-cover" />
+                      <img src={variant(r.url, { w: 160 })} alt="" className="size-full object-cover" />
                     ) : (
                       <span className={cn('flex size-full items-center justify-center text-[10px]', dark ? 'bg-white/5' : 'bg-canvas')}>{r.status === 'failed' || r.status === 'failed_safety' ? '✕' : '…'}</span>
                     )}

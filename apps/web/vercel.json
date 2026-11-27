@@ -3,8 +3,21 @@
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
+  "regions": [
+    "syd1"
+  ],
   "functions": {
-    "app/api/s/[token]/ai/route.ts": { "maxDuration": 60 },
-    "app/api/admin/prompts/preview/route.ts": { "maxDuration": 60 }
+    "app/api/s/[token]/ai/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/admin/prompts/preview/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/payments/[token]/route.ts": {
+      "maxDuration": 20
+    },
+    "app/media/[...path]/route.ts": {
+      "maxDuration": 30
+    }
   }
 }

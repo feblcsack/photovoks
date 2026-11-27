@@ -9,6 +9,11 @@ import { Panel, PanelHeader, Stat } from '@/components/ui/panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { timeAgo } from '@/lib/fetcher';
+import { getSettings, settingsReachable } from '@/lib/settings';
+import { paymentTotals } from '@/lib/payments';
+import { formatRupiah } from '@/lib/settings-shared';
+import { QuickSwitches } from '@/components/admin/QuickSwitches';
+import { variant } from '@/lib/media-variant';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +24,7 @@ export default async function AdminDashboard() {
   const since = dayStart.toISOString();
   const provider = getProvider();
 
-  const [eventsRes, todayRes, aiRes, framesRes, recentRes, online, queuedRes] = await Promise.all([
+  const [eventsRes, todayRes, aiRes, framesRes, recentRes, online, queuedRes, settings, money] = await Promise.all([
     supabase.from('events').select(EVENT_COLUMNS).order('created_at', { ascending: false }),
     supabase.from('sessions').select('print_count').gte('created_at', since).in('status', ['composed', 'printing', 'printed', 'completed']),
     supabase.from('ai_generations').select('id', { count: 'exact', head: true }).eq('status', 'done').gte('created_at', since),
@@ -27,6 +32,8 @@ export default async function AdminDashboard() {
     supabase.from('sessions').select(SESSION_COLUMNS).in('status', ['composed', 'printing', 'printed', 'completed']).order('created_at', { ascending: false }).limit(12),
     isPrintStationOnline(supabase),
     supabase.from('print_jobs').select('id', { count: 'exact', head: true }).eq('status', 'queued'),
+    getSettings(),
+    paymentTotals(),
   ]);
   const events = (eventsRes.data ?? []).map(mapEvent);
   const codeById = new Map(events.map((e) => [e.id, e]));
@@ -35,7 +42,8 @@ export default async function AdminDashboard() {
 
   const health = [
     { ok: !eventsRes.error, label: eventsRes.error ? `Database error: ${eventsRes.error.message}` : 'Database terhubung' },
-    { ok: provider.isConfigured(), label: provider.isConfigured() ? `AI siap · ${provider.id} · ${provider.model()}` : 'AI belum dikonfigurasi (OPENROUTER_API_KEY)' },
+    { ok: provider.isConfigured() && settings.ai.enabled, label: !provider.isConfigured() ? 'AI belum dikonfigurasi (OPENROUTER_API_KEY)' : settings.ai.enabled ? `AI siap · ${provider.id} · ${provider.model()}` : 'AI dimatikan (saklar)' },
+    ...(settings.maintenance.enabled ? [{ ok: false, label: 'Mode perawatan AKTIF — halaman tamu ditutup' }] : []),
     { ok: online, label: online ? 'Print worker online' : 'Print worker offline (opsional)' },
     { ok: (queuedRes.count ?? 0) === 0, label: `${queuedRes.count ?? 0} job dalam antrean cetak` },
   ];
@@ -51,7 +59,7 @@ export default async function AdminDashboard() {
         <Stat label="Sesi hari ini" value={todayRes.data?.length ?? 0} unit="sesi" />
         <Stat label="Lembar dicetak" value={prints} unit="lembar" />
         <Stat label="Hasil AI hari ini" value={aiRes.count ?? 0} unit="gambar" />
-        <Stat label="Event aktif" value={events.filter((e) => e.status === 'active').length} unit={`dari ${events.length}`} />
+        <Stat label="Pendapatan hari ini" value={formatRupiah(money.revenue)} hint={money.pending ? `${money.pending} menunggu konfirmasi` : `${money.paidCount} transaksi`} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
@@ -65,7 +73,7 @@ export default async function AdminDashboard() {
                   <Link key={s.id} href={ev ? `/event/${ev.code}/gallery` : '#'} className="group block">
                     <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-[10px] border border-line bg-[#EEF0F4]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {s.urls.thumb ? <img src={s.urls.thumb} alt="" loading="lazy" className="max-h-full max-w-full object-contain" /> : null}
+                      {s.urls.thumb ? <img src={variant(s.urls.thumb, { w: 320 })} alt="" loading="lazy" className="max-h-full max-w-full object-contain" /> : null}
                     </div>
                     <p className="mt-1 truncate text-[11px] font-semibold text-ink-2">{ev?.name ?? '—'}</p>
                     <p className="text-[11px] text-muted">{timeAgo(s.createdAt)}</p>
@@ -82,8 +90,9 @@ export default async function AdminDashboard() {
         </Panel>
 
         <div className="flex flex-col gap-6">
+          <QuickSwitches ai={settings.ai.enabled} payments={settings.payments.enabled} aiConfigured={provider.isConfigured()} migrated={settingsReachable()} />
           <Panel>
-            <PanelHeader title="Status sistem" />
+            <PanelHeader title="Status sistem" actions={<Link href="/admin/developer" className="text-sm font-semibold text-brand">Developer</Link>} />
             <ul className="flex flex-col gap-1 p-3">
               {health.map((h) => (
                 <li key={h.label} className="flex items-start gap-2.5 px-2 py-1.5 text-sm">

@@ -11,17 +11,24 @@ import { api, uploadToSignedUrl } from '@/lib/fetcher';
 import { canvasToBlob, createCanvas, loadBitmap } from '@/lib/frames/render';
 import { canvasFont, ensureFonts, FONTS } from '@/lib/frames/fonts';
 import type { FontKey } from '@/lib/frames/types';
-import { BUILTIN_STICKERS, STICKER_EMOJI, stickerDataUrl, TEXT_COLORS } from '@/lib/stickers';
+import { STICKER_EMOJI, TEXT_COLORS } from '@/lib/stickers';
+import { STICKER_CATEGORIES, Y2K_STICKERS, y2kStickerUrl } from '@/lib/y2k-stickers';
+import { drawWordArt, WORDART_BY_ID, WORDART_STYLES, type WordArtStyleId } from '@/lib/wordart';
+import { WordArt } from '@/components/brand/WordArt';
+import type { LibrarySticker } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 type Item =
   | { id: string; kind: 'image'; src: string; aspect: number; x: number; y: number; size: number; rot: number }
   | { id: string; kind: 'emoji'; text: string; x: number; y: number; size: number; rot: number }
-  | { id: string; kind: 'text'; text: string; font: FontKey; color: string; pill: boolean; x: number; y: number; size: number; rot: number };
+  | { id: string; kind: 'text'; text: string; font: FontKey; color: string; pill: boolean; x: number; y: number; size: number; rot: number; wordart?: WordArtStyleId };
 
 const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-const TEXT_FONTS: FontKey[] = ['bubble', 'typewriter', 'scribble', 'sans', 'display', 'marker', 'script', 'serif'];
+const TEXT_FONTS: FontKey[] = ['bubble', 'impact', 'heavy', 'techno', 'rounded', 'typewriter', 'scribble', 'marker', 'script', 'serif'];
+/** Canvas font for a WordArt style (real next/font family names). */
+const WORDART_FONT: Record<string, FontKey> = { impact: 'impact', heavy: 'heavy', display: 'bubble', serif: 'serif' };
+type PaletteTab = 'lucu' | 'klasik' | 'teks-stiker' | 'event' | 'library';
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 function textMetrics(it: Extract<Item, { kind: 'text' }>) {
@@ -38,6 +45,7 @@ function textMetrics(it: Extract<Item, { kind: 'text' }>) {
 export function StickerStudio({
   imageUrl,
   eventStickers,
+  libraryStickers = [],
   canPrint,
   printHint,
   token,
@@ -46,6 +54,8 @@ export function StickerStudio({
 }: {
   imageUrl: string;
   eventStickers: string[];
+  /** Admin sticker library (all events). */
+  libraryStickers?: LibrarySticker[];
   canPrint: boolean;
   printHint: string;
   token: string;
@@ -57,6 +67,7 @@ export function StickerStudio({
   const [items, setItems] = useState<Item[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<'stiker' | 'emoji' | 'teks'>('stiker');
+  const [pack, setPack] = useState<PaletteTab>(eventStickers.length ? 'event' : 'lucu');
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState<'save' | 'print' | null>(null);
   const [printedPath, setPrintedPath] = useState<string | null>(null);
@@ -169,6 +180,8 @@ export function StickerStudio({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(it.text, 0, it.size * 0.06);
+      } else if (it.wordart) {
+        drawWordArt(ctx, it.text, it.wordart, it.size, FONTS[WORDART_FONT[WORDART_BY_ID[it.wordart].font]].family);
       } else {
         ctx.font = canvasFont(it.font, 700, it.size);
         ctx.textAlign = 'center';
@@ -243,7 +256,23 @@ export function StickerStudio({
     }
   }
 
-  const builtins = useMemo(() => BUILTIN_STICKERS.map((s) => ({ ...s, url: stickerDataUrl(s) })), []);
+  const packs = useMemo(() => {
+    const builtin = Object.fromEntries(STICKER_CATEGORIES.map((c) => [c.id, Y2K_STICKERS.filter((s) => s.category === c.id).map((s) => ({ key: s.id, label: s.label, url: y2kStickerUrl(s.id) }))]));
+    return {
+      lucu: builtin.lucu ?? [],
+      klasik: builtin.klasik ?? [],
+      'teks-stiker': builtin.teks ?? [],
+      event: eventStickers.map((url, i) => ({ key: url, label: `Event ${i + 1}`, url })),
+      library: libraryStickers.map((s) => ({ key: s.id, label: s.name, url: s.url })),
+    } satisfies Record<PaletteTab, Array<{ key: string; label: string; url: string }>>;
+  }, [eventStickers, libraryStickers]);
+  const packTabs: Array<{ id: PaletteTab; label: string }> = [
+    ...(eventStickers.length ? [{ id: 'event' as const, label: 'Event' }] : []),
+    { id: 'lucu', label: 'Lucu' },
+    { id: 'klasik', label: 'Y2K' },
+    { id: 'teks-stiker', label: 'Kata' },
+    ...(libraryStickers.length ? [{ id: 'library' as const, label: 'Spesial' }] : []),
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0E1015] text-white">
@@ -275,6 +304,12 @@ export function StickerStudio({
                 content = <img src={it.src} alt="" draggable={false} style={{ width: it.size * k, height: (it.size / it.aspect) * k }} className="pointer-events-none block" />;
               } else if (it.kind === 'emoji') {
                 content = <span style={{ fontSize: it.size * k, lineHeight: 1, fontFamily: EMOJI_FONT }} className="block">{it.text}</span>;
+              } else if (it.wordart) {
+                content = (
+                  <span className="block" style={{ fontSize: it.size * k }}>
+                    <WordArt variant={it.wordart} className="block" title={it.text}>{it.text}</WordArt>
+                  </span>
+                );
               } else {
                 const { padX, padY } = textMetrics(it);
                 const contrast = it.color === '#FFFFFF' ? '#1B1B1F' : '#FFFFFF';
@@ -346,19 +381,20 @@ export function StickerStudio({
         />
         <div className="h-[118px] overflow-y-auto">
           {tab === 'stiker' ? (
-            <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
-              {eventStickers.map((url) => (
-                <button key={url} type="button" onClick={() => void addImage(url)} className="flex aspect-square items-center justify-center rounded-[10px] bg-white/[0.06] p-1.5 active:scale-95">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="max-h-full max-w-full object-contain" />
-                </button>
-              ))}
-              {builtins.map((s) => (
-                <button key={s.id} type="button" onClick={() => void addImage(s.url)} aria-label={s.label} className="flex aspect-square items-center justify-center rounded-[10px] bg-white/[0.06] p-1.5 active:scale-95">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.url} alt="" className="max-h-full max-w-full" />
-                </button>
-              ))}
+            <div>
+              <div className="no-scrollbar mb-2 flex gap-1.5 overflow-x-auto">
+                {packTabs.map((t) => (
+                  <button key={t.id} type="button" onClick={() => setPack(t.id)} className={cn('h-7 shrink-0 rounded-full px-3 text-[12px] font-bold', pack === t.id ? 'bg-sun text-ink' : 'bg-white/[0.08] text-white/80')}>{t.label}</button>
+                ))}
+              </div>
+              <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
+                {packs[pack].map((s) => (
+                  <button key={s.key} type="button" onClick={() => void addImage(s.url)} aria-label={s.label} className="flex aspect-square items-center justify-center rounded-[10px] bg-white/[0.06] p-1.5 active:scale-95">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.url} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+                  </button>
+                ))}
+              </div>
             </div>
           ) : tab === 'emoji' ? (
             <div className="grid grid-cols-8 gap-1.5">
@@ -373,7 +409,7 @@ export function StickerStudio({
               draft={draft}
               setDraft={setDraft}
               selected={sel?.kind === 'text' ? sel : null}
-              onAdd={(t) => add({ kind: 'text', text: t, font: 'display', color: '#FFFFFF', pill: false, size: (base?.w ?? 1000) * 0.09 })}
+              onAdd={(t) => add({ kind: 'text', text: t, font: 'bubble', color: '#FFFFFF', pill: false, size: (base?.w ?? 1000) * 0.11, wordart: 'rainbow' })}
               onUpdate={(patch) => sel && update(sel.id, patch)}
             />
           )}
@@ -409,6 +445,14 @@ function TextTab({ draft, setDraft, selected, onAdd, onUpdate }: { draft: string
             ))}
             <button type="button" onClick={() => onUpdate({ pill: !selected.pill })} className={cn('h-8 shrink-0 rounded-full px-3 text-xs font-semibold', selected.pill ? 'bg-white text-ink' : 'bg-white/[0.08]')}>Label</button>
           </div>
+          <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto" aria-label="Gaya WordArt">
+            <button type="button" onClick={() => onUpdate({ wordart: undefined })} className={cn('h-9 shrink-0 rounded-[8px] px-2.5 text-xs font-semibold', !selected.wordart ? 'bg-white text-ink' : 'bg-white/[0.08]')}>Biasa</button>
+            {WORDART_STYLES.map((w) => (
+              <button key={w.id} type="button" onClick={() => onUpdate({ wordart: w.id })} aria-label={`WordArt ${w.label}`} className={cn('flex h-9 shrink-0 items-center rounded-[8px] px-2 text-[18px]', selected.wordart === w.id ? 'bg-white' : 'bg-white/[0.08]')}>
+                <WordArt variant={w.id}>Aa</WordArt>
+              </button>
+            ))}
+          </div>
           <div className="flex gap-1.5">
             {TEXT_COLORS.map((c) => (
               <button key={c} type="button" onClick={() => onUpdate({ color: c })} aria-label={`Warna ${c}`} className={cn('size-7 rounded-full border-2', selected.color === c ? 'border-white' : 'border-white/20')} style={{ background: c }} />
@@ -430,7 +474,7 @@ function TextTab({ draft, setDraft, selected, onAdd, onUpdate }: { draft: string
           <Button type="submit" variant="sun"><Type /> Tambah</Button>
         </form>
       )}
-      <p className="text-[11px] text-white/45">{selected ? 'Mengedit teks terpilih. Ketuk area kosong untuk menambah teks baru.' : 'Teks muncul di tengah foto; seret untuk memindah.'}</p>
+      <p className="text-[11px] text-white/45">{selected ? 'Pilih gaya WordArt atau font biasa. Ketuk area kosong untuk menambah teks baru.' : 'Teks baru tampil sebagai WordArt pelangi — ganti gayanya setelah ditambah.'}</p>
     </div>
   );
 }

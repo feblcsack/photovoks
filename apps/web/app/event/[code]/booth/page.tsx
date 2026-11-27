@@ -2,6 +2,8 @@ import { getEventRole, loadEventByCode } from '@/lib/access';
 import { createServerClient } from '@/lib/supabase/server';
 import { isAiConfigured } from '@/lib/ai/provider';
 import { signMedia } from '@/lib/event-media';
+import { getSettings } from '@/lib/settings';
+import { aulaaConfigured } from '@/lib/payments/aulaa';
 import { BoothSettings } from '@/components/event/booth-settings/BoothSettings';
 
 export default async function BoothSettingsPage({ params }: { params: Promise<{ code: string }> }) {
@@ -10,17 +12,19 @@ export default async function BoothSettingsPage({ params }: { params: Promise<{ 
   const role = await getEventRole(loaded);
   const ev = loaded.event;
   const supabase = createServerClient();
-  const [tplRes, urls] = await Promise.all([
+  const [tplRes, urls, settings] = await Promise.all([
     ev.activePromptTemplateId
       ? supabase.from('prompt_templates').select('id').eq('id', ev.activePromptTemplateId).maybeSingle()
       : Promise.resolve({ data: null }),
-    signMedia(supabase, [...(ev.attractMediaPath ? [ev.attractMediaPath] : []), ...ev.stickerPaths], 3600),
+    signMedia(supabase, [...(ev.attractMediaPath ? [ev.attractMediaPath] : []), ...ev.stickerPaths]),
+    getSettings(),
   ]);
   return (
     <BoothSettings
       initial={ev}
       isAdmin={role === 'admin'}
-      aiConfigured={isAiConfigured()}
+      aiConfigured={isAiConfigured() && settings.ai.enabled}
+      paymentInfo={{ qrisConfigured: aulaaConfigured(), globalEnabled: settings.payments.enabled }}
       hasCustomPrompt={!!tplRes.data}
       attractUrl={ev.attractMediaPath ? urls.get(ev.attractMediaPath) ?? null : null}
       stickerUrls={Object.fromEntries(ev.stickerPaths.map((p) => [p, urls.get(p) ?? '']))}

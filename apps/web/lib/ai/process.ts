@@ -6,8 +6,9 @@ import sharp from 'sharp';
 import { createServerClient } from '@/lib/supabase/server';
 import { log } from '@/lib/logger';
 import { getProvider } from './provider';
+import { downloadObject, uploadObject } from '@/lib/storage';
+import { releasePayment } from '@/lib/payments';
 
-const MIME_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
 function closestAspect(w: number, h: number): string {
   const options: Array<[string, number]> = [['1:1', 1], ['3:4', 3 / 4], ['4:3', 4 / 3], ['2:3', 2 / 3], ['3:2', 3 / 2], ['9:16', 9 / 16], ['16:9', 16 / 9]];
@@ -21,6 +22,12 @@ export async function processAiGeneration(generationId: string): Promise<void> {
 
   const fail = async (reason: string, status: 'failed' | 'failed_safety' = 'failed') => {
     await supabase.from('ai_generations').update({ status, error_reason: reason }).eq('id', generationId);
+    // Paid generation that can't be retried → give the payment back so the
+    // guest can spend it on another style (tolerant before migration v5).
+    if (status === 'failed_safety' || reason === 'daily_cap_reached') {
+      const { data } = await supabase.from('ai_generations').select('payment_id').eq('id', generationId).maybeSingle();
+      if (data?.payment_id) await releasePayment(data.payment_id as string).catch(() => {});
+    }
   };
 
   const { data: job } = await supabase
@@ -56,11 +63,11 @@ export async function processAiGeneration(generationId: string): Promise<void> {
     }
 
     const photoPath = `sessions/${sessionId}/photo_${job.shot_index}.jpg`;
-    const { data: blob, error: dlError } = await supabase.storage.from('sessions').download(photoPath);
-    if (dlError || !blob) return fail('photo_download_failed');
+    const photo = await downloadObject('sessions', photoPath);
+    if (!photo) return fail('photo_download_failed');
 
     // Downscale before sending: faster + cheaper, models don't need >1024px.
-    const original = Buffer.from(await blob.arrayBuffer());
+    const original = photo.body;
     const meta = await sharp(original).metadata();
     const input = await sharp(original).rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
 
@@ -77,16 +84,20 @@ export async function processAiGeneration(generationId: string): Promise<void> {
       return fail(result.reason, result.reason === 'safety' ? 'failed_safety' : 'failed');
     }
 
-    // Normalise to PNG/JPEG we can always display + print.
-    let out = result.image;
-    let mime = result.mimeType;
-    if (!MIME_EXT[mime]) {
-      out = await sharp(result.image).png().toBuffer();
-      mime = 'image/png';
+    // Egress: models return ~1.5–2 MB PNGs. A high-quality mozjpeg (q90,
+    // ≤2048 px) looks the same on screen and in print at ~1/6 of the size.
+    const out = await sharp(result.image)
+      .rotate()
+      .resize(2048, 2048, { fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 90, mozjpeg: true, chromaSubsampling: '4:4:4' })
+      .toBuffer();
+    const path = `sketches/${sessionId}/ai_${generationId}.jpg`;
+    try {
+      await uploadObject('sketches', path, out, 'image/jpeg');
+    } catch {
+      return fail('storage_upload_failed');
     }
-    const path = `sketches/${sessionId}/ai_${generationId}.${MIME_EXT[mime]}`;
-    const { error: upError } = await supabase.storage.from('sketches').upload(path, out, { contentType: mime, upsert: true });
-    if (upError) return fail('storage_upload_failed');
 
     await supabase
       .from('ai_generations')

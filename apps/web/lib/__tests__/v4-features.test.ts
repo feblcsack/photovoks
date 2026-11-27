@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 // next/font only works inside the Next compiler.
 vi.mock('@/app/fonts', () => {
   const f = { style: { fontFamily: 'sans-serif' }, variable: '' };
-  return { jakarta: f, playfair: f, spaceMono: f, bebas: f, caveat: f, patrickHand: f, pacifico: f, bagel: f, specialElite: f, gochi: f, pixelify: f, fontVariables: '' };
+  return { jakarta: f, playfair: f, spaceMono: f, bebas: f, caveat: f, patrickHand: f, pacifico: f, bagel: f, specialElite: f, gochi: f, pixelify: f, nunito: f, anton: f, archivoBlack: f, orbitron: f, fontVariables: '' };
 });
 
 import { ZINE_CELLS, ZINE_PAPERS, autoFill, blankPage, pageSizeMm } from '@/lib/zine/layout';

@@ -7,6 +7,9 @@ export type EventStatus = 'draft' | 'active' | 'archived';
 export type CaptureMode = 'auto' | 'manual';
 export type PrintMode = 'off' | 'browser' | 'station';
 export type GalleryVisibility = 'private' | 'unlisted' | 'public';
+/** Which payment methods guests may use. 'off' = everything is free. */
+export type PaymentMode = 'off' | 'qris' | 'cash' | 'both';
+export const PAYMENT_MODES: readonly PaymentMode[] = ['off', 'qris', 'cash', 'both'];
 
 export interface EventConfig {
   id: string;
@@ -51,6 +54,12 @@ export interface EventConfig {
   aiGuestPrompt: boolean;
   liveTheme: LiveTheme;
   zineEnabled: boolean;
+  // v5
+  paymentMode: PaymentMode;
+  /** IDR per photo session (0 = free). */
+  sessionPrice: number;
+  /** IDR per AI generation (0 = free). */
+  aiPrice: number;
 }
 
 export type AttractMediaType = 'video' | 'image';
@@ -109,6 +118,9 @@ export function mapEvent(row: any): EventConfig {
     aiGuestPrompt: row.ai_guest_prompt ?? false,
     liveTheme: (LIVE_THEMES as readonly string[]).includes(row.live_theme) ? row.live_theme : 'silver',
     zineEnabled: row.zine_enabled ?? true,
+    paymentMode: (PAYMENT_MODES as readonly string[]).includes(row.payment_mode) ? row.payment_mode : 'off',
+    sessionPrice: Number.isInteger(row.session_price) ? row.session_price : 0,
+    aiPrice: Number.isInteger(row.ai_price) ? row.ai_price : 1500,
   };
 }
 
@@ -165,6 +177,9 @@ export interface EventUpdateInput {
   aiGuestPrompt?: boolean;
   liveTheme?: LiveTheme;
   zineEnabled?: boolean;
+  paymentMode?: PaymentMode;
+  sessionPrice?: number;
+  aiPrice?: number;
 }
 
 /** Paths inside the private `event-media` bucket. */
@@ -224,6 +239,10 @@ const FIELDS: Record<keyof EventUpdateInput, [column: string, validate: Validato
   aiGuestPrompt: ['ai_guest_prompt', bool],
   liveTheme: ['live_theme', oneOf([...LIVE_THEMES])],
   zineEnabled: ['zine_enabled', bool],
+  paymentMode: ['payment_mode', oneOf([...PAYMENT_MODES])],
+  // QRIS needs ≥ Rp 1.000 per transaction; 0 means free.
+  sessionPrice: ['session_price', (v) => (v === 0 || (typeof v === 'number' && Number.isInteger(v) && v >= 1000 && v <= 10_000_000) ? v : undefined)],
+  aiPrice: ['ai_price', (v) => (v === 0 || (typeof v === 'number' && Number.isInteger(v) && v >= 1000 && v <= 10_000_000) ? v : undefined)],
 };
 
 /**

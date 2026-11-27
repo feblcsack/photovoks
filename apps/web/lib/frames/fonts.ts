@@ -2,7 +2,7 @@
  * Font registry for the frame renderer. Canvas cannot read CSS variables, so
  * we pass the real (hashed) family names produced by next/font.
  */
-import { bagel, bebas, caveat, gochi, jakarta, pacifico, patrickHand, playfair, spaceMono, specialElite } from '@/app/fonts';
+import { anton, archivoBlack, bagel, bebas, caveat, gochi, jakarta, nunito, orbitron, pacifico, patrickHand, playfair, spaceMono, specialElite } from '@/app/fonts';
 import type { FontKey } from './types';
 
 export const FONTS: Record<FontKey, { label: string; family: string; weights: number[] }> = {
@@ -16,6 +16,10 @@ export const FONTS: Record<FontKey, { label: string; family: string; weights: nu
   bubble: { label: 'Bubble Y2K (Bagel)', family: bagel.style.fontFamily, weights: [400] },
   typewriter: { label: 'Mesin ketik', family: specialElite.style.fontFamily, weights: [400] },
   scribble: { label: 'Coretan (Gochi)', family: gochi.style.fontFamily, weights: [400] },
+  rounded: { label: 'Bulat (Nunito)', family: nunito.style.fontFamily, weights: [400, 600, 700, 800, 900] },
+  impact: { label: 'WordArt Impact (Anton)', family: anton.style.fontFamily, weights: [400] },
+  heavy: { label: 'WordArt Tebal (Archivo Black)', family: archivoBlack.style.fontFamily, weights: [400] },
+  techno: { label: 'Tekno Y2K (Orbitron)', family: orbitron.style.fontFamily, weights: [500, 700, 900] },
 };
 
 export function nearestWeight(key: FontKey, weight: number): number {

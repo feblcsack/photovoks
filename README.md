@@ -70,7 +70,7 @@ pnpm install
 
 1. Buat project di [Supabase](https://supabase.com) (gratis).
 2. Siapkan database: `pnpm -s db:sql | pbcopy` (macOS) atau `pnpm -s db:sql > setup.sql`, lalu paste ke **Supabase › SQL Editor › Run**.
-   *Sudah pernah setup versi lama?* Jalankan migrasi yang belum ada secara berurutan — `…07_v2_events_frames_gallery.sql`, lalu `…08_v3_booth_live_guestbook.sql`, lalu `…09_v4_y2k_zine_wall.sql` (stiker live wall, tema kulkas, minizine). Semuanya aditif & aman dijalankan ulang; data lama tetap ada.
+   *Sudah pernah setup versi lama?* Jalankan migrasi yang belum ada secara berurutan — `…07_v2_events_frames_gallery.sql`, lalu `…08_v3_booth_live_guestbook.sql`, lalu `…09_v4_y2k_zine_wall.sql` (stiker live wall, tema kulkas, minizine), lalu `…10_v5_payments_storage_devpanel.sql` (pembayaran, panel developer, library stiker, penghitung egress). Semuanya aditif & aman dijalankan ulang; data lama tetap ada. Aplikasi v5 tetap jalan sebelum migrasi 10 dijalankan (pembayaran & library stiker belum aktif).
 3. `pnpm configure` — wizard mengisi `apps/web/.env.local`, PIN admin, dan membuat event pertama (kode + PIN).
 4. `pnpm dev` → buka `http://localhost:3000`.
 
@@ -191,3 +191,49 @@ Booth di mode *Print station* otomatis memasukkan sesi ke antrean (jumlah salina
 - Cookie PIN event berlaku 12 jam; mengganti PIN mengeluarkan semua perangkat event itu.
 
 Panduan deploy lengkap: **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+---
+
+## 14. Pembaruan v5 — egress, panel developer, pembayaran, tampilan
+
+### Kenapa egress Supabase habis (dan apa yang diperbaiki)
+
+Log Supabase 24 jam (27 Nov 2026): **±4,9 GB egress dari hanya 14 sesi baru**, padahal total file cuma ±155 MB. `thumb.jpg` diunduh 2.203×, tiap `photo_N.jpg` ±1.300×, `strip.png` 376×, PNG frame 268× — semua *cache MISS*. Penyebab:
+
+1. **Signed URL selalu baru.** Setiap respons API membuat signed URL dengan token baru, jadi browser tidak bisa memakai cache. Print station (poll 3 detik), halaman tamu (poll 2,5 detik saat AI/cetak berjalan), galeri, dan booth (memuat ulang konfigurasi tiap tamu) mengunduh ulang foto ukuran penuh terus-menerus.
+2. **File besar ditampilkan sebagai thumbnail** (strip 300 DPI, PNG AI ±1,7 MB, PNG frame ±1,2 MB).
+
+Perbaikan:
+
+- **URL media stabil** `/media/<bucket>/<path>?s=<hmac>` (`app/media/[...path]/route.ts`): URL sama setiap kali → di-cache browser 1 tahun + CDN Vercel 30 hari, ETag/304. File hanya ditarik dari storage **sekali**.
+- **Varian kecil**: `?w=480&f=webp` membuat WebP berukuran pas (thumbnail ±10–40 KB alih-alih 0,5–2 MB); GIF dipratinjau sebagai WebP animasi. File asli hanya untuk unduhan & cetak.
+- **Kompresi**: hasil AI disimpan sebagai JPEG mozjpeg q90 (±6× lebih kecil dari PNG), aset frame/stiker/gambar layar awal dikompres di browser (WebP, transparansi tetap) sebelum upload.
+- **Polling** dijeda saat tab tidak terlihat; interval live wall & print station diatur di panel developer.
+- **Tanpa round-trip "sign"** ke Supabase (sebelumnya ±1.700 request/hari).
+
+### Panel Developer (`/admin/developer`)
+
+Status sistem (DB utama/cadangan, migrasi, storage, AI, QRIS), grafik egress 31 hari vs kuota, saklar **mode perawatan / AI / pembayaran / mode hemat**, pilihan **penyimpanan (Supabase ↔ Cloudflare R2/S3)** + tes + **migrasi file**, **database cadangan** (salin data inti ke project Supabase lain), unduh backup konfigurasi, perbandingan alternatif, dan langkah darurat. `GET /api/health` untuk monitor uptime. Env darurat (`MAINTENANCE_MODE`, `STORAGE_DRIVER`, `AI_DISABLED`, `PAYMENTS_DISABLED`, `DB_ACTIVE`) tetap bekerja walau database tidak bisa diakses.
+
+**Kalau kuota habis lagi** (urut rekomendasi): (1) pindahkan foto ke **Cloudflare R2** — egress gratis, 10 GB storage gratis; (2) **Supabase Pro** (±$25/bln, 250 GB egress); (3) **project Supabase baru di organisasi lain** (kuota free dihitung per organisasi) via *Database cadangan*; (4) **VPS** + MinIO (driver S3) + `pnpm booth`.
+
+### Pembayaran per sesi & per gambar AI
+
+- **Pengaturan Booth › Pembayaran**: mode *Gratis / QRIS + kasir / QRIS saja / Kasir saja*, harga per sesi, harga per gambar AI (default **Rp 1.500**).
+- **QRIS** via [Aulaa](https://aulaa.co): isi `AULAA_API_KEY` + `AULAA_WEBHOOK_SECRET`, set callback `https://<domain>/api/payments/aulaa/webhook`, daftarkan domain website di project Aulaa (popup QRIS `embed.js`). Status dicek lewat webhook bertanda tangan + cek status berkala.
+- **Bayar di kasir**: tamu mendapat kode 4 huruf; operator/admin menyetujui di **Pembayaran** (portal event & portal pemilik, dengan bunyi notifikasi). Operator bisa menggratiskan satu sesi dari menu operator booth (tahan ⚙).
+- Server menolak sesi/AI tanpa pembayaran lunas yang belum dipakai (tidak bisa diakali dari browser). AI yang gagal karena filter keamanan mengembalikan pembayarannya.
+- **Saklar AI global** ada di Dashboard pemilik dan panel developer.
+
+### Tampilan
+
+- **Font**: Nunito (teks — membulat, ramah, selaras logo bubble & label dashboard era PS2/Xbox 360), Bagel Fat One (judul), **Anton** (pengganti Impact) & **Archivo Black** (pengganti Arial Black) untuk **WordArt**, Orbitron (angka/harga/kode — nuansa tekno Y2K), Pixelify Sans tetap untuk chrome Windows 98.
+- **WordArt** (`components/brand/WordArt.tsx`, 10 gaya: pelangi, emas 3D, langit, krom, anggur, outline, hutan 3D, kobalt, permen, lengkung) hanya di momen “judul”: layar awal booth, hasil foto, kasir/LUNAS, live wall kosong, 404, maintenance, panel developer — dan bisa dipakai tamu untuk teks stiker & caption minizine.
+- **Stiker**: paket “Lucu” baru (26 stiker kawaii Y2K: kucing oren, kelinci, boba, kaset, bola disko, gemoy, OMG, BFF, slay…) + **library stiker admin** (`/admin/stickers`, dipakai semua event).
+- **Minizine**: tema satu klik, 10 tata letak (strip 3, 4 foto, film, bulat, hati…), 9 motif latar, bingkai foto, ukuran & WordArt caption, stiker library.
+- **Karakter 3D**: model baru ala PS2 / avatar Xbox 360 — material PBR + tekstur kain prosedural, mata beriris, jari, sneaker bertali, sablon kaos, rim light, refleksi, blob shadow. Tanpa file model (0 egress).
+
+### Login PIN lebih cepat
+
+PIN di-hash ulang otomatis ke bcrypt cost 10 saat login (sebelumnya 12 — ±4× lebih lambat di serverless), query yang tak perlu dilewati, satu navigasi + skeleton instan, dan fungsi Vercel dikunci ke region **syd1** (sama dengan database Sydney) di `vercel.json`.
+

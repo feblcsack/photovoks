@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/toast';
 import { api, timeAgo } from '@/lib/fetcher';
 import type { GuestbookEntryView } from '@/lib/community';
 import { cn } from '@/lib/utils';
+import { variant } from '@/lib/media-variant';
 
 const noopSubscribe = () => () => {};
 
@@ -37,7 +38,9 @@ export function GuestbookModeration({ code, enabled, liveEnabled, publicToken }:
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch + polling
     void load();
-    const t = setInterval(() => void load(), 15_000);
+    const t = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 15_000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -95,7 +98,7 @@ export function GuestbookModeration({ code, enabled, liveEnabled, publicToken }:
           {entries.map((e) => (
             <article key={e.id} className={cn('mb-3 break-inside-avoid overflow-hidden rounded-panel border border-line bg-surface shadow-panel', e.hidden && 'opacity-55')}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {e.photo ? <img src={e.photo} alt="" loading="lazy" className="max-h-64 w-full object-cover" /> : null}
+              {e.photo ? <img src={variant(e.photo, { w: 480 })} alt="" loading="lazy" className="max-h-64 w-full object-cover" /> : null}
               <div className="p-4">
                 <p className="text-sm leading-relaxed whitespace-pre-line">{e.message}</p>
                 <div className="mt-3 flex items-center justify-between gap-2">

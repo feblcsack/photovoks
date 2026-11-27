@@ -2,21 +2,28 @@
 
 /**
  * Booth kiosk state machine:
- *   attract → character → frames → capture → review (→ capture for retakes) → finish → attract
- * (attract → character → zine for minizine mode)
+ *   attract → character → [pay] → frames → capture → review (→ capture for retakes) → finish → attract
+ * (attract → character → [pay] → zine for minizine mode)
+ * [pay] only when the event charges per session (QRIS via Aulaa or cash
+ * approved by the operator). A paid-but-unused payment survives a reset.
  *
  * The chosen character ("buddy") floats in a corner as a guide and reacts to
  * the countdown / flash.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Expand, LayoutGrid, Lock, LogOut, RefreshCcw, Settings2, Printer, Volume2, VolumeX, X } from 'lucide-react';
+import { Camera, Expand, Gift, LayoutGrid, Lock, LogOut, RefreshCcw, Settings2, Printer, Volume2, VolumeX, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Segmented } from '@/components/ui/segmented';
 import { Buddy } from '@/components/os/Buddy';
 import { CharacterSelect } from '@/components/os/CharacterSelect';
 import { BootScreen } from '@/components/os/screens';
+import { HillsWallpaper } from '@/components/os/retro';
+import { PaymentPanel } from '@/components/payments/PaymentPanel';
+import type { PaymentMethod, PaymentRequirement, PaymentView } from '@/lib/payments/types';
+import { formatRupiah } from '@/lib/settings-shared';
+import type { LibrarySticker } from '@/lib/session-types';
 import { mascotLine, type GuideMoment, type MascotId } from '@/lib/mascots';
 import { setSfxEnabled, sfx, sfxEnabled } from '@/lib/sfx';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -42,9 +49,11 @@ interface BoothConfig {
   aiConfigured: boolean;
   printStationOnline: boolean;
   media: { attractUrl: string | null };
+  payment?: PaymentRequirement;
+  libraryStickers?: LibrarySticker[];
 }
 
-type Step = 'attract' | 'character' | 'frames' | 'capture' | 'review' | 'finish' | 'zine';
+type Step = 'attract' | 'character' | 'pay' | 'frames' | 'capture' | 'review' | 'finish' | 'zine';
 const IDLE_MS = 90_000;
 const NEVER = 2_000_000_000;
 
@@ -68,6 +77,8 @@ export function BoothApp({ code }: { code: string }) {
   const [buddyMsg, setBuddyMsg] = useState<string | null>(null);
   const [buddyEmote, setBuddyEmote] = useState(0);
   const [finishPhase, setFinishPhase] = useState<'processing' | 'done' | 'error'>('processing');
+  // Paid (or operator free pass) session ticket, consumed by POST /api/sessions.
+  const [paymentToken, setPaymentToken] = useState<string | null>(null);
   const camera = useCamera();
   // Keep the first signed URL per media path so the home-screen video stays
   // cached between guests (a new URL would re-download it every reset).
@@ -116,7 +127,7 @@ export function BoothApp({ code }: { code: string }) {
     void load(); // pick up frame/setting changes between guests
   }, [load]);
 
-  const idleEnabled = step === 'frames' || step === 'review' || step === 'character';
+  const idleEnabled = step === 'frames' || step === 'review' || step === 'character' || (step === 'pay' && !paymentToken);
   // (zine mode has its own close button; guests can take their time designing)
   useIdleTimer(idleEnabled ? IDLE_MS : NEVER, () => {
     if (idleEnabled) reset();
@@ -191,12 +202,20 @@ export function BoothApp({ code }: { code: string }) {
     setRoute(to);
     setStep('character');
   };
+  const needsPayment = !!config.payment?.required && !paymentToken;
   const afterCharacter = (id: MascotId) => {
     setBuddy(id);
+    if (needsPayment) setStep('pay');
+    else proceedAfterPay();
+  };
+  const proceedAfterPay = () => {
     if (route === 'zine') setStep('zine');
     else if (config.frames.length === 1 && !event.zineEnabled) chooseFrame(config.frames[0]);
     else setStep('frames');
   };
+  const createSessionPayment = async (method: PaymentMethod) =>
+    (await api<{ payment: PaymentView }>('/api/payments', { method: 'POST', json: { purpose: 'session', eventCode: code, method } })).payment;
+
   const moment: GuideMoment | null =
     step === 'frames' ? 'frames' : step === 'capture' ? 'ready' : step === 'review' ? 'review' : step === 'finish' ? finishPhase : null;
 
@@ -217,6 +236,24 @@ export function BoothApp({ code }: { code: string }) {
       ) : null}
 
       {step === 'character' ? <CharacterSelect key={sessionKey} initial={buddy ?? undefined} onPick={afterCharacter} onBack={reset} /> : null}
+
+      {step === 'pay' && config.payment ? (
+        <div className="kiosk fixed inset-0 z-30 flex items-center justify-center overflow-y-auto px-4 py-8">
+          <HillsWallpaper />
+          <PaymentPanel
+            kiosk
+            className="relative"
+            what={route === 'zine' ? '1 sesi minizine' : `1 sesi foto · ${event.name}`}
+            requirement={config.payment}
+            create={createSessionPayment}
+            onPaid={(p) => {
+              setPaymentToken(p.token);
+              proceedAfterPay();
+            }}
+            onCancel={reset}
+          />
+        </div>
+      ) : null}
 
       {step === 'frames' ? (
         <XmbFramePicker
@@ -285,13 +322,15 @@ export function BoothApp({ code }: { code: string }) {
           tokens={tokens}
           printStationOnline={config.printStationOnline}
           aiConfigured={config.aiConfigured}
+          paymentToken={paymentToken}
+          onPaymentUsed={() => setPaymentToken(null)}
           buddy={buddy}
           onPhase={setFinishPhase}
           onDone={reset}
         />
       ) : null}
 
-      {step === 'zine' ? <BoothZine key={sessionKey} code={code} event={event} camera={camera} mirror={mirror} buddy={buddy} onDone={reset} /> : null}
+      {step === 'zine' ? <BoothZine key={sessionKey} code={code} event={event} camera={camera} mirror={mirror} buddy={buddy} paymentToken={paymentToken} onPaymentUsed={() => setPaymentToken(null)} libraryStickers={config.libraryStickers} onDone={reset} /> : null}
 
       {buddy && moment ? (
         <Buddy key={`${sessionKey}-${buddy}`} id={buddy} moment={moment} message={step === 'capture' ? buddyMsg : null} emote={buddyEmote} side={step === 'frames' ? 'right' : 'left'} />
@@ -307,6 +346,13 @@ export function BoothApp({ code }: { code: string }) {
         onMirror={setMirrorOverride}
         onReload={() => {
           void load();
+          setOperatorOpen(false);
+        }}
+        payment={config.payment}
+        hasTicket={!!paymentToken}
+        onFreePass={async () => {
+          const res = await api<{ payment: PaymentView }>('/api/payments', { method: 'POST', json: { purpose: 'session', eventCode: code, free: true } });
+          setPaymentToken(res.payment.token);
           setOperatorOpen(false);
         }}
         onLock={async () => {
@@ -413,7 +459,7 @@ function HoldButton({ onHold }: { onHold: () => void }) {
 
 // ── Operator sheet ───────────────────────────────────────────────────────────
 
-function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirror, onReload, onLock }: {
+function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirror, onReload, onLock, payment, hasTicket, onFreePass }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   event: EventConfig;
@@ -423,6 +469,9 @@ function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirr
   onMirror: (m: boolean) => void;
   onReload: () => void;
   onLock: () => void;
+  payment?: PaymentRequirement;
+  hasTicket: boolean;
+  onFreePass: () => Promise<void>;
 }) {
   const canFullscreen = typeof document !== 'undefined' && !!document.documentElement.requestFullscreen;
   return (
@@ -444,6 +493,15 @@ function OperatorSheet({ open, onOpenChange, event, role, camera, mirror, onMirr
           )}
         </div>
         <SoundToggle />
+        {payment?.required ? (
+          <div className="rounded-ctl border border-line px-3 py-2.5">
+            <p className="text-sm font-semibold">Pembayaran sesi · {formatRupiah(payment.amount)}</p>
+            <p className="mt-0.5 text-xs text-muted">{hasTicket ? 'Sesi berikutnya sudah dibayar / gratis ✓' : 'Tamu membayar setelah memilih karakter.'}</p>
+            {!hasTicket ? (
+              <Button variant="secondary" size="sm" className="mt-2" onClick={() => void onFreePass().catch(() => {})}><Gift /> Gratiskan sesi berikutnya</Button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold">Mode cermin</span>
           <Segmented size="sm" value={mirror ? 'on' : 'off'} onChange={(v) => onMirror(v === 'on')} options={[{ value: 'on', label: 'Cermin' }, { value: 'off', label: 'Asli' }]} />

@@ -34,7 +34,8 @@ export function useGuestSession(token: string | null, initial: GuestSessionData 
 
   useEffect(() => {
     if (!busy) return;
-    timer.current = setTimeout(() => void refresh(), 2500);
+    // Poll only while AI/print work is running; slower when the tab is hidden.
+    timer.current = setTimeout(() => void refresh(), document.hidden ? 15_000 : 3000);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };

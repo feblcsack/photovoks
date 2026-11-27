@@ -5,6 +5,8 @@
  * <img>/canvas source. No network requests, no egress.
  */
 
+import { CUTE_STICKERS } from './y2k-stickers-cute';
+
 const CUT = 'stroke="#fff" stroke-width="16" stroke-linejoin="round" paint-order="stroke"';
 const ink = (w = 5) => `stroke="#1A1410" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 const INK = ink();
@@ -47,9 +49,13 @@ export interface Y2kSticker {
   id: string;
   label: string;
   svg: string;
+  /** Picker tab: classic scrapbook, kawaii (v5 pack) or text labels. */
+  category?: 'klasik' | 'lucu' | 'teks';
 }
 
-export const Y2K_STICKERS: Y2kSticker[] = [
+const TEXT_IDS = new Set(['xoxo', 'cute', 'click', 'luv', 'gemoy', 'omg', 'bff', 'y2k', 'slay', 'flash']);
+
+const CLASSIC: Y2kSticker[] = [
   { id: 'sparkle', label: 'Kilau', svg: wrap(cut((a) => `<path d="${SPARKLE}" ${a}/>`, '#C9F25C') + `<path d="M150 30 c3 14 8 19 22 22 c-14 3-19 8-22 22 c-3-14-8-19-22-22 c14-3 19-8 22-22z" fill="#FF9BD2" ${ink(4)}/>`) },
   { id: 'star', label: 'Bintang', svg: wrap(cut((a) => `<polygon points="${starPts(100, 106, 88, 40)}" ${a}/>`, '#C4201A') + `<path d="M74 92 q6-8 14 0" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7"/>`) },
   {
@@ -159,6 +165,18 @@ export const Y2K_STICKERS: Y2kSticker[] = [
         `<path d="M138 62 v76" stroke="#1A1410" stroke-width="3" stroke-dasharray="6 6"/><text x="76" y="112" text-anchor="middle" font-family="Arial Black, Arial" font-weight="900" font-size="34" fill="#C4201A">VIP</text><text x="160" y="106" text-anchor="middle" font-family="Courier New, monospace" font-weight="700" font-size="14" fill="#1A1410" transform="rotate(90 160 100)">No.01</text></g>`,
     ),
   },
+];
+
+/** Kawaii pack first (most loved), then the classic scrapbook set. */
+export const Y2K_STICKERS: Y2kSticker[] = [...CUTE_STICKERS, ...CLASSIC].map((s) => ({
+  ...s,
+  category: TEXT_IDS.has(s.id) ? 'teks' : CUTE_STICKERS.some((c) => c.id === s.id) ? 'lucu' : 'klasik',
+}));
+
+export const STICKER_CATEGORIES: Array<{ id: NonNullable<Y2kSticker['category']>; label: string }> = [
+  { id: 'lucu', label: 'Lucu' },
+  { id: 'klasik', label: 'Klasik Y2K' },
+  { id: 'teks', label: 'Teks' },
 ];
 
 const BY_ID = new Map(Y2K_STICKERS.map((s) => [s.id, s]));

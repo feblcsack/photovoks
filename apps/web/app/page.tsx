@@ -4,6 +4,7 @@ import { Logo, Sticker } from '@/components/brand/scrap';
 import { Bubbles, DesktopIcon, Goldfish, HillsWallpaper, PixelIcon, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
 import { LocationCard } from '@/components/location/LocationCard';
 import type { PixelIconName } from '@/lib/pixel-icons';
+import { WordArt } from '@/components/brand/WordArt';
 
 const FEATURES: Array<[PixelIconName, string, string]> = [
   ['star', 'Pilih karakter', '4 pemandu 3D yang menemani tamu dari awal sampai QR'],
@@ -43,7 +44,7 @@ export default function Home() {
               </div>
               <h1 className="mt-4 text-[clamp(32px,5vw,56px)] leading-[1]">
                 Photobooth event,{' '}
-                <span className="inline-block -rotate-2 border-2 border-ink bg-sun px-2 shadow-[3px_3px_0_var(--color-ink)]">siap cetak</span> dari browser.
+                <WordArt variant="sunset" className="mx-1 align-[-0.08em]">siap cetak</WordArt> dari browser.
               </h1>
               <p className="mt-4 max-w-lg font-type text-lg text-ink-2">Masukkan kode event untuk membuka booth atau portal operator.</p>
               <fieldset className="mt-5 max-w-md border-2 border-win-shadow px-3 pt-1 pb-3 [border-style:groove]">

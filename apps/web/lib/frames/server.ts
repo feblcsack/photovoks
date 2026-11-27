@@ -1,11 +1,12 @@
 /**
- * Frame loading for the server: legacy conversion + signed asset URLs.
+ * Frame loading for the server: legacy conversion + stable asset URLs.
  * SERVER ONLY.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SlotGeometry } from '@photovoks/shared-types';
 import type { FrameDesign, FrameRecord } from './types';
-import { applyQrPlacement, collectAssets, sanitizeDesign, sanitizeQrPlacement, slotCountOf } from './types';
+import { applyQrPlacement, sanitizeDesign, sanitizeQrPlacement, slotCountOf } from './types';
+import { mediaUrl } from '@/lib/storage';
 
 export const FRAME_COLUMNS =
   'id, name, category, is_active, width, height, slot_count, design, storage_path, slot_geometry, thumbnail_path, sort_order, updated_at';
@@ -46,31 +47,22 @@ export function rowToDesign(row: any): FrameDesign {
   return stored ?? legacyToDesign(row.storage_path ?? null, row.slot_geometry ?? []);
 }
 
-/** Converts DB rows to FrameRecords with signed asset + thumbnail URLs. */
+/**
+ * Converts DB rows to FrameRecords with stable /media asset + thumbnail URLs.
+ * (The URLs never change, so booths and editors download each PNG once.)
+ */
 export async function hydrateFrames(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rows: any[],
-  ttlSeconds = 6 * 3600,
 ): Promise<FrameRecord[]> {
   const designs = rows.map(rowToDesign);
-  const paths = new Set<string>();
-  designs.forEach((d) => collectAssets(d).forEach((a) => paths.add(a.path)));
-  rows.forEach((r) => r.thumbnail_path && paths.add(r.thumbnail_path));
-
-  const urls = new Map<string, string>();
-  const list = Array.from(paths);
-  if (list.length) {
-    const { data } = await supabase.storage.from('frames').createSignedUrls(list, ttlSeconds);
-    data?.forEach((entry) => {
-      if (entry.path && entry.signedUrl) urls.set(entry.path, entry.signedUrl);
-    });
-  }
+  const urlOf = (path: string | null | undefined) => (path ? mediaUrl('frames', path) ?? undefined : undefined);
 
   return rows.map((row, i) => {
     const design = designs[i];
-    if (design.background.image) design.background.image.url = urls.get(design.background.image.path);
-    for (const el of design.elements) if (el.type === 'image') el.asset.url = urls.get(el.asset.path);
+    if (design.background.image) design.background.image.url = urlOf(design.background.image.path);
+    for (const el of design.elements) if (el.type === 'image') el.asset.url = urlOf(el.asset.path);
     return {
       id: row.id,
       name: row.name,
@@ -80,7 +72,7 @@ export async function hydrateFrames(
       height: design.height,
       slotCount: slotCountOf(design),
       design,
-      thumbnailUrl: row.thumbnail_path ? urls.get(row.thumbnail_path) ?? null : null,
+      thumbnailUrl: urlOf(row.thumbnail_path) ?? null,
       updatedAt: row.updated_at,
     };
   });

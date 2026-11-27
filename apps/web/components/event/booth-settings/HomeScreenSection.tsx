@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { AttractView } from '@/components/booth/AttractView';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
+import { compressImage } from '@/lib/compress';
 import { defaultTokens } from '@/lib/frames/render';
 import type { EventConfig } from '@/lib/events';
 import type { FrameRecord } from '@/lib/frames/types';
@@ -19,8 +20,21 @@ export type HomeForm = Pick<EventConfig, 'code' | 'name' | 'status' | 'welcomeTi
 const MAX_BYTES = 50 * 1024 * 1024;
 
 export async function uploadEventMedia(code: string, kind: 'attract' | 'stickers', file: File): Promise<string> {
-  const res = await api<{ path: string; uploadUrl: string }>(`/api/events/${code}/media`, { method: 'POST', json: { kind, contentType: file.type } });
-  await uploadToSignedUrl(res.uploadUrl, file, file.type);
+  // Images are compressed in the browser first (videos are uploaded as-is):
+  // home-screen images ≤ 2400 px, stickers ≤ 512 px WebP with transparency.
+  let blob: Blob = file;
+  let type = file.type;
+  if (file.type.startsWith('image/')) {
+    const packed = await compressImage(file, kind === 'stickers' ? { maxSide: 512, quality: 0.9, type: 'image/webp' } : { maxSide: 2400, quality: 0.86 });
+    // Stickers must stay transparent: if the browser could only make a JPEG,
+    // upload the original PNG/WebP instead.
+    if (!(kind === 'stickers' && packed.type === 'image/jpeg')) {
+      blob = packed.blob;
+      type = packed.type;
+    }
+  }
+  const res = await api<{ path: string; uploadUrl: string }>(`/api/events/${code}/media`, { method: 'POST', json: { kind, contentType: type } });
+  await uploadToSignedUrl(res.uploadUrl, blob, type);
   return res.path;
 }
 

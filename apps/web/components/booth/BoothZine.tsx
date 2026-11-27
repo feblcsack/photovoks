@@ -22,11 +22,12 @@ import type { EventConfig } from '@/lib/events';
 import type { MascotId } from '@/lib/mascots';
 import { CaptureStage, type Shot } from './CaptureStage';
 import type { CameraController } from './useCamera';
+import type { LibrarySticker } from '@/lib/session-types';
 
 const FIRST_SHOTS = 4;
 const MAX_SHOTS = 8;
 
-export function BoothZine({ code, event, camera, mirror, buddy, onDone }: { code: string; event: EventConfig; camera: CameraController; mirror: boolean; buddy?: MascotId | null; onDone: () => void }) {
+export function BoothZine({ code, event, camera, mirror, buddy, onDone, paymentToken = null, onPaymentUsed, libraryStickers = [] }: { code: string; event: EventConfig; camera: CameraController; mirror: boolean; buddy?: MascotId | null; onDone: () => void; paymentToken?: string | null; onPaymentUsed?: () => void; libraryStickers?: LibrarySticker[] }) {
   const toast = useToast();
   // Papers the booth can print on: the event's paper (when it suits a zine) + A4.
   const papers = useMemo(() => {
@@ -73,8 +74,9 @@ export function BoothZine({ code, event, camera, mirror, buddy, onDone }: { code
       const taken = shots.filter((s): s is Shot => !!s);
       const created = await api<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> }>('/api/sessions', {
         method: 'POST',
-        json: { eventCode: code, kind: 'zine', shotCount: Math.max(1, taken.length) },
+        json: { eventCode: code, kind: 'zine', shotCount: Math.max(1, taken.length), paymentToken },
       });
+      onPaymentUsed?.();
       const station = print && event.printMode === 'station' && paperId === event.printPaper;
       const uploads: Array<[string, Blob]> = [
         ['strip.jpg', sheet.blob],
@@ -127,6 +129,7 @@ export function BoothZine({ code, event, camera, mirror, buddy, onDone }: { code
     <>
       <ZineStudio
         kiosk
+        libraryStickers={libraryStickers}
         photos={photos}
         title={event.name}
         subtitle={`${event.name}\nmade at photovoks ✶`}

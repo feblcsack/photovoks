@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from 'next';
 import { getEventRole, loadEventByCode } from '@/lib/access';
 import { BoothGate } from '@/components/booth/BoothGate';
 import { BoothApp } from '@/components/booth/BoothApp';
+import { maintenanceMessage } from '@/lib/maintenance';
+import { MaintenanceScreen } from '@/components/os/MaintenanceScreen';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Booth', robots: { index: false } };
@@ -10,6 +12,8 @@ export const viewport: Viewport = { themeColor: '#0B0F1A', width: 'device-width'
 
 export default async function BoothPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  const down = await maintenanceMessage('booth');
+  if (down) return <MaintenanceScreen message={down} />;
   const loaded = await loadEventByCode(code);
   if (!loaded) notFound();
   const role = await getEventRole(loaded);

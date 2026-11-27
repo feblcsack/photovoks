@@ -62,7 +62,7 @@ export const MASCOTS: Record<MascotId, MascotInfo> = {
   },
   kaget: {
     id: 'kaget',
-    name: 'Si Kaget',
+    name: 'Mas Rusdi',
     kind: 'Tipe Reaksi',
     tagline: 'Semua hal itu mengejutkan.',
     color: '#C4201A',
@@ -85,7 +85,7 @@ export const MASCOTS: Record<MascotId, MascotInfo> = {
   },
   ngantuk: {
     id: 'ngantuk',
-    name: 'Si Ngantuk',
+    name: 'Titut',
     kind: 'Tipe Rajin',
     tagline: 'Rajin nyatet, walau sambil merem.',
     color: '#3F7360',
@@ -108,7 +108,7 @@ export const MASCOTS: Record<MascotId, MascotInfo> = {
   },
   licik: {
     id: 'licik',
-    name: 'Si Licik',
+    name: 'Teddy??',
     kind: 'Tipe Akal',
     tagline: 'Selalu punya trik rahasia.',
     color: '#B45309',

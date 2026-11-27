@@ -30,6 +30,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
+import { compressImage, formatBytes } from '@/lib/compress';
 import { canvasToBlob, createCanvas, defaultTokens, loadBitmap, prepareDesign, renderDesign, type Drawable } from '@/lib/frames/render';
 import { FRAME_TEMPLATES } from '@/lib/frames/presets';
 import type { AssetRef, FrameDesign, FrameElement, ImageElement } from '@/lib/frames/types';
@@ -162,15 +163,19 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
   );
 
   async function uploadAsset(file: File): Promise<AssetRef | null> {
-    if (file.size > 10 * 1024 * 1024) {
-      toast('Gambar maksimal 10 MB', 'error');
+    if (file.size > 25 * 1024 * 1024) {
+      toast('Gambar maksimal 25 MB', 'error');
       return null;
     }
     setUploading(true);
     try {
-      const res = await api<{ path: string; signedUrl: string }>('/api/admin/frames/upload-url', { method: 'POST', json: { kind: 'asset', contentType: file.type } });
-      await uploadToSignedUrl(res.signedUrl, file, file.type);
-      return { path: res.path, url: URL.createObjectURL(file) };
+      // Re-encode to high-quality WebP (keeps transparency + full print
+      // resolution, typically 30–70 % smaller than a Canva/Photoshop PNG).
+      const packed = await compressImage(file, { maxSide: 4800, quality: 0.93 });
+      const res = await api<{ path: string; signedUrl: string }>('/api/admin/frames/upload-url', { method: 'POST', json: { kind: 'asset', contentType: packed.type } });
+      await uploadToSignedUrl(res.signedUrl, packed.blob, packed.type);
+      if (packed.saved > 200 * 1024) toast(`Dikompres: hemat ${formatBytes(packed.saved)}`);
+      return { path: res.path, url: URL.createObjectURL(packed.blob) };
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Upload gagal', 'error');
       return null;
@@ -243,7 +248,7 @@ export function FrameEditor({ frameId, initialName, initialDesign, initialActive
       const scale = Math.min(1, 480 / d.width);
       const c = createCanvas(d.width * scale, d.height * scale);
       renderDesign(c.getContext('2d')!, d, { photos: samplePhotos(Math.max(1, slotCountOf(d)), aspectOfSlot(d, 0)), assets: loaded, tokens, scale });
-      const blob = await canvasToBlob(c, 'image/jpeg', 0.85);
+      const blob = await canvasToBlob(c, 'image/jpeg', 0.82);
       const res = await api<{ path: string; signedUrl: string }>('/api/admin/frames/upload-url', { method: 'POST', json: { kind: 'thumb', contentType: 'image/jpeg' } });
       await uploadToSignedUrl(res.signedUrl, blob, 'image/jpeg');
       return res.path;

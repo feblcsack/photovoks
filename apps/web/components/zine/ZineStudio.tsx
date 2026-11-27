@@ -19,13 +19,20 @@ import { canvasToBlob, createCanvas, loadBitmap, type Drawable } from '@/lib/fra
 import { ensureFonts, FONTS } from '@/lib/frames/fonts';
 import { FILTERS } from '@/lib/booth/media';
 import { printSheet } from '@/lib/print/sheet';
-import { Y2K_STICKERS, y2kStickerUrl } from '@/lib/y2k-stickers';
+import { STICKER_CATEGORIES, Y2K_STICKERS, y2kStickerUrl } from '@/lib/y2k-stickers';
+import { WORDART_STYLES } from '@/lib/wordart';
+import { WordArt } from '@/components/brand/WordArt';
+import type { LibrarySticker } from '@/lib/session-types';
 import {
   autoFill,
   blankPage,
   CAPTION_COLORS,
   CAPTION_FONTS,
+  FRAMES,
   LAYOUTS,
+  PATTERNS,
+  slotCount,
+  ZINE_THEMES,
   PAGE_BGS,
   PAGE_NAMES,
   PAGE_SHORT,
@@ -113,6 +120,7 @@ export function ZineStudio({
   pages: controlledPages,
   onPagesChange,
   initialTab = 'edit',
+  libraryStickers = [],
 }: {
   photos: ZinePhoto[];
   title: string;
@@ -131,6 +139,8 @@ export function ZineStudio({
   pages?: ZinePage[];
   onPagesChange?: (p: ZinePage[]) => void;
   initialTab?: Tab;
+  /** Admin sticker library (all events). */
+  libraryStickers?: LibrarySticker[];
 }) {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -150,7 +160,9 @@ export function ZineStudio({
     [pages, onPagesChange],
   );
   const [sel, setSel] = useState(0);
-  const [slot, setSlot] = useState<0 | 1>(0);
+  const [slot, setSlot] = useState(0);
+  const [stickerTab, setStickerTab] = useState<string>('lucu');
+  const [theme, setTheme] = useState<string | null>(null);
   const [selSticker, setSelSticker] = useState<string | null>(null);
   const [paperId, setPaperId] = useState(papers?.includes(defaultPaper) || !papers ? defaultPaper : papers[0]);
   const [guides, setGuides] = useState(true);
@@ -163,12 +175,19 @@ export function ZineStudio({
   // ── Loading ──────────────────────────────────────────────────────────────
   useEffect(() => {
     let alive = true;
-    void loadStickers().then((m) => alive && setStickers(m));
+    void loadStickers().then(async (m) => {
+      // Library stickers (admin uploads) are added under `lib:<id>`.
+      const extra = await Promise.all(libraryStickers.map(async (ls) => [`lib:${ls.id}`, await loadBitmap(ls.url)] as const));
+      if (!alive) return;
+      const merged = new Map(m);
+      extra.forEach(([k, d]) => d && merged.set(k, d));
+      setStickers(merged);
+    });
     void ensureFonts(CAPTION_FONTS.map((f) => ({ font: f, weight: 700 }))).then(() => alive && setFontsReady((n) => n + 1));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [libraryStickers]);
 
   useEffect(() => {
     let alive = true;
@@ -202,9 +221,11 @@ export function ZineStudio({
   }
 
   function assign(key: string) {
-    const imgs = [...page.images];
-    const s = page.layout === 'duo' ? slot : 0;
+    const imgs = [...page.images, null, null, null, null].slice(0, 4);
+    const n = slotCount(page.layout);
+    const s = n > 1 ? Math.min(slot, n - 1) : 0;
     imgs[s] = key;
+    if (n > 1) setSlot((s + 1) % n); // next tap fills the next frame
     patch({ images: imgs, zoom: 1, panX: 0, panY: 0, layout: page.layout === 'text' ? 'full' : page.layout });
   }
 
@@ -320,6 +341,27 @@ export function ZineStudio({
             </div>
 
             <div className="flex flex-col gap-3">
+              <Card title="Tema (semua halaman)">
+                <div className="grid grid-cols-3 gap-2">
+                  {ZINE_THEMES.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setTheme(t.id);
+                        setPages((list) => list.map((p, i) => t.apply(p, i)));
+                      }}
+                      className={cn('flex flex-col items-center gap-1 rounded-[12px] border-2 p-2 text-[11px] font-bold transition', theme === t.id ? 'border-ink shadow-[2px_2px_0_var(--color-ink)]' : 'border-ink/20 hover:border-ink/50')}
+                    >
+                      <span className="flex h-6 w-full overflow-hidden rounded-[6px] border border-ink/30">
+                        <span className="flex-1" style={{ background: t.swatch[0] }} />
+                        <span className="flex-1" style={{ background: t.swatch[1] }} />
+                      </span>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </Card>
               <Card title="Foto">
                 <div className="grid grid-cols-4 gap-2">
                   {allPhotos.map((p) => {
@@ -349,12 +391,17 @@ export function ZineStudio({
                     </button>
                   ) : null}
                 </div>
-                {page.layout === 'duo' ? (
-                  <Segmented<'0' | '1'> size="sm" className="mt-3" value={String(slot) as '0' | '1'} onChange={(v) => setSlot(v === '1' ? 1 : 0)} options={[{ value: '0', label: 'Isi foto atas' }, { value: '1', label: 'Isi foto bawah' }]} />
+                {slotCount(page.layout) > 1 ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-muted">Isi bingkai:</span>
+                    {Array.from({ length: slotCount(page.layout) }, (_, i) => (
+                      <Chip key={i} on={slot === i} onClick={() => setSlot(i)}>#{i + 1}</Chip>
+                    ))}
+                  </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button size="sm" variant="soft" onClick={() => setPages((p) => autoFill(p, allPhotos.map((x) => x.key)))} disabled={!allPhotos.length}><Sparkles /> Isi otomatis</Button>
-                  {page.images.some(Boolean) ? <Button size="sm" variant="ghost" onClick={() => patch({ images: [null, null] })}><Trash2 /> Kosongkan</Button> : null}
+                  {page.images.some(Boolean) ? <Button size="sm" variant="ghost" onClick={() => patch({ images: [null, null, null, null] })}><Trash2 /> Kosongkan</Button> : null}
                 </div>
               </Card>
 
@@ -364,6 +411,14 @@ export function ZineStudio({
                 </div>
                 {page.layout !== 'text' ? (
                   <>
+                    {page.layout !== 'full' && page.layout !== 'polaroid' && page.layout !== 'film' ? (
+                      <div className="mt-3">
+                        <p className="mb-1.5 text-xs font-bold tracking-wide text-muted uppercase">Bingkai foto</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {FRAMES.map((f) => <Chip key={f.id} on={(page.frame ?? 'none') === f.id} onClick={() => patch({ frame: f.id })}>{f.label}</Chip>)}
+                        </div>
+                      </div>
+                    ) : null}
                     <Range label="Zoom" value={page.zoom} min={1} max={3} step={0.05} onChange={(v) => patch({ zoom: v })} />
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-xs text-muted">Posisi: seret foto di kanvas</span>
@@ -387,6 +442,16 @@ export function ZineStudio({
                     </Chip>
                   ))}
                 </div>
+                <p className="mt-2 mb-1.5 text-xs font-bold tracking-wide text-muted uppercase">WordArt</p>
+                <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+                  <Chip on={!page.captionArt} onClick={() => patch({ captionArt: null })}>Biasa</Chip>
+                  {WORDART_STYLES.map((w) => (
+                    <button key={w.id} type="button" onClick={() => patch({ captionArt: w.id })} title={w.label} className={cn('flex h-8 shrink-0 items-center rounded-full border-2 px-2 text-[17px]', page.captionArt === w.id ? 'border-ink bg-sun/40' : 'border-ink/20 bg-white')}>
+                      <WordArt variant={w.id}>Aa</WordArt>
+                    </button>
+                  ))}
+                </div>
+                <Range label="Ukuran" value={page.captionSize ?? 1} min={0.6} max={1.8} step={0.05} onChange={(v) => patch({ captionSize: v })} />
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <Swatches colors={CAPTION_COLORS} value={page.captionColor} onChange={(c) => patch({ captionColor: c })} />
                   {page.layout !== 'text' ? (
@@ -397,15 +462,38 @@ export function ZineStudio({
 
               <Card title="Latar halaman">
                 <Swatches colors={PAGE_BGS} value={page.bg} onChange={(c) => patch({ bg: c })} />
+                <p className="mt-3 mb-1.5 text-xs font-bold tracking-wide text-muted uppercase">Motif</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {PATTERNS.map((pt) => <Chip key={pt.id} on={(page.pattern ?? 'none') === pt.id} onClick={() => patch({ pattern: pt.id, bg2: page.bg2 ?? (page.bg === '#1A1410' ? '#FFD43B' : '#FF9BD2') })}>{pt.label}</Chip>)}
+                </div>
+                {(page.pattern ?? 'none') !== 'none' ? (
+                  <div className="mt-2">
+                    <p className="mb-1.5 text-xs text-muted">Warna motif</p>
+                    <Swatches colors={PAGE_BGS} value={page.bg2 ?? '#FF9BD2'} onChange={(c) => patch({ bg2: c })} />
+                  </div>
+                ) : null}
+                <Button size="xs" variant="ghost" className="mt-2" onClick={() => setPages((list) => list.map((p) => ({ ...p, bg: page.bg, bg2: page.bg2, pattern: page.pattern })))}>Terapkan latar ke semua halaman</Button>
               </Card>
 
-              <Card title="Stiker Y2K">
-                <div className="grid grid-cols-6 gap-1.5">
-                  {Y2K_STICKERS.map((s) => (
-                    <button key={s.id} type="button" title={s.label} onClick={() => addSticker(s.id)} className="flex aspect-square items-center justify-center rounded-[10px] hover:bg-ink/5 active:scale-95">
-                      <Sticker id={s.id} className="size-full" />
-                    </button>
+              <Card title="Stiker">
+                <div className="no-scrollbar mb-2 flex gap-1.5 overflow-x-auto">
+                  {[...STICKER_CATEGORIES, ...(libraryStickers.length ? [{ id: 'library', label: 'Spesial' }] : [])].map((c) => (
+                    <Chip key={c.id} on={stickerTab === c.id} onClick={() => setStickerTab(c.id)}>{c.label}</Chip>
                   ))}
+                </div>
+                <div className="grid max-h-56 grid-cols-6 gap-1.5 overflow-y-auto">
+                  {stickerTab === 'library'
+                    ? libraryStickers.map((ls) => (
+                        <button key={ls.id} type="button" title={ls.name} onClick={() => addSticker(`lib:${ls.id}`)} className="flex aspect-square items-center justify-center rounded-[10px] p-0.5 hover:bg-ink/5 active:scale-95">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={ls.url} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                        </button>
+                      ))
+                    : Y2K_STICKERS.filter((s) => s.category === stickerTab).map((s) => (
+                        <button key={s.id} type="button" title={s.label} onClick={() => addSticker(s.id)} className="flex aspect-square items-center justify-center rounded-[10px] hover:bg-ink/5 active:scale-95">
+                          <Sticker id={s.id} className="size-full" />
+                        </button>
+                      ))}
                 </div>
                 {sticker ? (
                   <div className="mt-3 rounded-[12px] bg-ink/[0.04] p-3">

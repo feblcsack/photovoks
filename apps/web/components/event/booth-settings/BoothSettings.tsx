@@ -13,7 +13,8 @@ import { Segmented } from '@/components/ui/segmented';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/components/ui/toast';
 import { api } from '@/lib/fetcher';
-import type { EventConfig, GalleryVisibility, PrintMode } from '@/lib/events';
+import type { EventConfig, GalleryVisibility, PaymentMode, PrintMode } from '@/lib/events';
+import { formatRupiah } from '@/lib/settings-shared';
 import type { FrameRecord, QrPlacement } from '@/lib/frames/types';
 import { FILTERS } from '@/lib/booth/media';
 import { LIVE_THEMES } from '@/lib/events';
@@ -22,6 +23,7 @@ import { PAPERS } from '@/lib/print/papers';
 import { cn } from '@/lib/utils';
 import { FramesSection, type FramesState } from './FramesSection';
 import { FileButton, HomeScreenSection, uploadEventMedia } from './HomeScreenSection';
+import { variant } from '@/lib/media-variant';
 
 type Editable = Omit<EventConfig, 'id' | 'code' | 'hasPin' | 'galleryToken' | 'publicToken' | 'activePromptTemplateId' | 'createdAt'>;
 
@@ -30,6 +32,7 @@ const SECTIONS = [
   { id: 'frame', label: 'Frame & QR' },
   { id: 'sesi', label: 'Sesi foto' },
   { id: 'cetak', label: 'Cetak' },
+  { id: 'bayar', label: 'Pembayaran' },
   { id: 'tamu', label: 'Fitur tamu' },
   { id: 'galeri', label: 'Galeri, live & buku tamu' },
   { id: 'akses', label: 'Status & akses' },
@@ -40,6 +43,13 @@ const PRINT_MODES: Array<{ id: PrintMode; title: string; body: string }> = [
   { id: 'station', title: 'Antrean print station', body: 'Masuk antrean; dicetak di halaman Print Station / print worker. Cocok untuk iPad.' },
   { id: 'off', title: 'Tanpa cetak', body: 'Hanya softfile lewat QR.' },
 ];
+const PAYMENT_MODES_UI: Array<{ id: PaymentMode; title: string; body: string }> = [
+  { id: 'off', title: 'Gratis', body: 'Tanpa pembayaran — sesi & AI gratis.' },
+  { id: 'both', title: 'QRIS + kasir', body: 'Tamu pilih: QRIS otomatis atau bayar tunai ke operator.' },
+  { id: 'qris', title: 'QRIS saja', body: 'Dicek otomatis lewat Aulaa (butuh API key).' },
+  { id: 'cash', title: 'Kasir / admin saja', body: 'Operator menyetujui di menu Pembayaran.' },
+];
+
 const VISIBILITY: Array<{ id: GalleryVisibility; title: string; body: string }> = [
   { id: 'private', title: 'Privat', body: 'Tamu hanya melihat sesinya sendiri (QR).' },
   { id: 'unlisted', title: 'Dengan link', body: 'Siapa pun yang punya link galeri bisa melihat.' },
@@ -100,6 +110,7 @@ export function BoothSettings({
   hasCustomPrompt,
   attractUrl,
   stickerUrls,
+  paymentInfo = { qrisConfigured: false, globalEnabled: true },
 }: {
   initial: EventConfig;
   isAdmin: boolean;
@@ -107,6 +118,7 @@ export function BoothSettings({
   hasCustomPrompt: boolean;
   attractUrl: string | null;
   stickerUrls: Record<string, string>;
+  paymentInfo?: { qrisConfigured: boolean; globalEnabled: boolean };
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -324,6 +336,36 @@ export function BoothSettings({
             </div>
           </Section>
 
+          <Section id="bayar" title="Pembayaran" description="Tarif per sesi foto & per gambar AI. Tamu membayar sebelum mulai (QRIS) atau ke operator (tunai).">
+            <div className="grid gap-4">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                {PAYMENT_MODES_UI.map((m) => <OptionCard key={m.id} on={form.paymentMode === m.id} onClick={() => set('paymentMode', m.id)} title={m.title} body={m.body} />)}
+              </div>
+              {form.paymentMode !== 'off' ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Harga per sesi foto" hint={form.sessionPrice ? formatRupiah(form.sessionPrice) : 'Rp 0 = sesi gratis'}>
+                    <Input type="number" inputMode="numeric" min={0} step={500} value={form.sessionPrice} onChange={(e) => set('sessionPrice', Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+                  </Field>
+                  <Field label="Harga per gambar AI" hint={form.aiPrice ? formatRupiah(form.aiPrice) : 'Rp 0 = AI gratis'}>
+                    <Input type="number" inputMode="numeric" min={0} step={500} value={form.aiPrice} onChange={(e) => set('aiPrice', Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+                  </Field>
+                </div>
+              ) : null}
+              {form.paymentMode !== 'off' && ((form.sessionPrice > 0 && form.sessionPrice < 1000) || (form.aiPrice > 0 && form.aiPrice < 1000)) ? (
+                <p className="text-xs font-semibold text-danger">Minimal Rp 1.000 per transaksi (batas QRIS), atau 0 untuk gratis.</p>
+              ) : null}
+              {form.paymentMode !== 'off' && (form.paymentMode === 'qris' || form.paymentMode === 'both') && !paymentInfo.qrisConfigured ? (
+                <p className="rounded-[10px] bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">QRIS belum aktif (AULAA_API_KEY kosong) — sementara tamu diarahkan ke kasir. Atur di <b>Portal Pemilik › Developer</b>.</p>
+              ) : null}
+              {!paymentInfo.globalEnabled ? (
+                <p className="rounded-[10px] bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">Pembayaran sedang dimatikan secara global oleh pemilik — semua sesi & AI gratis sampai diaktifkan lagi.</p>
+              ) : null}
+              {form.paymentMode !== 'off' ? (
+                <p className="text-xs leading-relaxed text-muted">Pembayaran tunai muncul di <Link className="font-semibold text-brand" href={`/event/${code}/payments`}>Pembayaran</Link> untuk disetujui / ditolak. Operator juga bisa menggratiskan satu sesi dari menu operator booth (tahan ⚙).</p>
+              ) : null}
+            </div>
+          </Section>
+
           <Section id="tamu" title="Fitur tamu" description="Yang bisa dilakukan tamu di HP setelah scan QR.">
             <div className="grid gap-5">
               <div>
@@ -343,7 +385,7 @@ export function BoothSettings({
                           return (
                             <li key={p} className="group relative flex aspect-square items-center justify-center rounded-[8px] bg-canvas p-1.5 [background-image:repeating-conic-gradient(#eceef3_0_25%,transparent_0_50%)] [background-size:12px_12px]">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              {url ? <img src={url} alt="" className="max-h-full max-w-full object-contain" /> : null}
+                              {url ? <img src={variant(url, { w: 160 })} alt="" className="max-h-full max-w-full object-contain" /> : null}
                               <button type="button" onClick={() => set('stickerPaths', form.stickerPaths.filter((x) => x !== p))} className="absolute -top-1.5 -right-1.5 hidden size-6 items-center justify-center rounded-full bg-ink text-white group-hover:flex" aria-label="Hapus stiker"><Trash2 className="size-3" /></button>
                             </li>
                           );

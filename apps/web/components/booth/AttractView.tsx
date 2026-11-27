@@ -9,6 +9,7 @@ import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import type { EventConfig } from '@/lib/events';
 import type { FrameRecord } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
+import { WordArt } from '@/components/brand/WordArt';
 
 type AttractEvent = Pick<
   EventConfig,
@@ -151,7 +152,7 @@ export function AttractView({
             <h1 className="text-[clamp(26px,min(4.4vw,6vh),52px)] leading-[1.02] text-ink">
               {event.welcomeTitle || (
                 <>
-                  Foto sekarang, <span className="inline-block -rotate-2 border-2 border-ink bg-brand px-2 text-white shadow-[3px_3px_0_var(--color-ink)]">cetak</span> kemudian.
+                  Foto sekarang, <WordArt variant="rainbow" className="mx-0.5 align-[-0.06em]">cetak</WordArt> kemudian.
                 </>
               )}
             </h1>

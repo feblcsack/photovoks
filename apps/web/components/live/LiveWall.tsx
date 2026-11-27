@@ -10,9 +10,11 @@ import { LogoBadge, Magnet, PaperClip, PhotoMachineSlot, Sticker } from '@/compo
 import { cn } from '@/lib/utils';
 import { PixelIcon, Taskbar, TaskItem } from '@/components/os/retro';
 import { LOCATION } from '@/lib/location';
+import { variant } from '@/lib/media-variant';
+import { WordArt } from '@/components/brand/WordArt';
 
 const POLL_MS = 5000;
-const FULL_REFRESH_MS = 25 * 60 * 1000; // signed URLs live 1 h
+const FULL_REFRESH_MS = 30 * 60 * 1000; // resync order/hidden items (media URLs never expire)
 const SPOTLIGHT_MS = 7000;
 const MESSAGE_MS = 8000;
 const noopSubscribe = () => () => {};
@@ -26,7 +28,7 @@ function merge<T extends { id: string }>(fresh: T[], old: T[], max: number): T[]
  * Full-screen wall for a projector / TV. New sessions appear within a few
  * seconds (polling — works behind any network without websockets).
  */
-export function LiveWall({ token, eventName, initialItems, initialMessages, guestbook, theme = 'silver' }: { token: string; eventName: string; initialItems: LiveItem[]; initialMessages: GuestbookEntryView[]; guestbook: boolean; theme?: LiveTheme }) {
+export function LiveWall({ token, eventName, initialItems, initialMessages, guestbook, theme = 'silver', pollMs = POLL_MS }: { token: string; eventName: string; initialItems: LiveItem[]; initialMessages: GuestbookEntryView[]; guestbook: boolean; theme?: LiveTheme; pollMs?: number }) {
   const [items, setItems] = useState(initialItems);
   const [messages, setMessages] = useState(initialMessages);
   const [spot, setSpot] = useState(0);
@@ -85,9 +87,11 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
 
   useEffect(() => {
     if (!lastFull.current) lastFull.current = Date.now();
-    const t = setInterval(() => void poll(), POLL_MS);
+    const t = setInterval(() => {
+      if (!document.hidden) void poll();
+    }, pollMs);
     return () => clearInterval(t);
-  }, [poll]);
+  }, [poll, pollMs]);
 
   // Rotate the spotlight through the newest few when nothing new arrives.
   useEffect(() => {
@@ -169,7 +173,7 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
       ) : (
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <Sticker id="camera" className="w-28 animate-float" />
-          <p className="font-display text-4xl">Kulkasnya masih kosong!</p>
+          <WordArt variant="sky" className="text-[clamp(40px,6vw,72px)]">Kulkas masih kosong!</WordArt>
           <p className="font-type opacity-70">Foto dari booth ditempel di sini beberapa detik setelah selesai.</p>
         </div>
       )}
@@ -223,7 +227,8 @@ function Pinned({ item, big = false, fresh = false }: { item: LiveItem; big?: bo
   const rot = big ? (r(1) - 0.5) * 5 : (r(1) - 0.5) * 12;
   const fastener = Math.floor(r(2) * 4);
   const decor = !big && r(3) > 0.55 ? DECOR[Math.floor(r(4) * DECOR.length)] : null;
-  const src = big ? item.gif ?? item.strip ?? item.thumb : item.thumb ?? item.strip;
+  // Resized WebP variants: the projector never needs the 300-DPI print file.
+  const src = big ? (item.gif ? variant(item.gif, { w: 720 }) : variant(item.strip ?? item.thumb, { w: 1080 })) : variant(item.thumb ?? item.strip, { w: 480 });
   return (
     <div className={cn('relative w-fit', !big && 'drop-in')} style={{ ['--r' as string]: `${rot}deg`, transform: `rotate(${rot}deg)` }}>
       {fastener === 0 ? <Magnet className="-top-3 left-1/2 -translate-x-1/2" color={MAGNETS[Math.floor(r(5) * MAGNETS.length)]} /> : null}
@@ -237,7 +242,7 @@ function Pinned({ item, big = false, fresh = false }: { item: LiveItem; big?: bo
       ) : null}
       <div className={cn('relative bg-white p-1.5 shadow-[0_14px_22px_-10px_rgba(0,0,0,0.6)]', big ? 'p-2' : '', fresh && 'ring-4 ring-sun')}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src ?? ''} alt="" loading={big ? 'eager' : 'lazy'} className={cn('block w-auto object-contain', big ? 'developing max-h-[calc(100dvh-380px)] max-w-full' : 'max-h-[30vh] max-w-[22vw]')} />
+        <img src={src} alt="" loading={big ? 'eager' : 'lazy'} className={cn('block w-auto object-contain', big ? 'developing max-h-[calc(100dvh-380px)] max-w-full' : 'max-h-[30vh] max-w-[22vw]')} />
         {item.stickers?.map((s, i) => (
           <Sticker key={i} id={s.id} rotate={s.r} className="absolute" style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.s * 100}%`, translate: '-50% -50%' }} />
         ))}

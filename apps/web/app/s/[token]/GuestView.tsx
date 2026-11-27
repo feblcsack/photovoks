@@ -40,6 +40,7 @@ import { api } from '@/lib/fetcher';
 import type { AiGenerationView, GuestSessionData } from '@/lib/session-types';
 import type { WallSticker } from '@/lib/y2k-stickers';
 import { cn } from '@/lib/utils';
+import { variant } from '@/lib/media-variant';
 
 type View = 'strip' | 'live' | 'shots';
 
@@ -195,7 +196,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
                         ref={(el) => {
                           if (el?.complete && el.naturalWidth && !loaded) setTimeout(() => setLoaded(true), 0);
                         }}
-                        src={session.urls.strip}
+                        src={variant(session.urls.strip, { w: 1080 })}
                         alt="Hasil photobooth"
                         onLoad={() => setLoaded(true)}
                         className={cn('block max-h-[62vh] w-auto max-w-full', loaded && 'developing')}
@@ -215,16 +216,16 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
                     <div className="flex flex-col gap-4">
                       {session.urls.gif ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={session.urls.gif} alt="Foto bergerak" className="mx-auto block max-h-[60vh] w-auto" />
+                        <img src={variant(session.urls.gif, { w: 720 })} alt="Foto bergerak" className="mx-auto block max-h-[60vh] w-auto" />
                       ) : null}
                       {session.urls.live && session.liveFrames ? <LivePlayer spriteUrl={session.urls.live} frames={session.liveFrames} shots={session.shotCount} className="mx-auto w-full max-w-xs" /> : null}
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3 p-1">
                       {session.urls.shots.map((u, i) => (
-                        <a key={u} href={u} target="_blank" rel="noreferrer" className={cn('group relative block bg-white p-1.5 pb-6 shadow-[0_6px_14px_-8px_rgba(0,0,0,0.6)]', i % 2 ? 'rotate-2' : '-rotate-2')}>
+                        <a key={u} href={variant(u, { download: `photovoks-foto-${i + 1}.jpg` })} target="_blank" rel="noreferrer" className={cn('group relative block bg-white p-1.5 pb-6 shadow-[0_6px_14px_-8px_rgba(0,0,0,0.6)]', i % 2 ? 'rotate-2' : '-rotate-2')}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={u} alt={`Foto ${i + 1}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                          <img src={variant(u, { w: 480 })} alt={`Foto ${i + 1}`} loading="lazy" className="aspect-[3/4] w-full object-cover" />
                           <span className="absolute bottom-1 left-2 font-pixel text-[12px] text-ink-2">Foto_{String(i + 1).padStart(2, '0')}.jpg</span>
                           <span className="absolute right-2 bottom-1 text-ink-2"><Download className="size-3.5" /></span>
                         </a>
@@ -243,12 +244,12 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
 
             <div className="mt-2 grid grid-cols-2 gap-2">
               {session.urls.strip ? (
-                <a href={session.urls.strip} download={isZine ? 'photovoks-zine.jpg' : 'photovoks.jpg'} target="_blank" rel="noreferrer">
+                <a href={variant(session.urls.strip, { download: isZine ? 'photovoks-zine.jpg' : 'photovoks.jpg' })} download={isZine ? 'photovoks-zine.jpg' : 'photovoks.jpg'} target="_blank" rel="noreferrer">
                   <Button variant="win-go" size="lg" className="w-full"><Download /> Unduh foto</Button>
                 </a>
               ) : null}
               {session.urls.gif ? (
-                <a href={session.urls.gif} download="photovoks-live.gif" target="_blank" rel="noreferrer">
+                <a href={variant(session.urls.gif, { download: 'photovoks-live.gif' })} download="photovoks-live.gif" target="_blank" rel="noreferrer">
                   <Button variant="win" size="lg" className="w-full"><Film /> Unduh GIF</Button>
                 </a>
               ) : isZine ? (
@@ -286,7 +287,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
                     <div className="rotate-3 bg-white p-1 pb-4 shadow-[0_6px_14px_-8px_rgba(0,0,0,0.6)]">
                       {session.urls.thumb ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={session.urls.thumb} alt="" className="aspect-[3/4] w-full object-cover object-top" />
+                        <img src={variant(session.urls.thumb, { w: 320 })} alt="" className="aspect-[3/4] w-full object-cover object-top" />
                       ) : (
                         <div className="aspect-[3/4] w-full bg-ink/10" />
                       )}
@@ -390,7 +391,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
           </div>
         </div>
         <p className="overflow-hidden px-3 text-center font-display text-[clamp(64px,19vw,220px)] leading-[0.85] whitespace-nowrap text-[#FBF5E6]/95 select-none">photovoks</p>
-        <p className="pt-2 text-center font-pixel text-[12px] text-[#FBF5E6]/75">© 2026 · dibuat dengan senyum di Depok ✶</p>
+        <p className="pt-2 text-center font-pixel text-[12px] text-[#FBF5E6]/75">© 2026 · dibuat tulus dari Depok ✶</p>
       </DotsFooter>
 
       {buddy && !choosing ? <Buddy id={buddy} moment={guideMoment} side="right" className="bottom-[calc(env(safe-area-inset-bottom)+12px)]" onChangeBuddy={() => setChoosing(true)} /> : null}
@@ -405,12 +406,12 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
       ) : null}
 
       {stickerOpen && session.urls.strip ? (
-        <StickerStudio imageUrl={session.urls.strip} eventStickers={event.stickers} canPrint={canPrint} printHint={printHint} token={token} onClose={() => setStickerOpen(false)} onQueued={() => void refresh()} />
+        <StickerStudio imageUrl={session.urls.strip} eventStickers={event.stickers} libraryStickers={event.libraryStickers} canPrint={canPrint} printHint={printHint} token={token} onClose={() => setStickerOpen(false)} onQueued={() => void refresh()} />
       ) : null}
       {wallOpen && (session.urls.thumb || session.urls.strip) ? (
         <WallStickerEditor open={wallOpen} onOpenChange={setWallOpen} token={token} imageUrl={(session.urls.thumb || session.urls.strip)!} aspect={aspect} initial={wallStickers} onSaved={setWallStickers} />
       ) : null}
-      {zineOpen ? <ZineStudio photos={zinePhotos} title={event.name} subtitle={`${event.name} · ${fmtDate(session.createdAt)}\nmade at photovoks ✶`} onClose={() => setZineOpen(false)} /> : null}
+      {zineOpen ? <ZineStudio photos={zinePhotos} title={event.name} subtitle={`${event.name} · ${fmtDate(session.createdAt)}\nmade at photovoks ✶`} onClose={() => setZineOpen(false)} libraryStickers={event.libraryStickers} /> : null}
       <Dialog win winIcon={<PixelIcon name="book" className="size-4" />} open={foldOpen} onOpenChange={setFoldOpen} title="Cara melipat minizine" size="md">
         <FoldGuide />
       </Dialog>
