@@ -46,7 +46,7 @@ const PRINT_MODES: Array<{ id: PrintMode; title: string; body: string }> = [
 const PAYMENT_MODES_UI: Array<{ id: PaymentMode; title: string; body: string }> = [
   { id: 'off', title: 'Gratis', body: 'Tanpa pembayaran — sesi & AI gratis.' },
   { id: 'both', title: 'QRIS + kasir', body: 'Tamu pilih: QRIS otomatis atau bayar tunai ke operator.' },
-  { id: 'qris', title: 'QRIS saja', body: 'Dicek otomatis lewat Aulaa (butuh API key).' },
+  { id: 'qris', title: 'QRIS saja', body: 'Dicek otomatis lewat DOKU / Aulaa.' },
   { id: 'cash', title: 'Kasir / admin saja', body: 'Operator menyetujui di menu Pembayaran.' },
 ];
 
@@ -355,7 +355,7 @@ export function BoothSettings({
                 <p className="text-xs font-semibold text-danger">Minimal Rp 1.000 per transaksi (batas QRIS), atau 0 untuk gratis.</p>
               ) : null}
               {form.paymentMode !== 'off' && (form.paymentMode === 'qris' || form.paymentMode === 'both') && !paymentInfo.qrisConfigured ? (
-                <p className="rounded-[10px] bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">QRIS belum aktif (AULAA_API_KEY kosong) — sementara tamu diarahkan ke kasir. Atur di <b>Portal Pemilik › Developer</b>.</p>
+                <p className="rounded-[10px] bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">QRIS belum aktif (DOKU / Aulaa belum diatur) — sementara tamu diarahkan ke kasir. Atur di <b>Portal Pemilik › Developer</b>.</p>
               ) : null}
               {!paymentInfo.globalEnabled ? (
                 <p className="rounded-[10px] bg-warn-soft px-3 py-2 text-xs leading-relaxed text-warn">Pembayaran sedang dimatikan secara global oleh pemilik — semua sesi & AI gratis sampai diaktifkan lagi.</p>

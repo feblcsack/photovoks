@@ -25,6 +25,8 @@ export interface AppSettings {
     defaultAiPrice: number;
     /** Minutes a pending payment stays valid. */
     expiryMinutes: number;
+    /** QRIS gateway: auto = DOKU if configured, else Aulaa. */
+    provider: 'auto' | 'doku' | 'aulaa';
   };
   storage: {
     /** Where NEW files are written. Reads always try every configured driver. */
@@ -50,7 +52,7 @@ export type SettingsGroup = keyof AppSettings;
 export const DEFAULT_SETTINGS: AppSettings = {
   maintenance: { enabled: false, message: 'Photovoks sedang dirawat sebentar. Coba lagi beberapa menit lagi ya!', keepBooth: true },
   ai: { enabled: true },
-  payments: { enabled: true, defaultAiPrice: 1500, expiryMinutes: 15 },
+  payments: { enabled: true, defaultAiPrice: 1500, expiryMinutes: 15, provider: 'auto' },
   storage: { driver: 'supabase', readFallback: true },
   performance: { liteMode: false, livePollSeconds: 8, printPollSeconds: 5, imageQuality: 'balanced' },
   quota: { egressGb: 5, warnPercent: 80 },
@@ -79,6 +81,7 @@ export function mergeSettings(raw: Record<string, unknown>): AppSettings {
       enabled: bool(p.enabled, d.payments.enabled),
       defaultAiPrice: num(p.defaultAiPrice, d.payments.defaultAiPrice, 0, 1_000_000),
       expiryMinutes: num(p.expiryMinutes, d.payments.expiryMinutes, 3, 120),
+      provider: pick(p.provider, ['auto', 'doku', 'aulaa'] as const, d.payments.provider),
     },
     storage: { driver: pick(s.driver, ['supabase', 's3'] as const, d.storage.driver), readFallback: bool(s.readFallback, d.storage.readFallback) },
     performance: {

@@ -1,5 +1,5 @@
 /**
- * Payments (SERVER ONLY): QRIS through Aulaa, or cash confirmed by an
+ * Payments (SERVER ONLY): QRIS through DOKU Checkout or Aulaa, or cash confirmed by an
  * operator/admin. A payment is created BEFORE the paid thing happens (photo
  * session, AI generation) and is "consumed" exactly once when it happens.
  *
@@ -17,12 +17,28 @@ import { getSettings } from '@/lib/settings';
 import { log } from '@/lib/logger';
 import type { EventConfig } from '@/lib/events';
 import { aulaaConfigured, cancelAulaaPayment, createAulaaPayment, getAulaaPayment, type AulaaStatus } from './aulaa';
+import { createDokuCheckout, dokuCheckoutScript, dokuConfigured, getDokuStatus, type DokuStatus } from './doku';
+
+export type QrisProvider = 'doku' | 'aulaa';
+
+/**
+ * Which gateway serves "QRIS" payments: env PAYMENT_PROVIDER, else the
+ * developer-panel choice, else whichever is configured (DOKU first).
+ */
+export async function qrisProvider(): Promise<QrisProvider | null> {
+  const forced = process.env.PAYMENT_PROVIDER;
+  const { payments } = await getSettings();
+  const want = forced === 'doku' || forced === 'aulaa' ? forced : payments.provider;
+  if (want === 'doku') return dokuConfigured() ? 'doku' : null;
+  if (want === 'aulaa') return aulaaConfigured() ? 'aulaa' : null;
+  return dokuConfigured() ? 'doku' : aulaaConfigured() ? 'aulaa' : null;
+}
 import { PAID_STATUSES, type PaymentAdminView, type PaymentMethod, type PaymentPurpose, type PaymentRequirement, type PaymentStatus, type PaymentView } from './types';
 
 export * from './types';
 
 const PAYMENT_COLUMNS =
-  'id, event_id, session_id, purpose, amount, method, status, order_id, short_code, token, provider_id, payment_link, expires_at, paid_at, decided_by, consumed_at, meta, created_at, updated_at';
+  'id, event_id, session_id, purpose, amount, method, status, order_id, short_code, token, provider, provider_id, payment_link, expires_at, paid_at, decided_by, consumed_at, meta, created_at, updated_at';
 
 export const PAYMENT_TOKEN_RE = /^[A-Za-z0-9_-]{24}$/;
 const CODE_ALPHABET = 'ACDEFHJKMNPRTUVWXY34679';
@@ -32,9 +48,9 @@ export async function paymentRequirement(event: EventConfig, purpose: PaymentPur
   const { payments } = await getSettings();
   const amount = purpose === 'session' ? event.sessionPrice : event.aiPrice;
   const methods: PaymentMethod[] = [];
-  if ((event.paymentMode === 'qris' || event.paymentMode === 'both') && aulaaConfigured()) methods.push('qris');
+  if ((event.paymentMode === 'qris' || event.paymentMode === 'both') && (await qrisProvider())) methods.push('qris');
   if (event.paymentMode === 'cash' || event.paymentMode === 'both') methods.push('cash');
-  // QRIS-only event but Aulaa not configured: fall back to cash so the booth never dead-ends.
+  // QRIS-only event but no gateway configured: fall back to cash so the booth never dead-ends.
   if (event.paymentMode === 'qris' && !methods.length) methods.push('cash');
   const required = payments.enabled && event.paymentMode !== 'off' && amount > 0 && methods.length > 0;
   return { required, amount: required ? amount : 0, methods: required ? methods : [] };
@@ -51,6 +67,8 @@ export function toView(r: any): PaymentView {
     status,
     shortCode: r.short_code,
     paymentLink: r.payment_link ?? null,
+    provider: r.provider ?? null,
+    checkoutScript: r.provider === 'doku' ? dokuCheckoutScript() : null,
     expiresAt: r.expires_at ?? null,
     paidAt: r.paid_at ?? null,
     consumed: Boolean(r.consumed_at),
@@ -96,9 +114,12 @@ export async function createPayment(input: CreatePaymentInput): Promise<{ paymen
     if (!req.methods.includes(input.method)) return { error: 'Metode pembayaran tidak tersedia', status: 400 };
   }
   const token = randomBytes(18).toString('base64url');
-  const orderId = `PV-${input.event.code}-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
+  // ≤ 30 chars (DOKU limit when card payments are active), unique.
+  const orderId = `PV${input.event.code.slice(0, 6)}-${Date.now().toString(36).toUpperCase()}${randomBytes(3).toString('hex').toUpperCase()}`;
   const expiresAt = new Date(Date.now() + payments.expiryMinutes * 60_000);
   const free = input.operatorFree;
+  const gateway = input.method === 'qris' && !free ? await qrisProvider() : null;
+  if (input.method === 'qris' && !free && !gateway) return { error: 'QRIS belum dikonfigurasi', status: 503 };
 
   const { data: row, error } = await supabase
     .from('payments')
@@ -112,7 +133,7 @@ export async function createPayment(input: CreatePaymentInput): Promise<{ paymen
       order_id: orderId,
       short_code: shortCode(),
       token,
-      provider: input.method === 'qris' && !free ? 'aulaa' : null,
+      provider: gateway,
       expires_at: expiresAt.toISOString(),
       ...(free ? { decided_by: free.by, paid_at: new Date().toISOString(), meta: { free: true } } : {}),
     })
@@ -125,16 +146,29 @@ export async function createPayment(input: CreatePaymentInput): Promise<{ paymen
 
   if (input.method === 'qris' && !free) {
     try {
-      const ap = await createAulaaPayment({ orderId, amount: req.amount, expiresAt });
+      let update: Record<string, unknown>;
+      if (gateway === 'doku') {
+        const dk = await createDokuCheckout({
+          invoice: orderId,
+          amount: req.amount,
+          dueMinutes: payments.expiryMinutes,
+          title: `${input.purpose === 'ai' ? 'Gambar AI' : 'Sesi foto'} · ${input.event.name}`,
+          callbackUrl: input.origin,
+        });
+        update = { provider_id: orderId, payment_link: dk.url, meta: { token_id: dk.tokenId } };
+      } else {
+        const ap = await createAulaaPayment({ orderId, amount: req.amount, expiresAt });
+        update = { provider_id: ap.id, payment_link: ap.payment_link, meta: { is_test: !!ap.is_test, charged: ap.charged_amount ?? null } };
+      }
       const { data: updated } = await supabase
         .from('payments')
-        .update({ provider_id: ap.id, payment_link: ap.payment_link, meta: { is_test: !!ap.is_test, charged: ap.charged_amount ?? null } })
+        .update(update)
         .eq('id', row.id)
         .select(PAYMENT_COLUMNS)
         .single();
       return { payment: toView(updated ?? row) };
     } catch (e) {
-      await supabase.from('payments').update({ status: 'failed', meta: { error: e instanceof Error ? e.message : 'aulaa' } }).eq('id', row.id);
+      await supabase.from('payments').update({ status: 'failed', meta: { error: e instanceof Error ? e.message : String(gateway) } }).eq('id', row.id);
       log({ level: 'error', event: 'payment.qris_failed', details: { error: e instanceof Error ? e.message : String(e) } });
       return { error: e instanceof Error ? e.message : 'QRIS tidak tersedia', status: 502 };
     }
@@ -165,11 +199,21 @@ export async function paymentByToken(token: string): Promise<PaymentView | null>
     lastProviderCheck.set(row.id, Date.now());
     if (lastProviderCheck.size > 2000) lastProviderCheck.clear();
     try {
-      const ap = await getAulaaPayment(row.provider_id);
-      const next = mapAulaa(ap.status);
-      if (next !== 'pending') {
-        const updated = await setStatus(supabase, row.id, 'pending', next, { paid_at: ap.paid_at ?? (next === 'paid' ? new Date().toISOString() : null), decided_by: 'aulaa' });
-        if (updated) return toView(updated);
+      if (row.provider === 'doku') {
+        const st = await getDokuStatus(row.provider_id);
+        const next = mapDoku(st.status);
+        if (next === 'paid' && st.amount !== null && Math.round(st.amount) !== row.amount) throw new Error('amount mismatch');
+        if (next !== 'pending') {
+          const updated = await setStatus(supabase, row.id, 'pending', next, { paid_at: next === 'paid' ? new Date().toISOString() : null, decided_by: 'doku' });
+          if (updated) return toView(updated);
+        }
+      } else {
+        const ap = await getAulaaPayment(row.provider_id);
+        const next = mapAulaa(ap.status);
+        if (next !== 'pending') {
+          const updated = await setStatus(supabase, row.id, 'pending', next, { paid_at: ap.paid_at ?? (next === 'paid' ? new Date().toISOString() : null), decided_by: 'aulaa' });
+          if (updated) return toView(updated);
+        }
       }
     } catch {
       /* provider hiccup — keep pending, the webhook may still arrive */
@@ -186,6 +230,25 @@ async function setStatus(supabase: SupabaseClient, id: string, from: PaymentStat
   const { data } = await supabase.from('payments').update({ status: to, ...extra }).eq('id', id).eq('status', from).select(PAYMENT_COLUMNS).maybeSingle();
   if (data) log({ level: 'info', event: 'payment.status', details: { id, from, to } });
   return data;
+}
+
+function mapDoku(s: DokuStatus): PaymentStatus {
+  // FAILED isn't final at DOKU (the guest may retry on the same page), so keep waiting.
+  return s === 'SUCCESS' ? 'paid' : s === 'EXPIRED' ? 'expired' : s === 'REFUNDED' ? 'failed' : 'pending';
+}
+
+/** DOKU HTTP Notification: marks an invoice paid/expired (idempotent, amount checked). */
+export async function applyDokuNotification(invoice: string, status: DokuStatus, amount: number | null): Promise<'ok' | 'unknown' | 'mismatch'> {
+  const supabase = createServerClient();
+  const { data: row } = await supabase.from('payments').select('id, amount, status').eq('order_id', invoice).maybeSingle();
+  if (!row) return 'unknown';
+  const next = mapDoku(status);
+  if (next === 'paid' && amount !== null && Math.round(amount) !== row.amount) {
+    log({ level: 'warn', event: 'payment.amount_mismatch', details: { invoice, expected: row.amount, got: amount } });
+    return 'mismatch';
+  }
+  if (next !== 'pending' && row.status === 'pending') await setStatus(supabase, row.id, 'pending', next, { paid_at: next === 'paid' ? new Date().toISOString() : null, decided_by: 'doku' });
+  return 'ok';
 }
 
 /** Webhook: marks an Aulaa order paid/expired (idempotent, amount checked). */
@@ -206,10 +269,10 @@ export async function applyAulaaWebhook(orderId: string, status: AulaaStatus, am
 export async function cancelPayment(token: string): Promise<boolean> {
   if (!PAYMENT_TOKEN_RE.test(token)) return false;
   const supabase = createServerClient();
-  const { data: row } = await supabase.from('payments').select('id, provider_id, status').eq('token', token).maybeSingle();
+  const { data: row } = await supabase.from('payments').select('id, provider, provider_id, status').eq('token', token).maybeSingle();
   if (!row || row.status !== 'pending') return false;
   await setStatus(supabase, row.id, 'pending', 'cancelled', {});
-  if (row.provider_id) await cancelAulaaPayment(row.provider_id);
+  if (row.provider_id && row.provider === 'aulaa') await cancelAulaaPayment(row.provider_id);
   return true;
 }
 

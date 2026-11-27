@@ -8,7 +8,7 @@ export interface PaymentRequirement {
   /** True when the guest must pay before continuing. */
   required: boolean;
   amount: number;
-  /** Methods available right now (QRIS only when Aulaa is configured). */
+  /** Methods available right now (QRIS only when DOKU or Aulaa is configured). */
   methods: PaymentMethod[];
 }
 
@@ -20,8 +20,11 @@ export interface PaymentView {
   status: PaymentStatus;
   /** 4-character code the guest shows to the cashier (cash). */
   shortCode: string;
-  /** Aulaa hosted QRIS page. */
+  /** Hosted payment page (DOKU Checkout / Aulaa). */
   paymentLink: string | null;
+  provider: 'doku' | 'aulaa' | null;
+  /** DOKU popup script (Jokul Checkout) for this environment. */
+  checkoutScript: string | null;
   expiresAt: string | null;
   paidAt: string | null;
   consumed: boolean;

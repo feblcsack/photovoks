@@ -29,7 +29,30 @@ interface AulaaCheckout {
 declare global {
   interface Window {
     Aulaa?: AulaaCheckout;
+    /** DOKU Jokul Checkout popup */
+    loadJokulCheckout?: (url: string) => void;
   }
+}
+
+const scriptLoads = new Map<string, Promise<boolean>>();
+function loadScript(src: string, ready: () => boolean): Promise<boolean> {
+  if (ready()) return Promise.resolve(true);
+  let p = scriptLoads.get(src);
+  if (!p) {
+    p = new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => resolve(ready());
+      s.onerror = () => {
+        scriptLoads.delete(src);
+        resolve(false);
+      };
+      document.head.appendChild(s);
+    });
+    scriptLoads.set(src, p);
+  }
+  return p;
 }
 
 let embedPromise: Promise<boolean> | null = null;
@@ -91,7 +114,18 @@ export function PaymentPanel({
     [onPaid],
   );
 
-  const openQris = useCallback(async (link: string) => {
+  const openQris = useCallback(async (link: string, p?: PaymentView | null) => {
+    // DOKU Checkout: Jokul popup; falls back to opening the page in a new tab.
+    if (p?.provider === 'doku') {
+      const ok = p.checkoutScript ? await loadScript(p.checkoutScript, () => typeof window.loadJokulCheckout === 'function') : false;
+      if (ok && window.loadJokulCheckout) {
+        window.loadJokulCheckout(link);
+        setPopupOpen(true);
+        return true;
+      }
+      window.open(link, '_blank', 'noopener');
+      return false;
+    }
     const ok = await loadAulaaEmbed();
     if (!ok || !window.Aulaa) return false;
     const handle = window.Aulaa.checkout.open(link, {
@@ -111,7 +145,7 @@ export function PaymentPanel({
         const p = await create(method);
         setPayment(p);
         if (p.usable) finish(p);
-        else if (method === 'qris' && p.paymentLink) void openQris(p.paymentLink);
+        else if (method === 'qris' && p.paymentLink) void openQris(p.paymentLink, p);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Gagal membuat pembayaran');
         sfx.error();
@@ -186,7 +220,7 @@ export function PaymentPanel({
           ) : payment.method === 'qris' && !failed ? (
             <div className="mt-4 flex flex-col items-center gap-3">
               <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="win-go" size="lg" onClick={() => payment.paymentLink && void openQris(payment.paymentLink)}>
+                <Button variant="win-go" size="lg" onClick={() => payment.paymentLink && void openQris(payment.paymentLink, payment)}>
                   <QrCode /> {popupOpen ? 'QRIS terbuka' : 'Tampilkan QRIS'}
                 </Button>
                 {payment.paymentLink ? (
