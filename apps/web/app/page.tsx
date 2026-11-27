@@ -7,6 +7,8 @@ import type { PixelIconName } from '@/lib/pixel-icons';
 import { WordArt } from '@/components/brand/WordArt';
 
 const FEATURES: Array<[PixelIconName, string, string]> = [
+  ['star', 'SIM — Surat Izin Mejeng ★', 'Fitur unggulan: photozine lipat ala surat kendaraan dari fotomu, lengkap nama & golongan (A Anak Kalcer, B Bikunholic, C Cekrek)'],
+  ['tv', 'Tebak Lagu', 'Dengar lagu misteri dari Spotify, tebak judulnya, menangkan hadiah'],
   ['star', 'Pilih karakter', '4 pemandu 3D yang menemani tamu dari awal sampai QR'],
   ['tv', 'Frame Builder', 'Drag & drop, slot kembar (1 foto → kiri & kanan), QR softfile di frame'],
   ['camera', 'Booth', 'iPad / laptop / HP, filter vintage, foto bergerak & GIF'],

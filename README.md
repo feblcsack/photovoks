@@ -237,3 +237,20 @@ Status sistem (DB utama/cadangan, migrasi, storage, AI, QRIS), grafik egress 31 
 
 PIN di-hash ulang otomatis ke bcrypt cost 10 saat login (sebelumnya 12 — ±4× lebih lambat di serverless), query yang tak perlu dilewati, satu navigasi + skeleton instan, dan fungsi Vercel dikunci ke region **syd1** (sama dengan database Sydney) di `vercel.json`.
 
+
+## 15. v6 — SIM (Surat Izin Mejeng) & Tebak Lagu
+
+### SIM — Surat Izin Mejeng (fitur unggulan)
+Photozine lipat parodi surat kendaraan, dibuat dari foto sesi. *Mejeng* = tampil gaya di tempat umum (slang Jakarta). Penerbit fiktif: **SAMSAT KALCER** (Sistem Administrasi Mejeng Satu Atap). Golongan: **A** Anak Kalcer, **B** Bikunholic, **C** Cekrek, **D** Dandan Maksimal.
+
+- 8 panel (sampul, 2 foto berbingkai daun, punggung, data pemegang, arti "mejeng", pasal-pasal + QR, "barang bukti") dalam **1 lembar A4 cetak 1 sisi**: lipat dua memanjang (setengah atas ke belakang) lalu lipat zig-zag → kartu saku. Gaya **xerox hitam-putih** atau **warna**.
+- Ada di halaman tamu (banner **SIM.exe ★ Fitur Unggulan** paling atas + menu), di layar hasil booth (cetak langsung), promo di layar sambutan booth & landing.
+- Kode: `lib/sim/layout.ts` (renderer canvas), `components/sim/SimStudio.tsx`, `components/sim/SimPromo.tsx`. Bukan dokumen resmi — tertulis di panel belakang.
+
+### Tebak Lagu (Spotify)
+- **Mode panggung** (pengunjung belum beli): *Portal Pemilik › Tebak Lagu* → **Putar lagu acak** → ketik tebakan / **Tandai benar** → voucher hadiah.
+- **Mode halaman foto** (sudah beli): jendela **TebakLagu.exe** di halaman Foto_kamu; jatah per sesi & kesempatan menebak diatur di konsol.
+- Lagu: tempel link Spotify (satu per baris), judul diambil otomatis (oEmbed). Tambahkan penyanyi (untuk petunjuk) & jawaban alternatif. Jawaban dicek di server — judul tidak pernah dikirim ke browser sebelum ronde selesai; pencocokan toleran typo.
+- Pemutar: cover/judul/penyanyi ditutup label kaset; tombol ▶ sendiri via Spotify iFrame API. Pemutaran mengikuti Spotify (tanpa login biasanya pratinjau ±30 detik).
+- Voucher `LAGU-XXXX` → tandai **Tukar** di konsol.
+- Database: jalankan `supabase/migrations/20240101000011_v6_song_guess.sql`.

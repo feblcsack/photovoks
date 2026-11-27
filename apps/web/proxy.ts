@@ -18,6 +18,8 @@ const LIMITS: Array<{ test: (p: string) => boolean; max: number; windowMs: numbe
   { test: (p) => /^\/api\/s\/[^/]+\/print$/.test(p), max: 20, windowMs: 60_000 },
   { test: (p) => /^\/api\/s\/[^/]+\/edit$/.test(p), max: 20, windowMs: 60_000 },
   { test: (p) => /^\/api\/s\/[^/]+\/wall$/.test(p), max: 20, windowMs: 60_000 },
+  // Tebak lagu: guesses from the guest page.
+  { test: (p) => /^\/api\/s\/[^/]+\/song$/.test(p), max: 15, windowMs: 60_000 },
   // Guestbook: posting a message / reserving a photo upload.
   { test: (p) => /^\/api\/m\/[^/]+(\/upload)?$/.test(p), max: 8, windowMs: 60_000 },
 ];

@@ -217,3 +217,38 @@ describe('UI campus fun features', () => {
     expect(mergeSettings({ fun: { lowPoly: false } }).fun).toEqual({ lowPoly: false, meme: true });
   });
 });
+
+describe('Tebak Lagu', () => {
+  it('parses Spotify track links in every common form', async () => {
+    const { parseSpotifyTrackId } = await import('@/lib/song/match');
+    const id = '4uLU6hMCjMI75M1A2tKUQC';
+    expect(parseSpotifyTrackId(`https://open.spotify.com/track/${id}?si=abc`)).toBe(id);
+    expect(parseSpotifyTrackId(`https://open.spotify.com/intl-id/track/${id}`)).toBe(id);
+    expect(parseSpotifyTrackId(`spotify:track:${id}`)).toBe(id);
+    expect(parseSpotifyTrackId(id)).toBe(id);
+    expect(parseSpotifyTrackId('https://open.spotify.com/album/4uLU6hMCjMI75M1A2tKUQC')).toBeNull();
+  });
+  it('accepts forgiving answers but not wrong ones', async () => {
+    const { isCorrectGuess } = await import('@/lib/song/match');
+    expect(isCorrectGuess('never gonna give you up', 'Never Gonna Give You Up')).toBe(true);
+    expect(isCorrectGuess('Never gona give you up', 'Never Gonna Give You Up')).toBe(true);
+    expect(isCorrectGuess('never gonna give you up rick astley', 'Never Gonna Give You Up')).toBe(true);
+    expect(isCorrectGuess('Kasih Putih', 'Kasih Putih (feat. Someone) - Remastered 2021')).toBe(true);
+    expect(isCorrectGuess('sial', 'Sial', ['Sial Mahalini'])).toBe(true);
+    expect(isCorrectGuess('give', 'Never Gonna Give You Up')).toBe(false);
+    expect(isCorrectGuess('bohemian rhapsody', 'Never Gonna Give You Up')).toBe(false);
+  });
+  it('makes unambiguous voucher codes', async () => {
+    const { voucherCode } = await import('@/lib/song/match');
+    expect(voucherCode()).toMatch(/^LAGU-[ACDEFHJKMNPRTUVWXY34679]{4}$/);
+  });
+});
+
+describe('SIM photozine', () => {
+  it('derives a stable licence number from the session', async () => {
+    const { simNumber } = await import('@/lib/sim/layout');
+    expect(simNumber('session-a')).toBe(simNumber('session-a'));
+    expect(simNumber('session-a')).not.toBe(simNumber('session-b'));
+    expect(simNumber('x')).toMatch(/^\d{4}-\d{4}-\d{6}$/);
+  });
+});

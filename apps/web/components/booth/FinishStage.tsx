@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Check, Clock, Film, Home, ImageIcon, Palette, Printer, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,9 @@ import { createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/fra
 import { boomerang, buildSprite, encodeGif, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
 import { ensureMemeFonts, styledCopy, type MemeStyle } from '@/lib/booth/meme';
 import { BikunProgress } from '@/components/brand/BikunProgress';
+import { SimStudio } from '@/components/sim/SimStudio';
+import { SimMock } from '@/components/sim/SimPromo';
+import { IdCard } from 'lucide-react';
 import { printSheet, renderSheet, sheetToJpeg } from '@/lib/print/sheet';
 import type { SheetPlan } from '@/lib/print/papers';
 import type { EventConfig } from '@/lib/events';
@@ -81,6 +84,9 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   const [view, setView] = useState<'strip' | 'live'>('strip');
   const [printOpen, setPrintOpen] = useState<{ url: string | Blob; type: 'strip' | 'ai'; aiId?: string } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  const [simOpen, setSimOpen] = useState(false);
+  // SIM photos: the same filtered/meme'd stills as the strip (computed once per opening).
+  const simPhotos = useMemo(() => (simOpen ? shots.map((s, i) => ({ key: `shot-${i}`, src: styledCopy(s.still, filter, meme) })) : []), [simOpen, shots, filter, meme]);
   const [remaining, setRemaining] = useState(AUTO_RETURN_S);
   const started = useRef(false);
   const createdRef = useRef<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> } | null>(null);
@@ -241,7 +247,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
 
   // Auto-return countdown (paused while a dialog is open; reset on touch).
   useEffect(() => {
-    if (phase !== 'done' || printOpen || aiOpen) return;
+    if (phase !== 'done' || printOpen || aiOpen || simOpen) return;
     const t = setInterval(() => setRemaining((r) => r - 1), 1000);
     const reset = () => setRemaining(AUTO_RETURN_S);
     window.addEventListener('pointerdown', reset);
@@ -249,7 +255,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       clearInterval(t);
       window.removeEventListener('pointerdown', reset);
     };
-  }, [phase, printOpen, aiOpen]);
+  }, [phase, printOpen, aiOpen, simOpen]);
   useEffect(() => {
     if (remaining <= 0) onDone();
   }, [remaining, onDone]);
@@ -422,6 +428,16 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
 
           {printWindow}
 
+          <WinWindow title="SIM.exe ★ Fitur Unggulan" icon="star" bodyClassName="flex items-center gap-3 bg-[#F3F1EA] p-3">
+            <SimMock className="hidden shrink-0 scale-[0.55] -mx-16 -my-6 sm:flex" />
+            <div className="min-w-0 flex-1">
+              <p className="font-heavy text-[22px] leading-none">SIM</p>
+              <p className="font-[family-name:var(--font-scribble)] text-[18px] leading-tight">Surat Izin Mejeng</p>
+              <p className="mt-0.5 text-xs text-ink-2">Photozine lipat dari fotomu — cetak & bawa pulang</p>
+              <Button variant="win-go" className="mt-2" onClick={() => setSimOpen(true)}><IdCard /> Bikin SIM</Button>
+            </div>
+          </WinWindow>
+
           {event.aiEnabled && aiConfigured ? (
             <Button variant="win" size="xl" onClick={() => setAiOpen(true)}>
               <Palette /> Ubah gaya foto (AI)
@@ -448,6 +464,17 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
           setPrintOpen(null);
         }}
       />
+
+      {simOpen ? (
+        <SimStudio
+          kiosk
+          photos={simPhotos}
+          eventName={event.name}
+          seed={result.sessionId}
+          qrValue={shareUrl}
+          onClose={() => setSimOpen(false)}
+        />
+      ) : null}
 
       <Dialog open={aiOpen} onOpenChange={setAiOpen} size="lg" dark title="Ubah gaya foto" description="Pilih foto dan gaya, lalu tunggu sebentar.">
         {guest ? (

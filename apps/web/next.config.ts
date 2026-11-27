@@ -27,14 +27,15 @@ const storageOrigins = [supabaseUrl, supabaseUrl2, s3Endpoint].filter(Boolean).j
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} ${gateways}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} ${gateways} https://open.spotify.com`,
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${storageOrigins} ${doku}`,
+  `img-src 'self' data: blob: ${storageOrigins} ${doku} https://i.scdn.co`,
   "font-src 'self' data:",
   `connect-src 'self' blob: data: ${storageOrigins} ${supabaseWs} ${gateways}`,
   `media-src 'self' blob: mediastream: ${storageOrigins}`,
   // Location card: interactive OpenStreetMap embed (UI Depok) + QRIS popup
-  `frame-src https://www.openstreetmap.org ${gateways}`,
+  // + Spotify embeds (Tebak Lagu)
+  `frame-src https://www.openstreetmap.org https://open.spotify.com ${gateways}`,
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",
   "object-src 'none'",
@@ -49,7 +50,7 @@ const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'no-referrer' },
-  { key: 'Permissions-Policy', value: `camera=(self), microphone=(), geolocation=(), payment=(self "${aulaa}" "https://sandbox.doku.com" "https://jokul.doku.com")` },
+  { key: 'Permissions-Policy', value: `camera=(self), microphone=(), geolocation=(), autoplay=(self "https://open.spotify.com"), encrypted-media=(self "https://open.spotify.com"), payment=(self "${aulaa}" "https://sandbox.doku.com" "https://jokul.doku.com")` },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 ];
 

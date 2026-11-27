@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Music2,
   Printer,
   MessageSquareText,
   Palette,
@@ -40,6 +41,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/gallery', label: 'Galeri', icon: GalleryHorizontalEnd },
   { href: '/admin/payments', label: 'Pembayaran', icon: Wallet },
   { href: '/admin/stickers', label: 'Stiker & Ikon', icon: Sticker },
+  { href: '/admin/tebak-lagu', label: 'Tebak Lagu', icon: Music2 },
   { href: '/admin/prompts', label: 'Prompt AI', icon: Palette },
   { href: '/admin/developer', label: 'Developer', icon: Wrench },
 ];

@@ -46,6 +46,18 @@ export interface AppSettings {
     /** Guests can pick a meme look (Freaky tiw / Tes SWAG) in review. */
     meme: boolean;
   };
+  song: {
+    /** Admin-hosted "Tebak Lagu" for visitors (pre-purchase). */
+    hostEnabled: boolean;
+    /** Guests can play once from their photo page (post-purchase). */
+    guestEnabled: boolean;
+    guessesPerRound: number;
+    roundsPerSession: number;
+    hostPrize: string;
+    guestPrize: string;
+    /** Show the artist as a hint after the first wrong guess. */
+    artistHint: boolean;
+  };
   quota: {
     /** Monthly egress budget of the storage plan, in GB (Supabase free = 5). */
     egressGb: number;
@@ -62,6 +74,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   storage: { driver: 'supabase', readFallback: true },
   performance: { liteMode: false, livePollSeconds: 8, printPollSeconds: 5, imageQuality: 'balanced' },
   fun: { lowPoly: true, meme: true },
+  song: { hostEnabled: true, guestEnabled: true, guessesPerRound: 3, roundsPerSession: 1, hostPrize: 'Gratis 1 cetak foto', guestPrize: 'Gratis 1 cetak tambahan — tunjukkan kode ke kasir', artistHint: true },
   quota: { egressGb: 5, warnPercent: 80 },
 };
 
@@ -82,6 +95,7 @@ export function mergeSettings(raw: Record<string, unknown>): AppSettings {
   const f = g('performance');
   const q = g('quota');
   const fn = g('fun');
+  const sg = g('song');
   return {
     maintenance: { enabled: bool(m.enabled, d.maintenance.enabled), message: text(m.message, d.maintenance.message, 300), keepBooth: bool(m.keepBooth, d.maintenance.keepBooth) },
     ai: { enabled: bool(a.enabled, d.ai.enabled) },
@@ -99,6 +113,15 @@ export function mergeSettings(raw: Record<string, unknown>): AppSettings {
       imageQuality: pick(f.imageQuality, ['saver', 'balanced', 'high'] as const, d.performance.imageQuality),
     },
     fun: { lowPoly: bool(fn.lowPoly, d.fun.lowPoly), meme: bool(fn.meme, d.fun.meme) },
+    song: {
+      hostEnabled: bool(sg.hostEnabled, d.song.hostEnabled),
+      guestEnabled: bool(sg.guestEnabled, d.song.guestEnabled),
+      guessesPerRound: num(sg.guessesPerRound, d.song.guessesPerRound, 1, 10),
+      roundsPerSession: num(sg.roundsPerSession, d.song.roundsPerSession, 1, 5),
+      hostPrize: text(sg.hostPrize, d.song.hostPrize, 120),
+      guestPrize: text(sg.guestPrize, d.song.guestPrize, 120),
+      artistHint: bool(sg.artistHint, d.song.artistHint),
+    },
     quota: { egressGb: num(q.egressGb, d.quota.egressGb, 1, 100_000), warnPercent: num(q.warnPercent, d.quota.warnPercent, 10, 100) },
   };
 }

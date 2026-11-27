@@ -5,7 +5,9 @@
  * desktop with the guest's buddy as guide:
  *  1. Foto_kamu.jpg — the strip prints out of a photo-machine slot.
  *  2. Paspor.txt — scrapbook passport card with the event details + stamps.
+ *  0. SIM.exe — the "Surat Izin Mejeng" photozine (headline feature).
  *  3. Mau ngapain lagi? — stickers, live wall, minizine, print, guestbook, AI.
+ *     TebakLagu.exe — guess the mystery song, win a voucher.
  *  4. Lokasi — postcard with a live map of the venue (UI Depok).
  *  5. Dot-matrix footer.
  * The buddy comes from the booth (?b=…) or is chosen here once (stored on the
@@ -42,6 +44,9 @@ import type { WallSticker } from '@/lib/y2k-stickers';
 import { cn } from '@/lib/utils';
 import { variant } from '@/lib/media-variant';
 import { BikunProgress } from '@/components/brand/BikunProgress';
+import { SimPromo } from '@/components/sim/SimPromo';
+import { SimStudio } from '@/components/sim/SimStudio';
+import { GuestSongGame } from '@/components/song/GuestSongGame';
 import { BikunDrive, PlanePath, RektoratScene } from '@/components/brand/campus';
 
 type View = 'strip' | 'live' | 'shots';
@@ -65,6 +70,10 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
   const [wallOpen, setWallOpen] = useState(false);
   const [zineOpen, setZineOpen] = useState(false);
   const [foldOpen, setFoldOpen] = useState(false);
+  const [simOpen, setSimOpen] = useState(false);
+  // Stable across polls (same URLs → same array) so the SIM studio doesn't reload photos.
+  const shotsKey = d.session.urls.shots.join('|');
+  const simPhotos = useMemo(() => (shotsKey ? shotsKey.split('|') : []).map((u, i) => ({ key: `shot-${i}`, src: variant(u, { w: 1080 }) })), [shotsKey]);
   const [wallStickers, setWallStickers] = useState<WallSticker[]>(d.wallStickers ?? []);
   // Print-out animation: starts once the strip image has decoded.
   const [loaded, setLoaded] = useState(false);
@@ -190,6 +199,11 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
             <span>{fmtTime(session.createdAt)}</span>
           </Stamp>
         </header>
+
+        {/* ── SIM: the headline gimmick ─────────────────────────────────── */}
+        {session.urls.shots.length ? (
+          <SimPromo className="mb-5" onOpen={() => setSimOpen(true)} thumbs={session.urls.shots.slice(0, 3).map((u) => variant(u, { w: 160 }))} />
+        ) : null}
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
           {/* ── Foto_kamu.jpg ───────────────────────────────────────────── */}
@@ -338,6 +352,9 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
             {/* ── Mau ngapain lagi? ──────────────────────────────────────── */}
             <WinWindow title="Mau ngapain lagi?" icon="folder" menu={['File', 'Edit', 'Lihat', 'Bantuan']} bodyClassName="p-2" status={<span>Ketuk salah satu untuk membuka</span>}>
               <WinPanel className="flex flex-col gap-1 p-1">
+                {session.urls.shots.length ? (
+                  <ActionRow icon="star" title="Bikin SIM — Surat Izin Mejeng ★" body="Photozine lipat ala surat kendaraan dari fotomu. Fitur unggulan!" onClick={() => setSimOpen(true)} />
+                ) : null}
                 {event.stickersEnabled && session.urls.strip && !isZine ? (
                   <ActionRow icon="star" title="Hias dengan stiker" body="Tempel stiker & teks, lalu simpan atau cetak" onClick={() => setStickerOpen(true)} />
                 ) : null}
@@ -375,6 +392,8 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
                 </div>
               ) : null}
             </WinWindow>
+
+            <GuestSongGame token={token} />
 
             {event.aiEnabled && !isZine ? (
               <WinWindow title="Ubah gaya.exe" icon={<Palette className="size-4" />} bodyClassName="p-4">
@@ -448,6 +467,15 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
       ) : null}
       {wallOpen && (session.urls.thumb || session.urls.strip) ? (
         <WallStickerEditor open={wallOpen} onOpenChange={setWallOpen} token={token} imageUrl={(session.urls.thumb || session.urls.strip)!} aspect={aspect} initial={wallStickers} onSaved={setWallStickers} />
+      ) : null}
+      {simOpen ? (
+        <SimStudio
+          photos={simPhotos}
+          eventName={event.name}
+          seed={session.id}
+          qrValue={typeof window !== 'undefined' ? `${window.location.origin}/s/${token}` : `/s/${token}`}
+          onClose={() => setSimOpen(false)}
+        />
       ) : null}
       {zineOpen ? <ZineStudio photos={zinePhotos} title={event.name} subtitle={`${event.name} · ${fmtDate(session.createdAt)}\nmade at photovoks ✶`} onClose={() => setZineOpen(false)} libraryStickers={event.libraryStickers} /> : null}
       <Dialog win winIcon={<PixelIcon name="book" className="size-4" />} open={foldOpen} onOpenChange={setFoldOpen} title="Cara melipat minizine" size="md">
