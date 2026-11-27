@@ -297,7 +297,7 @@ export function BoothSettings({
               </div>
               <Field label="Filter untuk tamu">
                 <div className="flex flex-wrap gap-2">
-                  {FILTERS.filter((f) => !f.family).map((f) => <Chip key={f.id} on={form.filters.includes(f.id)} onClick={() => f.id !== 'original' && toggleIn('filters', f.id)}>{f.id === 'vintage' ? 'Vintage + Booth Sepia, Noir, Film 90an, Sekali Pakai' : f.label}</Chip>)}
+                  {FILTERS.filter((f) => !f.family).map((f) => <Chip key={f.id} on={form.filters.includes(f.id)} onClick={() => f.id !== 'original' && toggleIn('filters', f.id)}>{f.id === 'vintage' ? 'Vintage + Booth Sepia, Noir, Film 90an, Sekali Pakai' : f.id === 'vivid' ? 'Vivid + Sinematik, Kodachrome, Digicam Y2K, Polaroid, Lomo, Pink Kalcer' : f.label}</Chip>)}
                 </div>
               </Field>
             </div>

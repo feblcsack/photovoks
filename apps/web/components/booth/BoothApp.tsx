@@ -25,6 +25,7 @@ import type { PaymentMethod, PaymentRequirement, PaymentView } from '@/lib/payme
 import { formatRupiah } from '@/lib/settings-shared';
 import type { LibrarySticker } from '@/lib/session-types';
 import type { MemeStyle } from '@/lib/booth/meme';
+import { NO_ADJUST, type Adjustments } from '@/lib/booth/grade';
 import { mascotLine, type GuideMoment, type MascotId } from '@/lib/mascots';
 import { setSfxEnabled, sfx, sfxEnabled } from '@/lib/sfx';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -82,6 +83,7 @@ export function BoothApp({ code }: { code: string }) {
   // Paid (or operator free pass) session ticket, consumed by POST /api/sessions.
   const [paymentToken, setPaymentToken] = useState<string | null>(null);
   const [meme, setMeme] = useState<MemeStyle>('none');
+  const [adjust, setAdjust] = useState<Adjustments>(NO_ADJUST);
   const camera = useCamera();
   // Keep the first signed URL per media path so the home-screen video stays
   // cached between guests (a new URL would re-download it every reset).
@@ -122,6 +124,7 @@ export function BoothApp({ code }: { code: string }) {
     setSelection([]);
     setFilter('original');
     setMeme('none');
+    setAdjust(NO_ADJUST);
     setRetakesUsed(0);
     setBuddy(null);
     setBuddyMsg(null);
@@ -316,6 +319,8 @@ export function BoothApp({ code }: { code: string }) {
           memeEnabled={!!config.fun?.meme}
           meme={meme}
           onMemeChange={setMeme}
+          adjust={adjust}
+          onAdjustChange={setAdjust}
         />
       ) : null}
 
@@ -333,6 +338,7 @@ export function BoothApp({ code }: { code: string }) {
           paymentToken={paymentToken}
           onPaymentUsed={() => setPaymentToken(null)}
           meme={config.fun?.meme ? meme : 'none'}
+          adjust={adjust}
           buddy={buddy}
           onPhase={setFinishPhase}
           onDone={reset}

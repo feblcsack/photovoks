@@ -7,10 +7,11 @@
  */
 import { GIFEncoder, applyPalette, quantize } from 'gifenc';
 import { createCanvas, canvasToBlob } from '@/lib/frames/render';
+import { applyGrade, combine, isNeutral, PRESETS, type Adjustments } from './grade';
 
 // ── Filters ──────────────────────────────────────────────────────────────────
 
-export const FILTERS: Array<{ id: string; label: string; family?: 'vintage' }> = [
+export const FILTERS: Array<{ id: string; label: string; family?: 'vintage' | 'bold' }> = [
   { id: 'original', label: 'Original' },
   { id: 'bw', label: 'B&W' },
   { id: 'warm', label: 'Hangat' },
@@ -21,170 +22,59 @@ export const FILTERS: Array<{ id: string; label: string; family?: 'vintage' }> =
   { id: 'film', label: 'Film 90an', family: 'vintage' },
   { id: 'flash', label: 'Kamera Sekali Pakai', family: 'vintage' },
   { id: 'vivid', label: 'Vivid' },
+  { id: 'cinema', label: 'Sinematik', family: 'bold' },
+  { id: 'chrome', label: 'Kodachrome', family: 'bold' },
+  { id: 'digicam', label: 'Digicam Y2K', family: 'bold' },
+  { id: 'polaroid', label: 'Polaroid', family: 'bold' },
+  { id: 'lomo', label: 'Lomo', family: 'bold' },
+  { id: 'pinky', label: 'Pink Kalcer', family: 'bold' },
   { id: 'fade', label: 'Pudar' },
 ];
 
 /**
- * Filters an event allows. Enabling "Vintage" in the event settings also
- * unlocks the whole vintage family (sepia booth, noir, film, flash), so older
- * events get the new looks without re-saving settings.
+ * Filters an event allows. Enabling "Vintage" also unlocks the vintage family
+ * (sepia booth, noir, film, flash); enabling "Vivid" unlocks the bold family
+ * (cinematic, Kodachrome, digicam, Polaroid, lomo, pink) — older events get
+ * the new looks without re-saving settings.
  */
 export function allowedFilterList(allowed: string[]) {
-  return FILTERS.filter((f) => allowed.includes(f.id) || (f.family === 'vintage' && allowed.includes('vintage')));
+  return FILTERS.filter((f) => allowed.includes(f.id) || (f.family === 'vintage' && allowed.includes('vintage')) || (f.family === 'bold' && allowed.includes('vivid')));
 }
 
-/** CSS preview equivalents (live camera preview only — output uses pixel math). */
+/** CSS approximations (only for quick UI swatches — output uses pixel math). */
 export const FILTER_CSS: Record<string, string> = {
   original: 'none',
-  bw: 'grayscale(1) contrast(1.08)',
-  warm: 'sepia(0.18) saturate(1.15) hue-rotate(-6deg)',
-  cool: 'saturate(0.95) hue-rotate(8deg) brightness(1.02)',
+  bw: 'grayscale(1) contrast(1.3)',
+  warm: 'sepia(0.25) saturate(1.25) hue-rotate(-8deg)',
+  cool: 'saturate(1.05) hue-rotate(12deg) brightness(1.03)',
   vintage: 'sepia(0.45) contrast(0.92) brightness(1.04) saturate(0.85)',
-  vivid: 'saturate(1.35) contrast(1.08)',
-  fade: 'contrast(0.85) brightness(1.08) saturate(0.8)',
-  sepia: 'grayscale(1) sepia(0.75) contrast(1.15) brightness(1.02)',
-  noir: 'grayscale(1) contrast(1.35) brightness(0.96)',
+  vivid: 'saturate(1.6) contrast(1.2)',
+  fade: 'contrast(0.8) brightness(1.08) saturate(0.75)',
+  sepia: 'grayscale(1) sepia(0.8) contrast(1.25)',
+  noir: 'grayscale(1) contrast(1.7) brightness(0.9)',
   film: 'sepia(0.22) saturate(0.85) contrast(0.9) brightness(1.06) hue-rotate(-8deg)',
-  flash: 'saturate(1.25) contrast(1.15) brightness(1.08) sepia(0.12)',
+  flash: 'saturate(1.35) contrast(1.35) brightness(1.12) sepia(0.12)',
+  cinema: 'contrast(1.25) saturate(1.1) hue-rotate(-6deg)',
+  chrome: 'contrast(1.3) saturate(1.45)',
+  digicam: 'contrast(1.25) saturate(1.2) brightness(1.08) hue-rotate(8deg)',
+  polaroid: 'sepia(0.3) contrast(0.9) saturate(0.95) brightness(1.06)',
+  lomo: 'contrast(1.45) saturate(1.5)',
+  pinky: 'sepia(0.15) hue-rotate(-18deg) saturate(1.2) brightness(1.06)',
 };
 
-/** Filters that add film grain + vignette on top of the colour transform. */
-const TEXTURED: Record<string, { grain: number; vignette: number }> = {
-  vintage: { grain: 10, vignette: 0.28 },
-  sepia: { grain: 18, vignette: 0.42 },
-  noir: { grain: 22, vignette: 0.5 },
-  film: { grain: 14, vignette: 0.3 },
-  flash: { grain: 9, vignette: 0.55 },
-};
-
-function clamp(v: number) {
-  return v < 0 ? 0 : v > 255 ? 255 : v;
+/** Applies a preset (+ optional guest adjustments) in place. */
+export function applyFilter(canvas: HTMLCanvasElement, id: string, adjust?: Partial<Adjustments> | null) {
+  const preset = PRESETS[id] ?? PRESETS.original;
+  if ((!id || id === 'original') && isNeutral(adjust)) return;
+  applyGrade(canvas, combine(preset, adjust));
 }
 
-export function applyFilter(canvas: HTMLCanvasElement, id: string) {
-  if (!id || id === 'original') return;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return;
-  const W = canvas.width;
-  const H = canvas.height;
-  const img = ctx.getImageData(0, 0, W, H);
-  const d = img.data;
-  const tex = TEXTURED[id];
-  // Grain is scaled to the image so a 300 px burst frame and a 2000 px still look alike.
-  const grainAmt = tex ? tex.grain * Math.min(1.4, Math.max(0.6, W / 1000)) : 0;
-  let seed = 1234567;
-  const cx = W / 2;
-  const cy = H / 2;
-  const maxD2 = cx * cx + cy * cy;
-  for (let i = 0; i < d.length; i += 4) {
-    let r = d[i];
-    let g = d[i + 1];
-    let b = d[i + 2];
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    switch (id) {
-      case 'sepia': {
-        // Classic chemical booth strip: mono, lifted blacks, warm paper tone.
-        const c = Math.max(0, (lum - 128) * 1.18 + 128);
-        const v = 26 + c * 0.86;
-        r = v * 1.07 + 6;
-        g = v * 0.95 + 2;
-        b = v * 0.78 - 4;
-        break;
-      }
-      case 'noir': {
-        const c = (lum - 124) * 1.4 + 124;
-        r = g = b = 12 + c * 0.92;
-        break;
-      }
-      case 'film': {
-        // Faded print: lifted shadows with a green-teal cast, warm highlights.
-        r = lum + (r - lum) * 0.82;
-        g = lum + (g - lum) * 0.82;
-        b = lum + (b - lum) * 0.82;
-        const t = lum / 255;
-        r = 24 + r * 0.86 + t * 14;
-        g = 28 + g * 0.84 + t * 6;
-        b = 30 + b * 0.76 - t * 6;
-        break;
-      }
-      case 'flash': {
-        // Disposable camera: punchy, warm, slightly blown highlights.
-        r = lum + (r - lum) * 1.28;
-        g = lum + (g - lum) * 1.22;
-        b = lum + (b - lum) * 1.1;
-        r = (r - 128) * 1.14 + 140;
-        g = (g - 128) * 1.12 + 132;
-        b = (b - 128) * 1.08 + 120;
-        break;
-      }
-      case 'bw': {
-        const c = (lum - 128) * 1.08 + 128;
-        r = g = b = c;
-        break;
-      }
-      case 'warm':
-        r = r * 1.08 + 8;
-        g = g * 1.02 + 2;
-        b = b * 0.9;
-        break;
-      case 'cool':
-        r = r * 0.92;
-        g = g * 1.0 + 2;
-        b = b * 1.08 + 8;
-        break;
-      case 'vintage': {
-        const sr = 0.393 * r + 0.769 * g + 0.189 * b;
-        const sg = 0.349 * r + 0.686 * g + 0.168 * b;
-        const sb = 0.272 * r + 0.534 * g + 0.131 * b;
-        r = r * 0.55 + sr * 0.45;
-        g = g * 0.55 + sg * 0.45;
-        b = b * 0.55 + sb * 0.45;
-        r = (r - 128) * 0.9 + 138;
-        g = (g - 128) * 0.9 + 132;
-        b = (b - 128) * 0.9 + 120;
-        break;
-      }
-      case 'vivid': {
-        r = lum + (r - lum) * 1.35;
-        g = lum + (g - lum) * 1.35;
-        b = lum + (b - lum) * 1.35;
-        r = (r - 128) * 1.08 + 128;
-        g = (g - 128) * 1.08 + 128;
-        b = (b - 128) * 1.08 + 128;
-        break;
-      }
-      case 'fade':
-        r = (lum + (r - lum) * 0.8 - 128) * 0.85 + 146;
-        g = (lum + (g - lum) * 0.8 - 128) * 0.85 + 146;
-        b = (lum + (b - lum) * 0.8 - 128) * 0.85 + 150;
-        break;
-    }
-    if (tex) {
-      const p = i >> 2;
-      const x = p % W;
-      const y = (p / W) | 0;
-      const dx = x - cx;
-      const dy = y - cy;
-      const vig = 1 - tex.vignette * Math.pow((dx * dx + dy * dy) / maxD2, 1.3);
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      const n = ((seed / 4294967296) - 0.5) * grainAmt;
-      r = r * vig + n;
-      g = g * vig + n;
-      b = b * vig + n;
-    }
-    d[i] = clamp(r);
-    d[i + 1] = clamp(g);
-    d[i + 2] = clamp(b);
-  }
-  ctx.putImageData(img, 0, 0);
-}
-
-/** Returns a filtered copy (source untouched). */
-export function filteredCopy(source: HTMLCanvasElement, id: string): HTMLCanvasElement {
-  if (!id || id === 'original') return source;
+/** Returns a graded copy (source untouched; returns the source when nothing changes). */
+export function filteredCopy(source: HTMLCanvasElement, id: string, adjust?: Partial<Adjustments> | null): HTMLCanvasElement {
+  if ((!id || id === 'original') && isNeutral(adjust)) return source;
   const c = createCanvas(source.width, source.height);
   c.getContext('2d')!.drawImage(source, 0, 0);
-  applyFilter(c, id);
+  applyFilter(c, id, adjust);
   return c;
 }
 

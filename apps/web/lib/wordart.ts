@@ -6,7 +6,7 @@
  * extrusions, outlines, arcs and waves) but built from the Photovoks palette.
  */
 
-export type WordArtStyleId = 'rainbow' | 'sunset' | 'sky' | 'chrome' | 'grape' | 'outline' | 'forest' | 'cobalt' | 'bubblegum' | 'arc';
+export type WordArtStyleId = 'rainbow' | 'sunset' | 'sky' | 'chrome' | 'grape' | 'outline' | 'forest' | 'cobalt' | 'bubblegum' | 'arc' | 'gold' | 'lime' | 'ice';
 
 export interface WordArtStyle {
   id: WordArtStyleId;
@@ -37,6 +37,10 @@ export const WORDART_STYLES: WordArtStyle[] = [
   { id: 'cobalt', label: 'Kobalt', font: 'heavy', fill: ['#7FA2FF', '#2747C9', '#1A2C8F'], stroke: { color: '#FFFFFF', width: 0.02 }, extrude: { color: '#C4201A', depth: 0.06, dx: 1, dy: 1 }, shape: 'flat' },
   { id: 'bubblegum', label: 'Permen', font: 'display', fill: ['#FFE1F1', '#FF9BD2', '#FF4FA8'], stroke: { color: '#7A0E45', width: 0.03 }, extrude: { color: '#7A0E45', depth: 0.05, dx: 0, dy: 1 }, shape: 'bulge' },
   { id: 'arc', label: 'Lengkung', font: 'heavy', fill: ['#FFD43B', '#C4201A'], stroke: { color: '#1A1410', width: 0.03 }, extrude: { color: '#1A1410', depth: 0.04, dx: 1, dy: 1 }, shape: 'arc' },
+  // Meme-poster looks (boomer motivational / psychedelic quote memes)
+  { id: 'gold', label: 'Emas klasik', font: 'serif', fill: ['#FFF6C8', '#F2C14E', '#B07A12'], stroke: { color: '#4A2E05', width: 0.02 }, extrude: { color: '#3E2604', depth: 0.09, dx: 1, dy: 1 }, shape: 'flat' },
+  { id: 'lime', label: 'Lime 3D', font: 'heavy', fill: ['#FFFFB8', '#E8FF4D', '#9BE000'], stroke: { color: '#0B2A8A', width: 0.035 }, extrude: { color: '#0B2A8A', depth: 0.07, dx: 1, dy: 1 }, shape: 'flat' },
+  { id: 'ice', label: 'Es biru', font: 'display', fill: ['#FFFFFF', '#CFE8FF', '#5B8CFF'], stroke: { color: '#1A2C8F', width: 0.03 }, extrude: { color: '#1A2C8F', depth: 0.06, dx: 1, dy: 1 }, shape: 'flat' },
 ];
 
 export const WORDART_BY_ID: Record<WordArtStyleId, WordArtStyle> = Object.fromEntries(WORDART_STYLES.map((s) => [s.id, s])) as Record<WordArtStyleId, WordArtStyle>;

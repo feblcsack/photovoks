@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Film, ImageIcon, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HillsWallpaper, PixelIcon, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
@@ -8,6 +8,8 @@ import { sfx } from '@/lib/sfx';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
 import { allowedFilterList } from '@/lib/booth/media';
 import { ensureMemeFonts, MEME_STYLES, styledCopy, type MemeStyle } from '@/lib/booth/meme';
+import { NO_ADJUST, type Adjustments } from '@/lib/booth/grade';
+import { AdjustPanel } from './AdjustPanel';
 import { scaledCopy } from '@/lib/frames/render';
 import type { FrameRecord } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
@@ -29,6 +31,8 @@ export function ReviewStage({
   memeEnabled = false,
   meme = 'none',
   onMemeChange,
+  adjust = NO_ADJUST,
+  onAdjustChange,
 }: {
   frame: FrameRecord;
   shots: Shot[];
@@ -45,6 +49,8 @@ export function ReviewStage({
   memeEnabled?: boolean;
   meme?: MemeStyle;
   onMemeChange?: (m: MemeStyle) => void;
+  adjust?: Adjustments;
+  onAdjustChange?: (a: Adjustments) => void;
 }) {
   const slots = frame.slotCount;
   const [mode, setMode] = useState<'live' | 'still'>(shots.some((s) => s.burst.length) ? 'live' : 'still');
@@ -62,15 +68,26 @@ export function ReviewStage({
     };
   }, [memeEnabled]);
   const look: MemeStyle = memeEnabled ? meme : 'none';
+  // Sliders move fast; the heavy per-pixel grade follows a deferred copy so dragging stays smooth.
+  const grade = useDeferredValue(adjust);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- fontsReady re-renders the meme text once fonts load
-  const filteredPreviews = useMemo(() => previews.map((p) => styledCopy(p, filter, look)), [previews, filter, look, fontsReady]);
+  const filteredPreviews = useMemo(() => previews.map((p) => styledCopy(p, filter, look, grade)), [previews, filter, look, grade, fontsReady]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const filteredBursts = useMemo(() => shots.map((s) => s.burst.map((f) => styledCopy(f, filter, look))), [shots, filter, look, fontsReady]);
+  const filteredBursts = useMemo(() => shots.map((s) => s.burst.map((f) => styledCopy(f, filter, look, grade))), [shots, filter, look, grade, fontsReady]);
+  // Tiny thumbnails so guests can see each meme/filter on their own photo before choosing.
+  const thumbSource = previews[selection[0] ?? 0];
+  const thumbBase = useMemo(() => (thumbSource ? scaledCopy(thumbSource, 200) : null), [thumbSource]);
+  const memeThumbs = useMemo(
+    () => (memeEnabled && thumbBase ? MEME_STYLES.map((m) => styledCopy(thumbBase, filter, m.id, grade)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [memeEnabled, thumbBase, filter, grade, fontsReady],
+  );
 
   const photos = useMemo(() => Array.from({ length: slots }, (_, i) => (selection[i] !== undefined ? filteredPreviews[selection[i]] : null)), [slots, selection, filteredPreviews]);
   const live = useMemo(() => Array.from({ length: slots }, (_, i) => (selection[i] !== undefined ? filteredBursts[selection[i]] : null)), [slots, selection, filteredBursts]);
 
-  const filters = allowedFilterList(allowedFilters);
+  const filters = useMemo(() => allowedFilterList(allowedFilters), [allowedFilters]);
+  const filterThumbs = useMemo(() => (thumbBase && filters.length > 1 ? filters.map((f) => styledCopy(thumbBase, f.id, 'none', grade)) : []), [thumbBase, filters, grade]);
 
   function toggle(i: number) {
     if (!choosing) return;
@@ -161,43 +178,50 @@ export function ReviewStage({
           {memeEnabled && onMemeChange ? (
             <fieldset className="border-2 border-win-shadow px-2 pt-1 pb-2 [border-style:groove]">
               <legend className="px-1 font-pixel text-[13px]">Gaya meme ✶</legend>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 md:grid-cols-1">
-                {MEME_STYLES.map((m) => (
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-3">
+                {MEME_STYLES.map((m, i) => (
                   <button
                     key={m.id}
                     type="button"
+                    title={m.hint}
+                    aria-pressed={meme === m.id}
                     onClick={() => { sfx.tick(); onMemeChange(m.id); }}
-                    className={cn('flex min-h-11 items-center gap-2 px-2 py-1 text-left', meme === m.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-in')}
+                    className={cn('flex flex-col items-stretch gap-1 p-1 text-left', meme === m.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-in')}
                   >
-                    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white', meme === m.id && 'after:size-1.5 after:rounded-full after:bg-ink')} />
-                    <span className="min-w-0">
-                      <span className={cn('block truncate font-pixel text-[14px]', meme === m.id && 'font-bold', m.id === 'freaky' && 'font-[family-name:var(--font-scribble)] text-[17px] text-[#B0247A]', m.id === 'swag' && 'font-heavy text-[15px] text-[#C2185B]')}>{m.label}</span>
-                      <span className="block truncate text-[11px] text-ink-2">{m.hint}</span>
+                    <span className={cn('block aspect-[3/4] w-full overflow-hidden border-2 bg-white', meme === m.id ? 'border-cobalt' : 'border-transparent')}>
+                      {memeThumbs[i] ? <CanvasThumb canvas={memeThumbs[i]} /> : null}
                     </span>
+                    <span className={cn('block truncate font-pixel text-[12px] leading-tight', meme === m.id && 'font-bold')}>{m.label}</span>
                   </button>
                 ))}
               </div>
+              <p className="mt-1.5 truncate text-[11px] text-ink-2">{MEME_STYLES.find((m) => m.id === meme)?.hint}</p>
             </fieldset>
           ) : null}
 
           {filters.length > 1 ? (
             <fieldset className="border-2 border-win-shadow px-2 pt-1 pb-2 [border-style:groove]">
               <legend className="px-1 font-pixel text-[13px]">Filter</legend>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-2">
-                {filters.map((f) => (
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-3">
+                {filters.map((f, i) => (
                   <button
                     key={f.id}
                     type="button"
+                    aria-pressed={filter === f.id}
                     onClick={() => { sfx.tick(); onFilterChange(f.id); }}
-                    className={cn('flex h-11 items-center gap-2 px-2 text-left font-pixel text-[14px]', filter === f.id ? 'bevel-in bg-win-light font-bold' : 'bevel-out bg-win active:bevel-in')}
+                    className={cn('flex flex-col items-stretch gap-1 p-1 text-left', filter === f.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-in')}
                   >
-                    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white', filter === f.id && 'after:size-1.5 after:rounded-full after:bg-ink')} />
-                    <span className="truncate">{f.label}</span>
+                    <span className={cn('block aspect-square w-full overflow-hidden border-2 bg-white', filter === f.id ? 'border-cobalt' : 'border-transparent')}>
+                      {filterThumbs[i] ? <CanvasThumb canvas={filterThumbs[i]} /> : null}
+                    </span>
+                    <span className={cn('block truncate font-pixel text-[12px] leading-tight', filter === f.id && 'font-bold')}>{f.label}</span>
                   </button>
                 ))}
               </div>
             </fieldset>
           ) : null}
+
+          {onAdjustChange ? <AdjustPanel value={adjust} onChange={onAdjustChange} /> : null}
         </WinWindow>
       </div>
 

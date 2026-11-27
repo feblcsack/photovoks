@@ -18,6 +18,7 @@ import { api, uploadToSignedUrl } from '@/lib/fetcher';
 import { createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
 import { boomerang, buildSprite, encodeGif, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
 import { ensureMemeFonts, styledCopy, type MemeStyle } from '@/lib/booth/meme';
+import type { Adjustments } from '@/lib/booth/grade';
 import { BikunProgress } from '@/components/brand/BikunProgress';
 import { SimStudio } from '@/components/sim/SimStudio';
 import { SimMock } from '@/components/sim/SimPromo';
@@ -56,7 +57,7 @@ interface Result {
   sheetPlan: SheetPlan;
 }
 
-export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, buddy, onPhase, onDone, paymentToken = null, onPaymentUsed, meme = 'none' }: {
+export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, buddy, onPhase, onDone, paymentToken = null, onPaymentUsed, meme = 'none', adjust }: {
   code: string;
   event: EventConfig;
   frame: FrameRecord;
@@ -75,6 +76,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   onPaymentUsed?: () => void;
   /** Meme look chosen in review. */
   meme?: MemeStyle;
+  adjust?: Adjustments;
 }) {
   const toast = useToast();
   const [phase, setPhaseState] = useState<Phase>('compose');
@@ -86,7 +88,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   const [aiOpen, setAiOpen] = useState(false);
   const [simOpen, setSimOpen] = useState(false);
   // SIM photos: the same filtered/meme'd stills as the strip (computed once per opening).
-  const simPhotos = useMemo(() => (simOpen ? shots.map((s, i) => ({ key: `shot-${i}`, src: styledCopy(s.still, filter, meme) })) : []), [simOpen, shots, filter, meme]);
+  const simPhotos = useMemo(() => (simOpen ? shots.map((s, i) => ({ key: `shot-${i}`, src: styledCopy(s.still, filter, meme, adjust) })) : []), [simOpen, shots, filter, meme, adjust]);
   const [remaining, setRemaining] = useState(AUTO_RETURN_S);
   const started = useRef(false);
   const createdRef = useRef<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> } | null>(null);
@@ -121,7 +123,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       const assets = await prepareDesign(frame.design);
       // Filter each shot once (slots may repeat the same shot).
       if (meme !== 'none') await ensureMemeFonts();
-      const filteredStills = shots.map((s) => styledCopy(s.still, filter, meme));
+      const filteredStills = shots.map((s) => styledCopy(s.still, filter, meme, adjust));
       const fullPhotos = Array.from({ length: frame.slotCount }, (_, i) => filteredStills[selection[i]]);
       const strip = createCanvas(frame.design.width, frame.design.height);
       renderDesign(strip.getContext('2d')!, frame.design, { photos: fullPhotos, assets, tokens, qrValue });
@@ -138,7 +140,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       let gifBlob: Blob | null = null;
       if (hasLiveShots) {
         setPhase('animate');
-        const filteredBursts = shots.map((s) => s.burst.map((f) => styledCopy(f, filter, meme)));
+        const filteredBursts = shots.map((s) => s.burst.map((f) => styledCopy(f, filter, meme, adjust)));
         const cellW = LIVE_CELL_WIDTH;
         const cellH = Math.round(cellW / primarySlotAspect(frame.design));
         spriteBlob = await toJpeg(buildSprite(filteredBursts, cellW, cellH), 0.8);
@@ -218,7 +220,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       sfx.error();
       onPhase?.('error');
     }
-  }, [code, event, filter, frame, selection, shots, tokens, onPhase, paymentToken, onPaymentUsed, meme]);
+  }, [code, event, filter, frame, selection, shots, tokens, onPhase, paymentToken, onPaymentUsed, meme, adjust]);
 
   useEffect(() => {
     if (started.current) return;
