@@ -169,7 +169,13 @@ export async function createPayment(input: CreatePaymentInput): Promise<{ paymen
     } catch (e) {
       await supabase.from('payments').update({ status: 'failed', meta: { error: e instanceof Error ? e.message : String(gateway) } }).eq('id', row.id);
       log({ level: 'error', event: 'payment.qris_failed', details: { error: e instanceof Error ? e.message : String(e) } });
-      return { error: e instanceof Error ? e.message : 'QRIS tidak tersedia', status: 502 };
+      const message = e instanceof Error ? e.message : 'QRIS tidak tersedia';
+      // The gateway account hasn't activated the channel yet (e.g. DOKU QRIS
+      // still "Updating"): tell the guest what to do instead of the raw error.
+      if (/channel is inactive/i.test(message)) {
+        return { error: req.methods.includes('cash') ? 'QRIS belum aktif. Pilih "Bayar di kasir" dulu ya.' : 'QRIS belum aktif. Panggil operator ya.', status: 503 };
+      }
+      return { error: message, status: 502 };
     }
   }
   log({ level: 'info', event: 'payment.created', details: { id: row.id, method: row.method, purpose: row.purpose, amount: row.amount } });
