@@ -177,3 +177,23 @@ describe('DOKU Checkout', () => {
     expect(verifyDokuNotification(h('HMACSHA256=nope'), body)).toBe(false);
   });
 });
+
+describe('DOKU create checkout payload', () => {
+  it('only sends characters DOKU accepts', async () => {
+    process.env.DOKU_CLIENT_ID = 'C1';
+    process.env.DOKU_SECRET_KEY = 'S';
+    let sent = '';
+    vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+      sent = String(init.body);
+      return new Response(JSON.stringify({ response: { payment: { url: 'https://sandbox.doku.com/checkout-link-v2/x', token_id: 't' } } }), { status: 200 });
+    }));
+    const { createDokuCheckout } = await import('@/lib/payments/doku');
+    await createDokuCheckout({ invoice: 'PVABC123-LX0ABCDEF', amount: 1000, dueMinutes: 15 });
+    vi.unstubAllGlobals();
+    const body = JSON.parse(sent);
+    const strings: string[] = [];
+    JSON.stringify(body, (_k, v) => (typeof v === 'string' && strings.push(v), v));
+    expect(strings.every((s) => /^[A-Za-z0-9 .\-/+,=_:'@%()]*$/.test(s))).toBe(true);
+    expect(body.payment.payment_method_types).toEqual(['QRIS']);
+  });
+});

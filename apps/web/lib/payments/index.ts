@@ -152,7 +152,6 @@ export async function createPayment(input: CreatePaymentInput): Promise<{ paymen
           invoice: orderId,
           amount: req.amount,
           dueMinutes: payments.expiryMinutes,
-          title: `${input.purpose === 'ai' ? 'Gambar AI' : 'Sesi foto'} · ${input.event.name}`,
           callbackUrl: input.origin,
         });
         update = { provider_id: orderId, payment_link: dk.url, meta: { token_id: dk.tokenId } };

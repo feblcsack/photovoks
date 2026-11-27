@@ -96,7 +96,7 @@ export interface DokuCheckout {
 }
 
 /** Creates a DOKU Checkout page (QRIS only unless DOKU_ALL_METHODS=1). */
-export async function createDokuCheckout(input: { invoice: string; amount: number; dueMinutes: number; title: string; callbackUrl?: string }): Promise<DokuCheckout> {
+export async function createDokuCheckout(input: { invoice: string; amount: number; dueMinutes: number; callbackUrl?: string }): Promise<DokuCheckout> {
   const all = process.env.DOKU_ALL_METHODS === '1';
   const res = await call<{ response?: { payment?: { url?: string; token_id?: string } } }>('POST', '/checkout/v1/payment', {
     order: {
@@ -105,7 +105,8 @@ export async function createDokuCheckout(input: { invoice: string; amount: numbe
       currency: 'IDR',
       auto_redirect: false,
       ...(input.callbackUrl ? { callback_url: input.callbackUrl } : {}),
-      line_items: [{ name: input.title.slice(0, 60), quantity: 1, price: Math.round(input.amount) }],
+      // No free text (e.g. line_items names): DOKU rejects characters outside
+      // a narrow set, so an event name could break the payment.
     },
     payment: { payment_due_date: Math.max(5, Math.min(1440, Math.round(input.dueMinutes))), ...(all ? {} : { payment_method_types: ['QRIS'] }) },
   });
