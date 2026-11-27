@@ -6,7 +6,7 @@ import { Check, Clock, Film, Home, ImageIcon, Palette, Printer, RefreshCcw } fro
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
-import { HillsWallpaper, PixelIcon, ProgressBlocks, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
+import { HillsWallpaper, PixelIcon, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
 import { ShutdownScreen } from '@/components/os/screens';
 import type { MascotId } from '@/lib/mascots';
 import { sfx } from '@/lib/sfx';
@@ -16,7 +16,9 @@ import { AiStudio } from '@/components/session/AiStudio';
 import { useGuestSession } from '@/components/session/useGuestSession';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
 import { createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
-import { boomerang, buildSprite, encodeGif, filteredCopy, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
+import { boomerang, buildSprite, encodeGif, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
+import { ensureMemeFonts, styledCopy, type MemeStyle } from '@/lib/booth/meme';
+import { BikunProgress } from '@/components/brand/BikunProgress';
 import { printSheet, renderSheet, sheetToJpeg } from '@/lib/print/sheet';
 import type { SheetPlan } from '@/lib/print/papers';
 import type { EventConfig } from '@/lib/events';
@@ -51,7 +53,7 @@ interface Result {
   sheetPlan: SheetPlan;
 }
 
-export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, buddy, onPhase, onDone, paymentToken = null, onPaymentUsed }: {
+export function FinishStage({ code, event, frame, shots, selection, filter, tokens, printStationOnline, aiConfigured, buddy, onPhase, onDone, paymentToken = null, onPaymentUsed, meme = 'none' }: {
   code: string;
   event: EventConfig;
   frame: FrameRecord;
@@ -68,6 +70,8 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   /** Paid session ticket (events that charge per session). */
   paymentToken?: string | null;
   onPaymentUsed?: () => void;
+  /** Meme look chosen in review. */
+  meme?: MemeStyle;
 }) {
   const toast = useToast();
   const [phase, setPhaseState] = useState<Phase>('compose');
@@ -110,7 +114,8 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       // 2 · Compose full-resolution strip with filtered stills.
       const assets = await prepareDesign(frame.design);
       // Filter each shot once (slots may repeat the same shot).
-      const filteredStills = shots.map((s) => filteredCopy(s.still, filter));
+      if (meme !== 'none') await ensureMemeFonts();
+      const filteredStills = shots.map((s) => styledCopy(s.still, filter, meme));
       const fullPhotos = Array.from({ length: frame.slotCount }, (_, i) => filteredStills[selection[i]]);
       const strip = createCanvas(frame.design.width, frame.design.height);
       renderDesign(strip.getContext('2d')!, frame.design, { photos: fullPhotos, assets, tokens, qrValue });
@@ -127,7 +132,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       let gifBlob: Blob | null = null;
       if (hasLiveShots) {
         setPhase('animate');
-        const filteredBursts = shots.map((s) => s.burst.map((f) => filteredCopy(f, filter)));
+        const filteredBursts = shots.map((s) => s.burst.map((f) => styledCopy(f, filter, meme)));
         const cellW = LIVE_CELL_WIDTH;
         const cellH = Math.round(cellW / primarySlotAspect(frame.design));
         spriteBlob = await toJpeg(buildSprite(filteredBursts, cellW, cellH), 0.8);
@@ -207,7 +212,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       sfx.error();
       onPhase?.('error');
     }
-  }, [code, event, filter, frame, selection, shots, tokens, onPhase, paymentToken, onPaymentUsed]);
+  }, [code, event, filter, frame, selection, shots, tokens, onPhase, paymentToken, onPaymentUsed, meme]);
 
   useEffect(() => {
     if (started.current) return;
@@ -319,8 +324,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
             </div>
             <p className="mt-2 font-pixel text-[15px] font-bold">{PHASES[idx]?.joke ?? 'Memproses…'}</p>
             <p className="text-[13px] text-ink-2">Dari &lsquo;Kamera&rsquo; ke &lsquo;Galeri {event.name}&rsquo;</p>
-            <ProgressBlocks value={overall} className="mt-3" />
-            <p className="mt-1.5 font-pixel text-[13px] text-ink-2">Sisa waktu: kira-kira {Math.max(1, Math.round((100 - overall) / 12))} kedipan</p>
+            <BikunProgress className="mt-3" value={overall} label={`Bikun mengantar fotomu… kira-kira ${Math.max(1, Math.round((100 - overall) / 12))} kedipan lagi`} />
             <WinPanel className="mt-3 flex flex-col gap-1 py-1.5">
               {PHASES.filter((p) => p.id !== 'animate' || event.livePhoto).map((p) => {
                 const i = PHASES.indexOf(p);

@@ -229,6 +229,11 @@ export function DeveloperPanel() {
               <SaveRow show={dirty('payments')} loading={savingGroup === 'payments'} onSave={() => void saveGroup('payments', draft.payments)} />
             </div>
             <div className="py-2">
+              <SwitchRow title="Teman low-poly di foto" description="Hewan 3D ala PS1 (bebek, merpati, ayam, domba, monyet, kepiting, hiu, camar) ikut nampang di setiap foto. Tamu tetap bisa mematikannya di kamera." checked={draft.fun.lowPoly} onChange={(v) => setD('fun', { lowPoly: v })} />
+              <SwitchRow title="Gaya meme" description="Pilihan “Freaky tiw…” dan “Tes SWAG” di layar review booth." checked={draft.fun.meme} onChange={(v) => setD('fun', { meme: v })} />
+              <SaveRow show={dirty('fun')} loading={savingGroup === 'fun'} onSave={() => void saveGroup('fun', draft.fun)} />
+            </div>
+            <div className="py-2">
               <SwitchRow title="Mode hemat" description="Pratinjau lebih kecil & polling lebih jarang. Nyalakan kalau kuota menipis." checked={draft.performance.liteMode} onChange={(v) => setD('performance', { liteMode: v, imageQuality: v ? 'saver' : draft.performance.imageQuality === 'saver' ? 'balanced' : draft.performance.imageQuality, livePollSeconds: v ? Math.max(15, draft.performance.livePollSeconds) : draft.performance.livePollSeconds })} />
               <div className="grid gap-3 pb-2 sm:grid-cols-3">
                 <Field label="Kualitas pratinjau">

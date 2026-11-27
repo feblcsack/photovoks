@@ -90,7 +90,7 @@ export default async function AdminDashboard() {
         </Panel>
 
         <div className="flex flex-col gap-6">
-          <QuickSwitches ai={settings.ai.enabled} payments={settings.payments.enabled} aiConfigured={provider.isConfigured()} migrated={settingsReachable()} />
+          <QuickSwitches ai={settings.ai.enabled} payments={settings.payments.enabled} aiConfigured={provider.isConfigured()} migrated={settingsReachable()} fun={settings.fun} />
           <Panel>
             <PanelHeader title="Status sistem" actions={<Link href="/admin/developer" className="text-sm font-semibold text-brand">Developer</Link>} />
             <ul className="flex flex-col gap-1 p-3">

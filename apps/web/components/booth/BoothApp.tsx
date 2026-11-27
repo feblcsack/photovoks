@@ -24,6 +24,7 @@ import { PaymentPanel } from '@/components/payments/PaymentPanel';
 import type { PaymentMethod, PaymentRequirement, PaymentView } from '@/lib/payments/types';
 import { formatRupiah } from '@/lib/settings-shared';
 import type { LibrarySticker } from '@/lib/session-types';
+import type { MemeStyle } from '@/lib/booth/meme';
 import { mascotLine, type GuideMoment, type MascotId } from '@/lib/mascots';
 import { setSfxEnabled, sfx, sfxEnabled } from '@/lib/sfx';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -51,6 +52,7 @@ interface BoothConfig {
   media: { attractUrl: string | null };
   payment?: PaymentRequirement;
   libraryStickers?: LibrarySticker[];
+  fun?: { lowPoly: boolean; meme: boolean };
 }
 
 type Step = 'attract' | 'character' | 'pay' | 'frames' | 'capture' | 'review' | 'finish' | 'zine';
@@ -79,6 +81,7 @@ export function BoothApp({ code }: { code: string }) {
   const [finishPhase, setFinishPhase] = useState<'processing' | 'done' | 'error'>('processing');
   // Paid (or operator free pass) session ticket, consumed by POST /api/sessions.
   const [paymentToken, setPaymentToken] = useState<string | null>(null);
+  const [meme, setMeme] = useState<MemeStyle>('none');
   const camera = useCamera();
   // Keep the first signed URL per media path so the home-screen video stays
   // cached between guests (a new URL would re-download it every reset).
@@ -118,6 +121,7 @@ export function BoothApp({ code }: { code: string }) {
     setQueue([]);
     setSelection([]);
     setFilter('original');
+    setMeme('none');
     setRetakesUsed(0);
     setBuddy(null);
     setBuddyMsg(null);
@@ -280,6 +284,7 @@ export function BoothApp({ code }: { code: string }) {
           existing={shots}
           onShot={onShot}
           onEvent={onCaptureEvent}
+          pals={!!config.fun?.lowPoly}
           onDone={onCaptureDone}
           onCancel={() => (filledShots.length === shotCount ? setStep('review') : config.frames.length > 1 || event.zineEnabled ? setStep('frames') : reset())}
         />
@@ -308,6 +313,9 @@ export function BoothApp({ code }: { code: string }) {
           }}
           onContinue={() => setStep('finish')}
           tokens={tokens}
+          memeEnabled={!!config.fun?.meme}
+          meme={meme}
+          onMemeChange={setMeme}
         />
       ) : null}
 
@@ -324,6 +332,7 @@ export function BoothApp({ code }: { code: string }) {
           aiConfigured={config.aiConfigured}
           paymentToken={paymentToken}
           onPaymentUsed={() => setPaymentToken(null)}
+          meme={config.fun?.meme ? meme : 'none'}
           buddy={buddy}
           onPhase={setFinishPhase}
           onDone={reset}

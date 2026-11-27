@@ -40,6 +40,12 @@ export interface AppSettings {
     printPollSeconds: number;
     imageQuality: ImageQuality;
   };
+  fun: {
+    /** Low-poly animals photobomb the booth photos (baked into the frame). */
+    lowPoly: boolean;
+    /** Guests can pick a meme look (Freaky tiw / Tes SWAG) in review. */
+    meme: boolean;
+  };
   quota: {
     /** Monthly egress budget of the storage plan, in GB (Supabase free = 5). */
     egressGb: number;
@@ -55,6 +61,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   payments: { enabled: true, defaultAiPrice: 1500, expiryMinutes: 15, provider: 'auto' },
   storage: { driver: 'supabase', readFallback: true },
   performance: { liteMode: false, livePollSeconds: 8, printPollSeconds: 5, imageQuality: 'balanced' },
+  fun: { lowPoly: true, meme: true },
   quota: { egressGb: 5, warnPercent: 80 },
 };
 
@@ -74,6 +81,7 @@ export function mergeSettings(raw: Record<string, unknown>): AppSettings {
   const s = g('storage');
   const f = g('performance');
   const q = g('quota');
+  const fn = g('fun');
   return {
     maintenance: { enabled: bool(m.enabled, d.maintenance.enabled), message: text(m.message, d.maintenance.message, 300), keepBooth: bool(m.keepBooth, d.maintenance.keepBooth) },
     ai: { enabled: bool(a.enabled, d.ai.enabled) },
@@ -90,6 +98,7 @@ export function mergeSettings(raw: Record<string, unknown>): AppSettings {
       printPollSeconds: num(f.printPollSeconds, d.performance.printPollSeconds, 2, 60),
       imageQuality: pick(f.imageQuality, ['saver', 'balanced', 'high'] as const, d.performance.imageQuality),
     },
+    fun: { lowPoly: bool(fn.lowPoly, d.fun.lowPoly), meme: bool(fn.meme, d.fun.meme) },
     quota: { egressGb: num(q.egressGb, d.quota.egressGb, 1, 100_000), warnPercent: num(q.warnPercent, d.quota.warnPercent, 10, 100) },
   };
 }

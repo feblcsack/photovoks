@@ -42,6 +42,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       media,
       payment,
       libraryStickers,
+      fun: settings.fun,
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

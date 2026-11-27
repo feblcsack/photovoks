@@ -41,6 +41,8 @@ import type { AiGenerationView, GuestSessionData } from '@/lib/session-types';
 import type { WallSticker } from '@/lib/y2k-stickers';
 import { cn } from '@/lib/utils';
 import { variant } from '@/lib/media-variant';
+import { BikunProgress } from '@/components/brand/BikunProgress';
+import { BikunDrive, PlanePath, RektoratScene } from '@/components/brand/campus';
 
 type View = 'strip' | 'live' | 'shots';
 
@@ -106,6 +108,16 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
     const t = setTimeout(() => setPrinted(true), 3500);
     return () => clearTimeout(t);
   }, [loaded, printRun]);
+  // Bikun progress: the bus leaves Stasiun UI when the print starts and
+  // arrives at the Rektorat when it's done (same 3.5 s as the print-out).
+  const [ride, setRide] = useState(0);
+  useEffect(() => {
+    if (!loaded) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- restart the ride for each print run
+    setRide(0);
+    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setRide(100)));
+    return () => cancelAnimationFrame(raf);
+  }, [loaded, printRun]);
 
   const used = session.printJobs.filter((p) => p.source.startsWith('guest') && p.status !== 'cancelled').reduce((s, p) => s + p.copies, 0);
   const printsLeft = Math.max(0, event.maxGuestPrints - used);
@@ -158,6 +170,9 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
     <div className="relative min-h-dvh overflow-x-hidden">
       <div className="fixed inset-0 -z-10">
         <HillsWallpaper />
+        {/* UI Depok campus on the horizon (large screens; phones get the strip below) */}
+        <PlanePath className="absolute top-[5%] right-[3%] hidden w-[min(34vw,460px)] xl:block" label="Universitas Indonesia" />
+        <RektoratScene compact className="absolute right-[1%] bottom-0 hidden w-[min(19vw,300px)] xl:block" />
       </div>
 
       <main className="relative mx-auto max-w-5xl px-3 pt-[max(12px,env(safe-area-inset-top))] sm:px-6">
@@ -242,6 +257,17 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
               ) : null}
             </div>
 
+            {view === 'strip' && session.urls.strip ? (
+              <WinPanel className="mt-2 px-2 pt-2 pb-1">
+                <BikunProgress
+                  value={loaded ? ride : null}
+                  durationMs={3400}
+                  label={loaded ? (isZine ? 'Bikun mengantar zine-mu ke Rektorat…' : 'Bikun mengantar fotomu ke Rektorat…') : 'Bikun menjemput fotomu di Stasiun UI…'}
+                  done={<span className="flex items-center gap-1 text-ok"><CheckCircle2 className="size-3.5" /> Sampai di Rektorat — {isZine ? 'zine' : 'foto'}mu siap!</span>}
+                />
+              </WinPanel>
+            ) : null}
+
             <div className="mt-2 grid grid-cols-2 gap-2">
               {session.urls.strip ? (
                 <a href={variant(session.urls.strip, { download: isZine ? 'photovoks-zine.jpg' : 'photovoks.jpg' })} download={isZine ? 'photovoks-zine.jpg' : 'photovoks.jpg'} target="_blank" rel="noreferrer">
@@ -266,7 +292,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
               <section className="paper-card relative rotate-[0.6deg] rounded-[4px] px-5 pt-6 pb-5 sm:px-7">
                 <PaperClip className="-top-5 left-8 rotate-[8deg]" />
                 <Tape className="-top-3 -right-5 rotate-[24deg]" tone="blue" />
-                <p className="border-b border-ink/20 pb-2 text-center font-type text-[11px] tracking-[0.25em] text-ink-2 uppercase">Photovoks · It takes a village &amp; a half</p>
+                <p className="border-b border-ink/20 pb-2 text-center font-type text-[11px] tracking-[0.25em] text-ink-2">Photovoks · SBB · Semarak Bazaar BC! </p>
 
                 <div className="mt-4 grid grid-cols-[1fr_auto] gap-4">
                   <div className="min-w-0">
@@ -357,6 +383,18 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
             ) : null}
           </div>
         </div>
+
+        {/* ── Salam dari kampus ─────────────────────────────────────────── */}
+        <section className="mt-5" aria-label="Kampus UI Depok">
+          <WinWindow title="Kampus_UI.bmp" icon="tv" bodyClassName="relative h-[240px] overflow-hidden bg-[linear-gradient(#9ED8FF,#DDF3FF_70%)] sm:h-[270px]">
+            <PlanePath className="absolute top-2 left-[4%] w-[min(70%,440px)]" label="Universitas Indonesia" />
+            <RektoratScene compact className="absolute right-[6%] bottom-[52px] w-[140px] sm:right-[12%] sm:w-[180px]" />
+            <p className="absolute bottom-[90px] left-4 max-w-[52%] rotate-[-2deg] bg-white/85 px-2 py-1 font-hand text-[clamp(18px,4.5vw,26px)] leading-tight text-ink shadow-[2px_2px_0_var(--color-ink)]">
+              Salam dari Depok! Naik bikun, foto, pulang bawa kenangan ✶
+            </p>
+            <BikunDrive className="bottom-0 h-[64px]" speed={14} />
+          </WinWindow>
+        </section>
 
         {/* ── Lokasi ─────────────────────────────────────────────────────── */}
         <section id="lokasi" className="mt-5 scroll-mt-4">

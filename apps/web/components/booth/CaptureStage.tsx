@@ -4,11 +4,17 @@
  * Capture stage: live preview cropped to the exact slot aspect (what you see
  * is what you get), countdown, flash, and a short burst around the shutter
  * for the live-photo / GIF effect.
+ *
+ * UI Depok campus backdrop (Rektorat, trees, a passing bikun) and optional
+ * low-poly pals: a faceted animal hops into each shot and is baked into the
+ * photo exactly where the preview shows it.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, RefreshCcw, SwitchCamera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Bubbles, CrtTv, DesktopIcon, Goldfish, HillsWallpaper, PixelIcon, ProgressBlocks, SwearBubble, Taskbar, TaskItem, WinWindow } from '@/components/os/retro';
+import { BikunDrive, PlanePath, Rektorat, Trees } from '@/components/brand/campus';
+import { bakePal, palFor, PAL_LABELS, type PalId } from '@/lib/booth/pals';
+import { Bubbles, CrtTv, DesktopIcon, HillsWallpaper, PixelIcon, ProgressBlocks, SwearBubble, Taskbar, TaskItem, WinWindow } from '@/components/os/retro';
 import { sfx } from '@/lib/sfx';
 import { CAMERA_ERROR_TEXT } from '@/lib/camera';
 import { LIVE_CELL_WIDTH, grabFrame, normalizeBurst } from '@/lib/booth/media';
@@ -40,6 +46,7 @@ export function CaptureStage({
   onDone,
   onCancel,
   onEvent,
+  pals = false,
 }: {
   camera: CameraController;
   /** Shot indices to capture, in order. */
@@ -55,6 +62,8 @@ export function CaptureStage({
   onDone: () => void;
   onCancel: () => void;
   onEvent?: (e: CaptureEvent) => void;
+  /** Low-poly pals feature enabled (developer panel / dashboard switch). */
+  pals?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [pos, setPos] = useState(0); // position in queue
@@ -68,7 +77,35 @@ export function CaptureStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
+  // ── Low-poly pals ────────────────────────────────────────────────────────
+  const [palsOn, setPalsOn] = useState(pals);
+  const [sprites, setSprites] = useState<Record<PalId, HTMLCanvasElement> | null>(null);
+  const [palSeed] = useState(() => Math.random());
+  useEffect(() => {
+    if (!pals) return;
+    let alive = true;
+    import('@/components/lowpoly/pals')
+      .then((m) => m.palSprites())
+      .then((r) => alive && setSprites(r))
+      .catch(() => alive && setPalsOn(false)); // no WebGL → quietly skip
+    return () => {
+      alive = false;
+    };
+  }, [pals]);
+  const spriteUrls = useMemo(() => (sprites ? (Object.fromEntries(Object.entries(sprites).map(([k, c]) => [k, c.toDataURL('image/png')])) as Record<PalId, string>) : null), [sprites]);
+  const palsActive = pals && palsOn && !!sprites;
+
   const current = queue[Math.min(pos, queue.length - 1)];
+  const pal = palFor(palSeed, current);
+  // Same size rule as bakePal(): width fraction, height capped at 45 % of the photo.
+  const palPreviewWidth = (() => {
+    const sp = sprites?.[pal.id];
+    if (!sp || !box.w) return `${pal.w * 100}%`;
+    let w = box.w * pal.w;
+    const h = (w * sp.height) / sp.width;
+    if (h > box.h * 0.45) w *= (box.h * 0.45) / h;
+    return `${w}px`;
+  })();
   const aspect = aspectFor(current);
 
   // Attach the shared stream.
@@ -144,6 +181,11 @@ export function CaptureStage({
       if (cancelled.current) return;
       setCount(0);
       const still = grabFrame(v, a, mirror, STILL_MAX_WIDTH);
+      const placement = palsActive && sprites ? palFor(palSeed, shotIndex) : null;
+      if (placement && sprites) {
+        bakePal(still, sprites[placement.id], placement);
+        ring.forEach((f) => bakePal(f, sprites[placement.id], placement));
+      }
       sfx.shutter();
       onEvent?.({ type: 'flash' });
       setFlash(true);
@@ -153,7 +195,9 @@ export function CaptureStage({
         for (let k = 0; k < 4; k++) {
           await sleep(100);
           try {
-            after.push(grabFrame(v, a, mirror, LIVE_CELL_WIDTH));
+            const f = grabFrame(v, a, mirror, LIVE_CELL_WIDTH);
+            if (placement && sprites) bakePal(f, sprites[placement.id], placement);
+            after.push(f);
           } catch {
             /* ignore */
           }
@@ -167,7 +211,7 @@ export function CaptureStage({
       await sleep(1400);
       setJustTaken(null);
     },
-    [aspectFor, countdown, live, mirror, onShot, onEvent],
+    [aspectFor, countdown, live, mirror, onShot, onEvent, palsActive, sprites, palSeed],
   );
 
   async function run() {
@@ -224,10 +268,17 @@ export function CaptureStage({
     <div className="kiosk fixed inset-0 flex flex-col overflow-hidden text-ink">
       <HillsWallpaper />
       {/* Desktop decorations */}
-      <Goldfish className="absolute top-[9%] left-[3%] hidden w-[clamp(70px,9vw,130px)] animate-float md:block" style={{ ['--r' as string]: '-8deg' }} />
-      <Goldfish flip className="absolute top-[22%] left-[9%] hidden w-[clamp(50px,6vw,90px)] animate-float [animation-delay:1.4s] lg:block" />
+      {/* UI Depok campus: Rektorat on the hill, trees, plane path, a passing bikun */}
+      <PlanePath className="pointer-events-none absolute top-[7%] left-[2%] hidden w-[clamp(260px,30vw,460px)] md:block" label="Universitas Indonesia" />
+      <div className="pointer-events-none absolute bottom-[64px] left-[1%] hidden w-[clamp(150px,17vw,260px)] lg:block" aria-hidden>
+        <Rektorat className="w-full drop-shadow-[4px_6px_0_rgba(26,20,16,0.25)]" />
+        <Trees count={4} className="-mt-[22%] w-[115%] -translate-x-[6%]" />
+      </div>
+      <div className="pointer-events-none absolute right-[1%] bottom-[64px] hidden w-[clamp(140px,15vw,230px)] xl:block" aria-hidden>
+        <Trees count={3} className="w-full" />
+      </div>
       <Bubbles className="absolute top-[6%] right-[4%] w-[clamp(60px,9vw,130px)] animate-float [animation-delay:.6s]" />
-      <Bubbles className="absolute bottom-[22%] left-[7%] hidden w-[clamp(40px,5vw,80px)] animate-float [animation-delay:2s] md:block" />
+      <BikunDrive className="bottom-[48px] h-[clamp(48px,7vh,72px)]" speed={26} />
 
       {/* Top: recycle bin = cancel, shot counter, switch camera */}
       <div className="relative z-10 flex items-start justify-between gap-3 px-2 pt-[max(8px,env(safe-area-inset-top))] sm:px-4">
@@ -286,6 +337,18 @@ export function CaptureStage({
                 ) : null}
                 {/* rule-of-thirds guide */}
                 <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(to_right,transparent_33.2%,white_33.3%,transparent_33.4%,transparent_66.5%,white_66.6%,transparent_66.7%),linear-gradient(to_bottom,transparent_33.2%,white_33.3%,transparent_33.4%,transparent_66.5%,white_66.6%,transparent_66.7%)]" />
+                {palsActive && spriteUrls && !justTaken ? (
+                  <span
+                    key={`${current}-${pal.id}`}
+                    className="pal-in pointer-events-none absolute"
+                    style={{ left: `${pal.x * 100}%`, top: `${pal.y * 100}%`, width: palPreviewWidth, translate: '-50% -50%' }}
+                  >
+                    <span className="pal-bob block" style={{ ['--r' as string]: `${pal.rot}deg` }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={spriteUrls[pal.id]} alt={PAL_LABELS[pal.id]} className="block w-full drop-shadow-[0_6px_6px_rgba(0,0,0,0.35)]" style={{ transform: pal.flip ? 'scaleX(-1)' : undefined }} draggable={false} />
+                    </span>
+                  </span>
+                ) : null}
                 {count !== null ? (
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/10" aria-live="assertive">
                     <span key={count} className="animate-pop font-display text-[clamp(96px,22vmin,220px)] leading-none text-white [text-shadow:5px_5px_0_#C4201A,9px_9px_0_#1A1410]">
@@ -321,7 +384,20 @@ export function CaptureStage({
         <Button variant="win-go" size="xl" className="min-w-0 text-[20px] sm:min-w-72" onClick={run} disabled={running || !ready || !!camErr}>
           {running ? (count !== null && count > 0 ? 'Siap-siap…' : 'Senyum!') : (<><Camera /> {nextLabel}</>)}
         </Button>
-        <p className="h-5 truncate font-pixel text-[13px] text-white [text-shadow:1px_1px_0_#1A1410]">{helper}</p>
+        <div className="flex max-w-full items-center gap-2">
+          {pals ? (
+            <button
+              type="button"
+              onClick={() => setPalsOn((v) => !v)}
+              disabled={running}
+              aria-pressed={palsOn}
+              className={cn('bevel-out flex h-8 shrink-0 items-center gap-1.5 px-2 font-pixel text-[13px] active:bevel-in disabled:opacity-60', palsOn ? 'bg-sun' : 'bg-win')}
+            >
+              <PixelIcon name="star" className="size-4" /> Teman 3D: {palsOn ? (sprites ? PAL_LABELS[pal.id] : '…') : 'Mati'}
+            </button>
+          ) : null}
+          <p className="h-5 min-w-0 truncate font-pixel text-[13px] text-white [text-shadow:1px_1px_0_#1A1410]">{helper}</p>
+        </div>
       </div>
 
       {/* Taskbar: every shot is a "file" */}

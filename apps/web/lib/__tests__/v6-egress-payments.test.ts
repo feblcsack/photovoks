@@ -197,3 +197,23 @@ describe('DOKU create checkout payload', () => {
     expect(body.payment.payment_method_types).toEqual(['QRIS']);
   });
 });
+
+describe('UI campus fun features', () => {
+  it('places low-poly pals in a corner, deterministically, facing inwards', async () => {
+    const { palFor, PAL_IDS } = await import('@/lib/booth/pals');
+    for (let i = 0; i < 20; i++) {
+      const p = palFor(0.42, i);
+      expect(p).toEqual(palFor(0.42, i));
+      expect(PAL_IDS).toContain(p.id);
+      expect([0.21, 0.79]).toContain(p.x);
+      expect(p.flip).toBe(p.x > 0.5);
+    }
+  });
+  it('knows the meme looks and defaults fun features on', async () => {
+    const { isMemeStyle } = await import('@/lib/booth/meme');
+    expect(isMemeStyle('freaky')).toBe(true);
+    expect(isMemeStyle('rickroll')).toBe(false);
+    expect(mergeSettings({}).fun).toEqual({ lowPoly: true, meme: true });
+    expect(mergeSettings({ fun: { lowPoly: false } }).fun).toEqual({ lowPoly: false, meme: true });
+  });
+});

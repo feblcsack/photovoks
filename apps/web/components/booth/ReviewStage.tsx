@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Film, ImageIcon, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HillsWallpaper, PixelIcon, Taskbar, TaskItem, WinPanel, WinWindow } from '@/components/os/retro';
 import { sfx } from '@/lib/sfx';
 import { FrameCanvas } from '@/components/frames/FrameCanvas';
-import { allowedFilterList, filteredCopy } from '@/lib/booth/media';
+import { allowedFilterList } from '@/lib/booth/media';
+import { ensureMemeFonts, MEME_STYLES, styledCopy, type MemeStyle } from '@/lib/booth/meme';
 import { scaledCopy } from '@/lib/frames/render';
 import type { FrameRecord } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,9 @@ export function ReviewStage({
   onRetakeAll,
   onContinue,
   tokens,
+  memeEnabled = false,
+  meme = 'none',
+  onMemeChange,
 }: {
   frame: FrameRecord;
   shots: Shot[];
@@ -38,6 +42,9 @@ export function ReviewStage({
   onRetakeAll: () => void;
   onContinue: () => void;
   tokens: Record<string, string>;
+  memeEnabled?: boolean;
+  meme?: MemeStyle;
+  onMemeChange?: (m: MemeStyle) => void;
 }) {
   const slots = frame.slotCount;
   const [mode, setMode] = useState<'live' | 'still'>(shots.some((s) => s.burst.length) ? 'live' : 'still');
@@ -45,8 +52,20 @@ export function ReviewStage({
 
   // Preview-sized copies keep filtering + rendering fast on iPad.
   const previews = useMemo(() => shots.map((s) => scaledCopy(s.still, 720)), [shots]);
-  const filteredPreviews = useMemo(() => previews.map((p) => filteredCopy(p, filter)), [previews, filter]);
-  const filteredBursts = useMemo(() => shots.map((s) => s.burst.map((f) => filteredCopy(f, filter))), [shots, filter]);
+  const [fontsReady, setFontsReady] = useState(0);
+  useEffect(() => {
+    if (!memeEnabled) return;
+    let alive = true;
+    void ensureMemeFonts().then(() => alive && setFontsReady((n) => n + 1));
+    return () => {
+      alive = false;
+    };
+  }, [memeEnabled]);
+  const look: MemeStyle = memeEnabled ? meme : 'none';
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fontsReady re-renders the meme text once fonts load
+  const filteredPreviews = useMemo(() => previews.map((p) => styledCopy(p, filter, look)), [previews, filter, look, fontsReady]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const filteredBursts = useMemo(() => shots.map((s) => s.burst.map((f) => styledCopy(f, filter, look))), [shots, filter, look, fontsReady]);
 
   const photos = useMemo(() => Array.from({ length: slots }, (_, i) => (selection[i] !== undefined ? filteredPreviews[selection[i]] : null)), [slots, selection, filteredPreviews]);
   const live = useMemo(() => Array.from({ length: slots }, (_, i) => (selection[i] !== undefined ? filteredBursts[selection[i]] : null)), [slots, selection, filteredBursts]);
@@ -138,6 +157,28 @@ export function ReviewStage({
               {retakesLeft > 0 ? `Bisa ulangi ${retakesLeft} foto lagi (tombol ↺).` : 'Kesempatan ulang foto habis.'}
             </p>
           </WinPanel>
+
+          {memeEnabled && onMemeChange ? (
+            <fieldset className="border-2 border-win-shadow px-2 pt-1 pb-2 [border-style:groove]">
+              <legend className="px-1 font-pixel text-[13px]">Gaya meme ✶</legend>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3 md:grid-cols-1">
+                {MEME_STYLES.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { sfx.tick(); onMemeChange(m.id); }}
+                    className={cn('flex min-h-11 items-center gap-2 px-2 py-1 text-left', meme === m.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-in')}
+                  >
+                    <span className={cn('flex size-4 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-white', meme === m.id && 'after:size-1.5 after:rounded-full after:bg-ink')} />
+                    <span className="min-w-0">
+                      <span className={cn('block truncate font-pixel text-[14px]', meme === m.id && 'font-bold', m.id === 'freaky' && 'font-[family-name:var(--font-scribble)] text-[17px] text-[#B0247A]', m.id === 'swag' && 'font-heavy text-[15px] text-[#C2185B]')}>{m.label}</span>
+                      <span className="block truncate text-[11px] text-ink-2">{m.hint}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           {filters.length > 1 ? (
             <fieldset className="border-2 border-win-shadow px-2 pt-1 pb-2 [border-style:groove]">
