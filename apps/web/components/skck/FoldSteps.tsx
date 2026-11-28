@@ -18,7 +18,7 @@ function Sheet() {
       {[1, 2, 3].map((i) => <line key={i} x1={4 + i * 28} y1="4" x2={4 + i * 28} y2="76" stroke={i === 2 ? GREEN : BLUE} strokeWidth="1.2" strokeDasharray="3 2" />)}
       <line x1="4" y1="40" x2="116" y2="40" stroke={RED} strokeWidth="1.6" strokeDasharray="4 2" />
       <text x="60" y="24" textAnchor="middle" fontSize="8" fill="#555">belakang ↻</text>
-      <text x="18" y="62" textAnchor="middle" fontSize="7" fill="#000">sampul</text>
+      <text x="102" y="24" textAnchor="middle" fontSize="7" fill="#000">sampul ↻</text>
     </svg>
   );
 }
@@ -60,10 +60,10 @@ function Card() {
 }
 
 const STEPS: Array<{ art: React.ReactNode; title: string; body: string }> = [
-  { art: <Sheet />, title: 'Cetak', body: 'Satu sisi, lanskap, skala 100% (jangan “fit to page”). Setengah atas memang tercetak terbalik.' },
+  { art: <Sheet />, title: 'Cetak', body: 'Satu sisi, lanskap, skala 100% (jangan “fit to page”). Setengah atas memang terbalik.' },
   { art: <FoldHalf />, title: 'Lipat 1 · merah', body: 'Lipat dua memanjang: setengah atas dilipat ke belakang. Tekan garis lipatnya rata.' },
   { art: <Zigzag />, title: 'Lipat 2–4 · biru & hijau', body: 'Lipat akordeon: biru = gunung (garis menonjol ke arahmu), hijau = lembah (garis masuk ke dalam).' },
-  { art: <Card />, title: 'Jadi kartu saku', body: 'Sampul “Cukup Kalcer” ada paling depan. Balik untuk membaca keterangan di belakang.' },
+  { art: <Card />, title: 'Jadi kartu saku', body: 'Sampul SKCK (kanan atas lembar) jadi halaman depan. Buka lipatannya untuk Data SKCK & barang bukti.' },
 ];
 
 export function FoldSteps({ className }: { className?: string }) {

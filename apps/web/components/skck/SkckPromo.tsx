@@ -44,12 +44,12 @@ export function SkckPromo({ onOpen, thumbs, className, cta = 'Bikin SKCK-ku seka
           <p className={cn(EDITORIAL, 'text-[15px] text-[#5E5850] italic')}>surat keterangan</p>
           <p className="font-[family-name:var(--font-pixelgothic)] text-[52px] leading-[0.95] text-[#6E1A1A]">Cukup Kalcer</p>
           <p className={cn(EDITORIAL, 'mt-2 max-w-xl text-[17px] leading-snug text-[#2B2620]')}>
-            Photozine lipat dari fotomu sendiri — pas foto, sidik kalcer, stempel “lulus”, dan QR ke foto digital. Satu lembar, dilipat jadi kartu saku 8 halaman.
+            Photozine lipat dari fotomu sendiri — pas foto, Data SKCK atas namamu, barang bukti, dan QR ke foto digital. Satu lembar, dilipat jadi kartu saku 8 halaman.
           </p>
           <ol className="mt-3 grid gap-1.5 text-[13px] sm:grid-cols-3">
             {[
-              ['isi', 'Nama + kategori: anak baru kalcer, bikunholic, cekrek profesional, dandan maksimal'],
-              ['cetak', 'Satu lembar A4, satu sisi. Warna atau fotokopi hitam-putih'],
+              ['isi', 'Nama, event & tanggal terbit, lalu pilih 4 foto'],
+              ['cetak', 'Satu lembar A4, satu sisi. Fotokopi hitam-putih atau foto berwarna'],
               ['lipat', 'Ikuti panduan garis lipat di layar. Tanpa gunting & lem'],
             ].map(([k, v], i) => (
               <li key={k} className="bevel-in bg-white px-2 py-1.5">

@@ -7,7 +7,7 @@ import type { PixelIconName } from '@/lib/pixel-icons';
 import { WordArt } from '@/components/brand/WordArt';
 
 const FEATURES: Array<[PixelIconName, string, string]> = [
-  ['book', 'SKCK — Surat Keterangan Cukup Kalcer', 'Fitur unggulan: photozine lipat dari fotomu, lengkap pas foto, sidik kalcer, stempel lulus & kategori (anak baru kalcer, bikunholic, cekrek profesional)'],
+  ['book', 'SKCK — Surat Keterangan Cukup Kalcer', 'Fitur unggulan: photozine lipat dari fotomu, lengkap pas foto, Data SKCK dengan namamu sendiri & QR ke foto digital'],
   ['tv', 'Tebak Lagu', 'Dengar lagu misteri dari Spotify, tebak judulnya, menangkan hadiah'],
   ['star', 'Pilih karakter', '4 pemandu 3D yang menemani tamu dari awal sampai QR'],
   ['tv', 'Frame Builder', 'Drag & drop, slot kembar (1 foto → kiri & kanan), QR softfile di frame'],

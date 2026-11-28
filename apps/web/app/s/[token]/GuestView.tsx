@@ -353,7 +353,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
             <WinWindow title="Mau ngapain lagi?" icon="folder" menu={['File', 'Edit', 'Lihat', 'Bantuan']} bodyClassName="p-2" status={<span>Ketuk salah satu untuk membuka</span>}>
               <WinPanel className="flex flex-col gap-1 p-1">
                 {session.urls.shots.length ? (
-                  <ActionRow icon="star" title="Bikin SKCK — Surat Keterangan Cukup Kalcer" body="Photozine lipat dari fotomu: pas foto, sidik kalcer & stempel lulus. Fitur unggulan!" onClick={() => setSimOpen(true)} />
+                  <ActionRow icon="star" title="Bikin SKCK — Surat Keterangan Cukup Kalcer" body="Photozine lipat dari fotomu: pas foto, Data SKCK atas namamu & QR foto digital. Fitur unggulan!" onClick={() => setSimOpen(true)} />
                 ) : null}
                 {event.stickersEnabled && session.urls.strip && !isZine ? (
                   <ActionRow icon="star" title="Hias dengan stiker" body="Tempel stiker & teks, lalu simpan atau cetak" onClick={() => setStickerOpen(true)} />

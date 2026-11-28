@@ -15,7 +15,7 @@ import { PixelIcon, WinWindow } from '@/components/os/retro';
 import { canvasToBlob, loadBitmap } from '@/lib/frames/render';
 import { printSheet } from '@/lib/print/sheet';
 import { jpegToPdf } from '@/lib/zine/pdf';
-import { ensureSkckFonts, renderSkckPanel, renderSkckSheet, SKCK_BACK, SKCK_FRONT, SKCK_KATEGORI, SKCK_PAPERS, skckNumber, skckPaper, type SkckData, type SkckKategori } from '@/lib/skck/layout';
+import { ensureSkckFonts, loadSkckTemplate, renderSkckPanels, renderSkckSheet, SKCK_BACK, SKCK_FRONT, SKCK_PAPERS, SKCK_SLOTS, skckNumber, skckPaper, skckToday, type SkckData } from '@/lib/skck/layout';
 import { cn } from '@/lib/utils';
 import { FoldSteps } from './FoldSteps';
 
@@ -56,10 +56,12 @@ export function SkckStudio({
 }) {
   const toast = useToast();
   const [imgs, setImgs] = useState<Map<string, Img>>(new Map());
-  const [picked, setPicked] = useState<string[]>(() => photos.slice(0, 3).map((p) => p.key));
+  const [picked, setPicked] = useState<string[]>(() => photos.slice(0, SKCK_SLOTS.length).map((p) => p.key));
   const [name, setName] = useState('');
-  const [kategori, setKategori] = useState<SkckKategori>('C');
-  const [look, setLook] = useState<SkckData['look']>('warna');
+  const [eventText, setEventText] = useState(eventName);
+  const [issued, setIssued] = useState(() => skckToday());
+  const [look, setLook] = useState<SkckData['look']>('xerox');
+  const [template, setTemplate] = useState<Img | null>(null);
   const [paperId, setPaperId] = useState(defaultPaper);
   const [view, setView] = useState<View>(initialView);
   const [fonts, setFonts] = useState(false);
@@ -81,27 +83,41 @@ export function SkckStudio({
     };
   }, [photos]);
 
-  const data: SkckData = useMemo(
-    () => ({
-      name: name.trim() || 'anak kalcer',
-      kategori,
-      eventName,
-      date: new Date(),
-      number: skckNumber(seed),
-      qrValue,
-      photos: picked.map((k) => imgs.get(k)).filter((x): x is Img => !!x),
-      look,
-    }),
-    [name, kategori, eventName, seed, qrValue, picked, imgs, look],
+  useEffect(() => {
+    let alive = true;
+    void loadSkckTemplate()
+      .then((t) => alive && setTemplate(t))
+      .catch((e) => alive && toast(e instanceof Error ? e.message : 'Template SKCK gagal dimuat', 'error'));
+    return () => {
+      alive = false;
+    };
+  }, [toast]);
+
+  const data: SkckData | null = useMemo(
+    () =>
+      template
+        ? {
+            name: name.trim() || 'Anak Kalcer',
+            eventName: eventText.trim() || eventName,
+            issued: issued.trim() || skckToday(),
+            number: skckNumber(seed),
+            qrValue,
+            photos: picked.map((k) => imgs.get(k)).filter((x): x is Img => !!x),
+            look,
+            template,
+          }
+        : null,
+    [template, name, eventText, eventName, issued, seed, qrValue, picked, imgs, look],
   );
   const paper = skckPaper(paperId);
 
   // Previews (debounced while typing). Panels for the accordion, sheet for the guide.
   useEffect(() => {
-    if (!fonts) return;
+    if (!fonts || !data) return;
     const t = setTimeout(() => {
       const out: Record<string, string> = {};
-      for (const id of [...SKCK_FRONT, ...SKCK_BACK]) out[id] = renderSkckPanel(id, data, 320, paper).toDataURL('image/jpeg', 0.86);
+      const cut = renderSkckPanels(data, 320);
+      for (const id of [...SKCK_FRONT, ...SKCK_BACK]) out[id] = cut[id].toDataURL('image/jpeg', 0.86);
       setPanels(out);
       if (view === 'guide') setGuide(renderSkckSheet(data, paper, true, 4).toDataURL('image/jpeg', 0.85));
     }, 160);
@@ -110,6 +126,7 @@ export function SkckStudio({
 
   const build = async (): Promise<BuiltSkck> => {
     await ensureSkckFonts();
+    if (!data) throw new Error('Template SKCK belum siap');
     await new Promise((r) => setTimeout(r, 30));
     const canvas = renderSkckSheet(data, paper, false);
     return { canvas, blob: await canvasToBlob(canvas, 'image/jpeg', 0.92), paperId };
@@ -141,7 +158,7 @@ export function SkckStudio({
   }
 
   function togglePhoto(key: string) {
-    setPicked((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key].slice(-3)));
+    setPicked((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key].slice(-SKCK_SLOTS.length)));
   }
 
   const strip = view === 'back' ? SKCK_BACK : SKCK_FRONT;
@@ -167,7 +184,7 @@ export function SkckStudio({
               ))}
             </div>
             <div className="win-tabpanel flex min-h-[360px] flex-col items-center justify-center gap-4 bg-[#9C9A93] p-4 [background-image:radial-gradient(rgba(0,0,0,0.08)_1px,transparent_1px)] [background-size:4px_4px]">
-              {!fonts || !panels[strip[0]] ? (
+              {!fonts || !data || !panels[strip[0]] ? (
                 <Spinner className="size-7" />
               ) : view === 'guide' ? (
                 <>
@@ -196,32 +213,33 @@ export function SkckStudio({
           {/* Controls */}
           <div className="flex flex-col gap-3">
             <fieldset className="win-fieldset">
-              <legend>Data pemohon</legend>
-              <label className="flex flex-col gap-1">
-                <span className="text-[13px]">Nama</span>
-                <WinInput value={name} maxLength={28} onChange={(e) => setName(e.target.value)} placeholder="anak kalcer" />
-              </label>
-              <p className="mt-3 mb-1 text-[13px]">Kategori</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {SKCK_KATEGORI.map((k) => (
-                  <button key={k.id} type="button" aria-pressed={kategori === k.id} onClick={() => setKategori(k.id)} className={cn('win-btn flex flex-col items-start px-2 py-1.5 text-left', kategori === k.id && 'win-btn-pressed')}>
-                    <span className="font-[family-name:var(--font-gothic)] text-[16px] leading-tight font-semibold">{k.label}</span>
-                  </button>
-                ))}
+              <legend>Data SKCK</legend>
+              <div className="flex flex-col gap-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[13px]">Nama</span>
+                  <WinInput value={name} maxLength={28} onChange={(e) => setName(e.target.value)} placeholder="Anak Kalcer" />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[13px]">Event</span>
+                  <WinInput value={eventText} maxLength={40} onChange={(e) => setEventText(e.target.value)} placeholder={eventName} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[13px]">Terbit</span>
+                  <WinInput value={issued} maxLength={32} onChange={(e) => setIssued(e.target.value)} placeholder={skckToday()} />
+                </label>
               </div>
-              <p className="mt-1 text-[12px] text-ink-2">{SKCK_KATEGORI.find((k) => k.id === kategori)?.note}</p>
             </fieldset>
 
             <fieldset className="win-fieldset">
               <legend>Tampilan</legend>
               <div className="flex gap-4">
-                {([['warna', 'Warna + tinta merah'], ['xerox', 'Fotokopi hitam-putih']] as const).map(([v, label]) => (
+                {([['xerox', 'Fotokopi hitam-putih'], ['warna', 'Foto berwarna']] as const).map(([v, label]) => (
                   <label key={v} className="flex items-center gap-1.5 text-[13px]">
                     <input type="radio" name="skck-look" className="win-radio" checked={look === v} onChange={() => setLook(v)} /> {label}
                   </label>
                 ))}
               </div>
-              <p className="mt-3 mb-1 text-[13px]">Foto ({picked.length}/3) — pertama jadi pas foto</p>
+              <p className="mt-3 mb-1 text-[13px]">Foto ({picked.length}/{SKCK_SLOTS.length}): {SKCK_SLOTS.map((s, i) => `${i + 1}. ${s.label}`).join(' · ')}</p>
               <div className="grid grid-cols-4 gap-1.5">
                 {photos.map((p) => {
                   const order = picked.indexOf(p.key);

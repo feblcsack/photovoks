@@ -241,13 +241,13 @@ PIN di-hash ulang otomatis ke bcrypt cost 10 saat login (sebelumnya 12 — ±4×
 ## 15. v6 — SKCK (Surat Keterangan Cukup Kalcer) & Tebak Lagu
 
 ### SKCK — Surat Keterangan Cukup Kalcer (fitur unggulan)
-Photozine lipat parodi surat keterangan, dibuat dari foto sesi. Penerbit fiktif: **biro urusan kalcer**. Kategori: anak baru kalcer, bikunholic, cekrek profesional, dandan maksimal.
+Photozine lipat parodi surat keterangan, dibuat dari foto sesi, memakai desain template `public/skck/template.png` (slot foto transparan).
 
-- 8 halaman (sampul, pas foto 4×6, pose terdaftar, punggung + barcode, keterangan + stempel "lulus", rumus sidik kalcer, ketentuan + QR, barang bukti) dalam **1 lembar cetak 1 sisi** (A4 / Letter / A5). Tata letak dihitung dalam milimeter per panel, jadi rapi di semua ukuran kertas.
-- Tipografi: gotik (UnifrakturMaguntia, Grenze Gotisch, Jacquard 24), Instrument Serif italic untuk teks, mesin ketik untuk isian. **Tidak ada teks huruf kapital semua.**
+- 8 panel dalam **1 lembar cetak 1 sisi** (A4 / Letter / A5). Foto dipasang di bawah template (4 slot: pas foto Data SKCK, Pemegang SKCK, Pose Terkalcer, Barang Bukti; slot di setengah atas diputar 180°), lalu isian Nama / Event / Terbit, nomor SKCK, dan QR softfile di samping lingkaran "Cukup".
+- Posisi slot disimpan sebagai pecahan ukuran template, jadi template bisa diganti ekspor resolusi lebih tinggi (rasio sama) tanpa ubah kode.
 - Studio: tab **Depan / Belakang / Cara lipat**. "Cara lipat" menampilkan garis lipat berwarna (merah = lipat 1 ke belakang, biru = gunung, hijau = lembah) + 4 langkah bergambar. **PDF / JPG / cetak selalu bersih tanpa garis panduan**, sesuai ukuran kertas.
 - Foto SKCK memakai foto yang sudah difilter **tanpa overlay meme** (meme hanya di strip, GIF, dan cetakan), jadi wajah tetap terlihat.
-- Kode: `lib/skck/layout.ts` (renderer canvas), `components/skck/SkckStudio.tsx`, `components/skck/FoldSteps.tsx`, `components/skck/SkckPromo.tsx`. Bukan dokumen resmi — tertulis di halaman terakhir.
+- Kode: `lib/skck/layout.ts` (renderer canvas), `components/skck/SkckStudio.tsx`, `components/skck/FoldSteps.tsx`, `components/skck/SkckPromo.tsx`. Bukan dokumen resmi.
 
 ### Tebak Lagu (Spotify)
 - **Mode panggung** (pengunjung belum beli): *Portal Pemilik › Tebak Lagu* → **Putar lagu acak** → ketik tebakan / **Tandai benar** → voucher hadiah.
