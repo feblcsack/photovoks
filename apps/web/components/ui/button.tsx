@@ -20,9 +20,10 @@ export const buttonVariants = cva(
         sun: 'border-2 border-ink bg-sun text-ink shadow-[3px_3px_0_var(--color-ink)] hover:bg-[#FFDB5C] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--color-ink)]',
         bubble: 'border-2 border-ink bg-bubble text-ink shadow-[3px_3px_0_var(--color-ink)] hover:bg-[#FFB0DC] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--color-ink)]',
         // Retro OS ("Photovoks 98") bevel buttons — booth + guest flow.
-        win: 'bevel-out bg-win font-pixel text-ink hover:bg-win-mid active:bevel-in active:translate-y-px active:pt-px',
-        'win-primary': 'bevel-out bg-win font-pixel text-ink outline outline-2 outline-ink hover:bg-win-mid active:bevel-in active:translate-y-px',
-        'win-go': 'bevel-out bg-sun font-pixel text-ink hover:bg-[#FFDB5C] active:bevel-in active:translate-y-px',
+        // 98.css: plain button, and the "default" button (extra black ring) for the main action.
+        win: 'bevel-out bg-win font-pixel text-black active:bevel-pressed active:[&>*]:translate-x-px active:[&>*]:translate-y-px focus-visible:outline-1 focus-visible:outline-dotted focus-visible:outline-black focus-visible:-outline-offset-4 disabled:text-win-shadow disabled:[text-shadow:1px_1px_0_#fff]',
+        'win-primary': 'bg-win font-pixel font-bold text-black shadow-[inset_-2px_-2px_0_#0a0a0a,inset_1px_1px_0_#0a0a0a,inset_2px_2px_0_#fff,inset_-3px_-3px_0_#808080,inset_3px_3px_0_#dfdfdf] active:shadow-[inset_2px_2px_0_#0a0a0a,inset_-1px_-1px_0_#0a0a0a,inset_-2px_-2px_0_#fff,inset_3px_3px_0_#808080,inset_-3px_-3px_0_#dfdfdf] active:[&>*]:translate-x-px active:[&>*]:translate-y-px focus-visible:outline-1 focus-visible:outline-dotted focus-visible:outline-black focus-visible:-outline-offset-5',
+        'win-go': 'bg-win font-pixel font-bold text-black shadow-[inset_-2px_-2px_0_#0a0a0a,inset_1px_1px_0_#0a0a0a,inset_2px_2px_0_#fff,inset_-3px_-3px_0_#808080,inset_3px_3px_0_#dfdfdf] active:shadow-[inset_2px_2px_0_#0a0a0a,inset_-1px_-1px_0_#0a0a0a,inset_-2px_-2px_0_#fff,inset_3px_3px_0_#808080,inset_-3px_-3px_0_#dfdfdf] active:[&>*]:translate-x-px active:[&>*]:translate-y-px focus-visible:outline-1 focus-visible:outline-dotted focus-visible:outline-black focus-visible:-outline-offset-5',
       },
       size: {
         xs: 'h-7 rounded-full px-2.5 text-xs [&_svg]:size-3.5',
@@ -36,7 +37,7 @@ export const buttonVariants = cva(
       },
     },
     // Square corners for the retro OS buttons whatever the size.
-    compoundVariants: [{ variant: ['win', 'win-primary', 'win-go'], class: 'rounded-[3px] font-semibold' }],
+    compoundVariants: [{ variant: ['win', 'win-primary', 'win-go'], class: 'rounded-none' }],
     defaultVariants: { variant: 'secondary', size: 'md' },
   },
 );

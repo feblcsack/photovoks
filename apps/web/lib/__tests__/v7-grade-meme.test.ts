@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/app/fonts', () => {
   const f = { style: { fontFamily: 'sans-serif' }, variable: '' };
-  return { jakarta: f, playfair: f, spaceMono: f, bebas: f, caveat: f, patrickHand: f, pacifico: f, bagel: f, specialElite: f, gochi: f, pixelify: f, nunito: f, anton: f, archivoBlack: f, orbitron: f, fontVariables: '' };
+  return { jakarta: f, playfair: f, spaceMono: f, bebas: f, caveat: f, patrickHand: f, pacifico: f, bagel: f, specialElite: f, gochi: f, pixelify: f, nunito: f, anton: f, archivoBlack: f, orbitron: f, unifraktur: f, grenze: f, jacquard: f, instrument: f, fontVariables: '' };
 });
 
 import { ADJUST_SLIDERS, combine, isNeutral, NO_ADJUST, PRESETS, sanitizeAdjust } from '@/lib/booth/grade';

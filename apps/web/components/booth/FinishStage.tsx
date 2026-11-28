@@ -16,18 +16,18 @@ import { AiStudio } from '@/components/session/AiStudio';
 import { useGuestSession } from '@/components/session/useGuestSession';
 import { api, uploadToSignedUrl } from '@/lib/fetcher';
 import { createCanvas, prepareDesign, renderDesign, scaledCopy } from '@/lib/frames/render';
-import { boomerang, buildSprite, encodeGif, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
+import { boomerang, buildSprite, encodeGif, filteredCopy, LIVE_CELL_WIDTH, LIVE_FRAMES, toJpeg } from '@/lib/booth/media';
 import { ensureMemeFonts, styledCopy, type MemeStyle } from '@/lib/booth/meme';
 import type { Adjustments } from '@/lib/booth/grade';
 import { BikunProgress } from '@/components/brand/BikunProgress';
-import { SimStudio } from '@/components/sim/SimStudio';
-import { SimMock } from '@/components/sim/SimPromo';
+import { SkckStudio } from '@/components/skck/SkckStudio';
+import { SkckMock } from '@/components/skck/SkckPromo';
 import { IdCard } from 'lucide-react';
 import { printSheet, renderSheet, sheetToJpeg } from '@/lib/print/sheet';
 import type { SheetPlan } from '@/lib/print/papers';
 import type { EventConfig } from '@/lib/events';
 import type { FrameRecord } from '@/lib/frames/types';
-import { primarySlotAspect } from '@/lib/frames/types';
+import { primarySlotAspect, raisePhotos } from '@/lib/frames/types';
 import type { AiGenerationView } from '@/lib/session-types';
 import { cn } from '@/lib/utils';
 import type { Shot } from './CaptureStage';
@@ -87,8 +87,8 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
   const [printOpen, setPrintOpen] = useState<{ url: string | Blob; type: 'strip' | 'ai'; aiId?: string } | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [simOpen, setSimOpen] = useState(false);
-  // SIM photos: the same filtered/meme'd stills as the strip (computed once per opening).
-  const simPhotos = useMemo(() => (simOpen ? shots.map((s, i) => ({ key: `shot-${i}`, src: styledCopy(s.still, filter, meme, adjust) })) : []), [simOpen, shots, filter, meme, adjust]);
+  // SKCK photos: graded stills WITHOUT the meme overlay (a meme caption on a pas foto hides the face).
+  const simPhotos = useMemo(() => (simOpen ? shots.map((s, i) => ({ key: `shot-${i}`, src: filteredCopy(s.still, filter, adjust) })) : []), [simOpen, shots, filter, adjust]);
   const [remaining, setRemaining] = useState(AUTO_RETURN_S);
   const started = useRef(false);
   const createdRef = useRef<{ sessionId: string; sessionToken: string; uploadUrls: Record<string, string> } | null>(null);
@@ -123,17 +123,22 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       const assets = await prepareDesign(frame.design);
       // Filter each shot once (slots may repeat the same shot).
       if (meme !== 'none') await ensureMemeFonts();
-      const filteredStills = shots.map((s) => styledCopy(s.still, filter, meme, adjust));
+      // Graded-only stills go to storage (softfile, AI, SKCK need the clean photo);
+      // the meme look is baked into the strip, GIF and print.
+      const gradedStills = shots.map((s) => filteredCopy(s.still, filter, adjust));
+      const filteredStills = meme === 'none' ? gradedStills : gradedStills.map((g) => styledCopy(g, 'original', meme));
+      // Meme captions live inside the photo → keep frame decorations from covering them.
+      const design = meme === 'none' ? frame.design : raisePhotos(frame.design);
       const fullPhotos = Array.from({ length: frame.slotCount }, (_, i) => filteredStills[selection[i]]);
       const strip = createCanvas(frame.design.width, frame.design.height);
-      renderDesign(strip.getContext('2d')!, frame.design, { photos: fullPhotos, assets, tokens, qrValue });
+      renderDesign(strip.getContext('2d')!, design, { photos: fullPhotos, assets, tokens, qrValue });
       // Egress: a high-quality JPEG is ~5–10× smaller than PNG and still
       // prints cleanly at 300 DPI. Raw shots are only for softfile/AI → ≤1200px.
       const stripBlob = await toJpeg(strip, STRIP_JPEG_QUALITY);
       const thumbBlob = await toJpeg(scaledCopy(strip, 480), 0.8);
       const sheet = renderSheet(strip, strip.width, strip.height, event.printPaper, 'auto', 0);
       const sheetBlob = await sheetToJpeg(sheet.canvas);
-      const shotBlobs = await Promise.all(filteredStills.map((c) => toJpeg(scaledCopy(c, SHOT_MAX_SIDE, SHOT_MAX_SIDE), SHOT_JPEG_QUALITY)));
+      const shotBlobs = await Promise.all(gradedStills.map((c) => toJpeg(scaledCopy(c, SHOT_MAX_SIDE, SHOT_MAX_SIDE), SHOT_JPEG_QUALITY)));
 
       // 3 · Live photo: sprite (all shots) + animated GIF of the whole frame.
       let spriteBlob: Blob | null = null;
@@ -148,7 +153,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
         const frames: HTMLCanvasElement[] = [];
         for (const k of boomerang(Array.from({ length: LIVE_FRAMES }, (_, i) => i))) {
           const c = createCanvas(frame.design.width * scale, frame.design.height * scale);
-          renderDesign(c.getContext('2d')!, frame.design, {
+          renderDesign(c.getContext('2d')!, design, {
             photos: Array.from({ length: frame.slotCount }, (_, i) => filteredBursts[selection[i]][k]),
             assets,
             tokens,
@@ -430,13 +435,13 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
 
           {printWindow}
 
-          <WinWindow title="SIM.exe ★ Fitur Unggulan" icon="star" bodyClassName="flex items-center gap-3 bg-[#F3F1EA] p-3">
-            <SimMock className="hidden shrink-0 scale-[0.55] -mx-16 -my-6 sm:flex" />
+          <WinWindow title="SKCK.exe — fitur unggulan" icon="book" bodyClassName="flex items-center gap-3 bg-[#F4F0E6] p-3">
+            <SkckMock className="hidden shrink-0 scale-[0.55] -mx-16 -my-6 sm:flex" />
             <div className="min-w-0 flex-1">
-              <p className="font-heavy text-[22px] leading-none">SIM</p>
-              <p className="font-[family-name:var(--font-scribble)] text-[18px] leading-tight">Surat Izin Mejeng</p>
-              <p className="mt-0.5 text-xs text-ink-2">Photozine lipat dari fotomu — cetak & bawa pulang</p>
-              <Button variant="win-go" className="mt-2" onClick={() => setSimOpen(true)}><IdCard /> Bikin SIM</Button>
+              <p className="font-[family-name:var(--font-editorial)] text-[14px] text-[#5E5850] italic">surat keterangan</p>
+              <p className="font-[family-name:var(--font-pixelgothic)] text-[30px] leading-none text-[#6E1A1A]">Cukup Kalcer</p>
+              <p className="mt-0.5 text-xs">Photozine lipat dari fotomu — cetak & bawa pulang</p>
+              <Button variant="win-go" className="mt-2" onClick={() => setSimOpen(true)}><IdCard /> Bikin SKCK</Button>
             </div>
           </WinWindow>
 
@@ -468,7 +473,7 @@ export function FinishStage({ code, event, frame, shots, selection, filter, toke
       />
 
       {simOpen ? (
-        <SimStudio
+        <SkckStudio
           kiosk
           photos={simPhotos}
           eventName={event.name}

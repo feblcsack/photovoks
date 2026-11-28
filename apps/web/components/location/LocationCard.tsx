@@ -54,10 +54,10 @@ export function LocationCard({ eventName, dateLabel, note, className }: { eventN
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <a href={googleMapsUrl()} target="_blank" rel="noreferrer" className="bevel-out flex h-11 items-center justify-center gap-1.5 bg-win px-2 font-pixel text-[14px] font-semibold active:bevel-in">
+          <a href={googleMapsUrl()} target="_blank" rel="noreferrer" className="bevel-out flex h-11 items-center justify-center gap-1.5 bg-win px-2 font-pixel text-[14px] font-semibold active:bevel-pressed">
             <ExternalLink className="size-4" /> Buka peta
           </a>
-          <a href={directionsUrl()} target="_blank" rel="noreferrer" className="bevel-out flex h-11 items-center justify-center gap-1.5 bg-sun px-2 font-pixel text-[14px] font-semibold active:bevel-in">
+          <a href={directionsUrl()} target="_blank" rel="noreferrer" className="bevel-out flex h-11 items-center justify-center gap-1.5 bg-sun px-2 font-pixel text-[14px] font-semibold active:bevel-pressed">
             <Navigation className="size-4" /> Rute ke sini
           </a>
         </div>

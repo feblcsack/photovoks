@@ -75,7 +75,7 @@ export function Buddy({
         >
           <p>{text}</p>
           {onChangeBuddy ? (
-            <button type="button" onClick={onChangeBuddy} className="mt-1 font-pixel text-[12px] text-cobalt underline underline-offset-2">
+            <button type="button" onClick={onChangeBuddy} className="mt-1 font-pixel text-[12px] text-[#0000FF] underline underline-offset-2">
               Ganti karakter
             </button>
           ) : null}

@@ -1,12 +1,13 @@
 'use client';
 
 /**
- * "Photovoks 98" — a Windows-98-flavoured kit built from the Photovoks palette
- * (cream-silver face, cobalt title bars, sky + lime desktop). Used across the
- * guest flow: booth, QR page, landing. Everything is SVG/CSS (no downloads).
+ * "Photovoks 98" — Windows 98 kit following the 98.css / Win98 UI-kit design
+ * systems (silver face, 4-tone bevels, navy→blue title bars, navy selection),
+ * scaled up for touch. Used across the guest flow: booth, QR page, landing.
+ * Everything is SVG/CSS (no downloads).
  */
 import React, { useEffect, useState } from 'react';
-import { Minus, Square, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { pixelRects, type PixelIconName } from '@/lib/pixel-icons';
 import { cn } from '@/lib/utils';
 
@@ -55,39 +56,53 @@ export function WinWindow({
   style?: React.CSSProperties;
 }) {
   return (
-    <section className={cn('bevel-out flex min-w-0 flex-col bg-win p-[3px] text-ink', className)} style={style}>
-      <header className={cn('flex h-8 shrink-0 items-center gap-1.5 pr-1 pl-1.5 text-white select-none', active ? 'win-title' : 'win-title-idle')}>
+    <section className={cn('bevel-window flex min-w-0 flex-col bg-win p-[3px] text-black', className)} style={style}>
+      <header className={cn('flex h-8 shrink-0 items-center gap-1.5 pr-[3px] pl-1 text-white select-none', active ? 'win-title' : 'win-title-idle')}>
         {icon ? <span className="flex size-5 shrink-0 items-center justify-center">{typeof icon === 'string' ? <PixelIcon name={icon as PixelIconName} className="size-4" /> : icon}</span> : null}
-        <h2 className="min-w-0 flex-1 truncate font-pixel text-[15px] leading-none font-semibold">{title}</h2>
+        <h2 className="min-w-0 flex-1 truncate font-pixel text-[15px] leading-none font-bold tracking-normal">{title}</h2>
         {controls ? (
-          <span className="flex shrink-0 gap-0.5" aria-hidden={!onClose}>
-            <TitleBtn label="Kecilkan"><Minus className="size-3" strokeWidth={3.5} /></TitleBtn>
-            <TitleBtn label="Besarkan"><Square className="size-2.5" strokeWidth={3.5} /></TitleBtn>
-            <TitleBtn label={closeLabel} onClick={onClose} className="ml-0.5"><X className="size-3.5" strokeWidth={3.5} /></TitleBtn>
+          <span className="flex shrink-0" aria-hidden={!onClose}>
+            <TitleBtn label="Kecilkan"><MinGlyph /></TitleBtn>
+            <TitleBtn label="Besarkan"><MaxGlyph /></TitleBtn>
+            <TitleBtn label={closeLabel} onClick={onClose} className="ml-[2px]"><CloseGlyph /></TitleBtn>
           </span>
         ) : onClose ? (
-          <TitleBtn label={closeLabel} onClick={onClose}><X className="size-3.5" strokeWidth={3.5} /></TitleBtn>
+          <TitleBtn label={closeLabel} onClick={onClose}><CloseGlyph /></TitleBtn>
         ) : null}
       </header>
       {menu?.length ? (
-        <nav className="flex gap-3 px-2 py-1 font-pixel text-[13px] text-ink-2" aria-hidden>
+        <nav className="flex gap-3 px-2 py-1 font-pixel text-[13px] text-black" aria-hidden>
           {menu.map((m) => (
             <span key={m}><u>{m.slice(0, 1)}</u>{m.slice(1)}</span>
           ))}
         </nav>
       ) : null}
       <div className={cn('min-h-0 flex-1', bodyClassName)}>{children}</div>
-      {status ? <footer className="bevel-in mt-[3px] flex min-h-6 items-center gap-2 px-2 py-0.5 font-pixel text-[12px] text-ink-2">{status}</footer> : null}
+      {status ? <footer className="bevel-status mt-[3px] flex min-h-6 items-center gap-2 px-2 py-0.5 font-pixel text-[12px] text-black">{status}</footer> : null}
     </section>
   );
 }
 
-function TitleBtn({ children, label, onClick, className }: { children: React.ReactNode; label: string; onClick?: () => void; className?: string }) {
-  if (!onClick) {
-    return <span className={cn('bevel-out flex h-[22px] w-6 items-center justify-center bg-win text-ink', className)}>{children}</span>;
-  }
+/* Title-bar glyphs drawn on the pixel grid like the 98 originals. */
+function MinGlyph() {
+  return <svg viewBox="0 0 8 7" className="h-[7px] w-2" shapeRendering="crispEdges" aria-hidden><rect x="0" y="5" width="6" height="2" fill="#000" /></svg>;
+}
+function MaxGlyph() {
+  return <svg viewBox="0 0 9 9" className="size-[9px]" shapeRendering="crispEdges" aria-hidden><path d="M0 0h9v9H0zM1 2v6h7V2z" fill="#000" fillRule="evenodd" /></svg>;
+}
+function CloseGlyph() {
   return (
-    <button type="button" onClick={onClick} aria-label={label} className={cn('bevel-out flex h-[22px] w-6 items-center justify-center bg-win text-ink active:bevel-in', className)}>
+    <svg viewBox="0 0 8 7" className="h-[7px] w-2" shapeRendering="crispEdges" aria-hidden>
+      <path d="M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0z" fill="#000" />
+    </svg>
+  );
+}
+
+function TitleBtn({ children, label, onClick, className }: { children: React.ReactNode; label: string; onClick?: () => void; className?: string }) {
+  const cls = cn('bevel-out flex h-[22px] w-6 items-center justify-center bg-win', className);
+  if (!onClick) return <span className={cls}>{children}</span>;
+  return (
+    <button type="button" onClick={onClick} aria-label={label} className={cn(cls, 'active:bevel-pressed active:[&>svg]:translate-x-px active:[&>svg]:translate-y-px')}>
       {children}
     </button>
   );
@@ -95,7 +110,7 @@ function TitleBtn({ children, label, onClick, className }: { children: React.Rea
 
 /** Sunken white panel (list views, text areas). */
 export function WinPanel({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('bevel-in bg-win-light p-2', className)}>{children}</div>;
+  return <div className={cn('bevel-in bg-white p-2', className)}>{children}</div>;
 }
 
 // ── Taskbar ──────────────────────────────────────────────────────────────────
@@ -114,11 +129,11 @@ export function useClock(): string {
 export function Taskbar({ children, start, tray, className }: { children?: React.ReactNode; start?: React.ReactNode; tray?: React.ReactNode; className?: string }) {
   const clock = useClock();
   return (
-    <div className={cn('bevel-out flex h-12 shrink-0 items-center gap-1.5 bg-win px-1.5 pb-[env(safe-area-inset-bottom)]', className)}>
+    <div className={cn('flex h-12 shrink-0 items-center gap-1.5 bg-win px-1.5 pb-[env(safe-area-inset-bottom)] text-black shadow-[inset_0_1px_0_#dfdfdf,inset_0_2px_0_#fff]', className)}>
       {start ?? <StartButton />}
-      <span className="mx-0.5 h-8 w-[3px] border-x border-r-win-light border-l-win-shadow" aria-hidden />
+      <span className="mx-0.5 h-8 w-[2px] border-r border-l border-r-white border-l-win-shadow" aria-hidden />
       <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">{children}</div>
-      <div className="bevel-in flex h-9 shrink-0 items-center gap-2 px-2.5 font-pixel text-[14px]">
+      <div className="bevel-status flex h-9 shrink-0 items-center gap-2 px-2.5 font-pixel text-[14px]">
         {tray}
         <span className="tabular-nums" suppressHydrationWarning>{clock}</span>
       </div>
@@ -131,7 +146,7 @@ export function StartButton({ onClick, label = 'Mulai', className }: { onClick?:
   return (
     <Tag
       {...(onClick ? { type: 'button' as const, onClick } : {})}
-      className={cn('bevel-out flex h-9 shrink-0 items-center gap-1.5 bg-win px-2.5 font-pixel text-[16px] font-bold active:bevel-in', className)}
+      className={cn('bevel-out flex h-9 shrink-0 items-center gap-1.5 bg-win px-2.5 font-pixel text-[16px] font-bold active:bevel-pressed', className)}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/brand/photovoks-logo-sm.png" alt="" className="h-6 w-auto" draggable={false} />
@@ -143,7 +158,7 @@ export function StartButton({ onClick, label = 'Mulai', className }: { onClick?:
 export function TaskItem({ children, active, icon, onClick, href, className }: { children: React.ReactNode; active?: boolean; icon?: PixelIconName; onClick?: () => void; href?: string; className?: string }) {
   const cls = cn(
     'flex h-9 max-w-48 min-w-0 shrink-0 items-center gap-1.5 px-2 font-pixel text-[14px]',
-    active ? 'bevel-in bg-win-mid font-bold [background-image:repeating-conic-gradient(#fffdf6_0_25%,transparent_0_50%)] [background-size:2px_2px]' : 'bevel-out bg-win',
+    active ? 'bevel-pressed bg-win-mid font-bold [background-image:repeating-conic-gradient(#fff_0_25%,transparent_0_50%)] [background-size:2px_2px]' : 'bevel-out bg-win',
     className,
   );
   const inner = (
@@ -172,10 +187,10 @@ export function DesktopIcon({ icon, label, onClick, selected, className, childre
   const inner = (
     <>
       <span className="relative">
-        <PixelIcon name={icon} className={cn('size-12 drop-shadow-[2px_2px_0_rgb(26_20_16/0.35)]', selected && 'opacity-80 [filter:sepia(1)_hue-rotate(190deg)_saturate(4)]')} />
+        <PixelIcon name={icon} className={cn('size-12', selected && 'opacity-80 [filter:sepia(1)_hue-rotate(190deg)_saturate(4)]')} />
         {children}
       </span>
-      <span className={cn('max-w-24 px-1 text-center font-pixel text-[13px] leading-tight text-white [text-shadow:1px_1px_0_#1A1410]', selected && 'win-focus bg-cobalt')}>{label}</span>
+      <span className={cn('max-w-24 px-1 text-center font-pixel text-[13px] leading-tight text-white [text-shadow:1px_1px_0_#000]', selected && 'win-focus win-selected [text-shadow:none]')}>{label}</span>
     </>
   );
   const cls = cn('flex w-24 flex-col items-center gap-1 p-1 outline-none', className);
@@ -193,7 +208,7 @@ export function DesktopIcon({ icon, label, onClick, selected, className, childre
 /** Yellow help balloon (with tail) — the buddy's speech bubble. */
 export function Balloon({ children, title, onClose, tail = 'bottom-left', className, style }: { children: React.ReactNode; title?: React.ReactNode; onClose?: () => void; tail?: 'bottom-left' | 'bottom-right' | 'left' | 'right'; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={cn('balloon-in relative rounded-[10px] border-2 border-ink bg-tip px-3 py-2 text-ink shadow-[3px_3px_0_rgb(26_20_16/0.35)]', className)} style={style} role="status">
+    <div className={cn('balloon-in relative rounded-[8px] border border-black bg-tip px-3 py-2 text-black shadow-[2px_2px_0_rgb(0_0_0/0.25)]', className)} style={style} role="status">
       {title ? <p className="mb-0.5 flex items-center gap-1 pr-5 font-pixel text-[13px] font-bold">{title}</p> : null}
       <div className="text-[14px] leading-snug">{children}</div>
       {onClose ? (
@@ -204,11 +219,11 @@ export function Balloon({ children, title, onClose, tail = 'bottom-left', classN
       <span
         aria-hidden
         className={cn(
-          'absolute size-3.5 rotate-45 border-ink bg-tip',
-          tail === 'bottom-left' && '-bottom-[9px] left-6 border-r-2 border-b-2',
-          tail === 'bottom-right' && 'right-6 -bottom-[9px] border-r-2 border-b-2',
-          tail === 'left' && 'top-1/2 -left-[9px] -translate-y-1/2 border-b-2 border-l-2',
-          tail === 'right' && 'top-1/2 -right-[9px] -translate-y-1/2 border-t-2 border-r-2',
+          'absolute size-3.5 rotate-45 border-black bg-tip',
+          tail === 'bottom-left' && '-bottom-[8px] left-6 border-r border-b',
+          tail === 'bottom-right' && 'right-6 -bottom-[8px] border-r border-b',
+          tail === 'left' && 'top-1/2 -left-[8px] -translate-y-1/2 border-b border-l',
+          tail === 'right' && 'top-1/2 -right-[8px] -translate-y-1/2 border-t border-r',
         )}
       />
     </div>
@@ -218,11 +233,11 @@ export function Balloon({ children, title, onClose, tail = 'bottom-left', classN
 /** Chunky block progress bar. `value` undefined → indeterminate marching blocks. */
 export function ProgressBlocks({ value, className }: { value?: number; className?: string }) {
   return (
-    <div className={cn('bevel-in h-6 overflow-hidden bg-win-light p-[3px]', className)} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
+    <div className={cn('bevel-in h-6 overflow-hidden bg-white p-[3px]', className)} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
       {value === undefined ? (
         <div className="boot-bar h-full w-full" />
       ) : (
-        <div className="h-full transition-[width] duration-300 [background:repeating-linear-gradient(90deg,var(--color-cobalt)_0_14px,transparent_14px_17px)]" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+        <div className="h-full transition-[width] duration-300 [background:repeating-linear-gradient(90deg,var(--color-win-select)_0_10px,transparent_10px_12px)]" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       )}
     </div>
   );
@@ -231,49 +246,85 @@ export function ProgressBlocks({ value, className }: { value?: number; className
 // ── Wallpapers ───────────────────────────────────────────────────────────────
 
 /**
- * Rolling green hill under a cloudy sky — the retro desktop wallpaper (an
- * original drawing in the app palette), with a faint CRT dot screen on top.
+ * Desktop wallpaper: a rolling green hill under a soft cumulus sky, seen on a
+ * CRT (aperture-grille stripes + scanlines + vignette). An original drawing —
+ * clouds and grass are procedural SVG noise, so it looks natural at any size
+ * with zero image downloads.
  */
 export function HillsWallpaper({ className, dots = true }: { className?: string; dots?: boolean }) {
   return (
-    <div aria-hidden className={cn('pointer-events-none absolute inset-0 overflow-hidden', className)}>
+    <div aria-hidden className={cn('pointer-events-none absolute inset-0 overflow-hidden bg-[#3E7FD8]', className)}>
       <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full">
         <defs>
           <linearGradient id="hw-sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#1F5FD6" />
-            <stop offset=".55" stopColor="#4F95EE" />
-            <stop offset="1" stopColor="#9ED8FF" />
+            <stop offset="0" stopColor="#1452C4" />
+            <stop offset=".38" stopColor="#3F86E0" />
+            <stop offset=".62" stopColor="#7DB4EE" />
+            <stop offset=".72" stopColor="#B9D7F4" />
           </linearGradient>
-          <linearGradient id="hw-hill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#B9E85A" />
-            <stop offset=".35" stopColor="#7FC23E" />
-            <stop offset="1" stopColor="#3F7360" />
-          </linearGradient>
-          <linearGradient id="hw-hill2" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#9FD45A" />
-            <stop offset="1" stopColor="#4E8F45" />
-          </linearGradient>
-          <radialGradient id="hw-cloud" cx=".5" cy=".4" r=".6">
+          <linearGradient id="hw-cloudfade" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#fff" stopOpacity=".95" />
-            <stop offset=".7" stopColor="#fff" stopOpacity=".55" />
-            <stop offset="1" stopColor="#fff" stopOpacity="0" />
-          </radialGradient>
+            <stop offset=".45" stopColor="#fff" stopOpacity="1" />
+            <stop offset=".72" stopColor="#fff" stopOpacity=".35" />
+            <stop offset=".8" stopColor="#fff" stopOpacity="0" />
+          </linearGradient>
+          <mask id="hw-cloudmask">
+            <rect width="1600" height="1000" fill="url(#hw-cloudfade)" />
+          </mask>
+          <filter id="hw-clouds" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.0022 0.0075" numOctaves="5" seed="11" />
+            <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 3.2 -1.55" />
+            <feGaussianBlur stdDeviation="1.2" />
+          </filter>
+          <filter id="hw-cloudshade" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.0022 0.0075" numOctaves="5" seed="11" />
+            <feColorMatrix type="matrix" values="0 0 0 0 .58  0 0 0 0 .68  0 0 0 0 .84  0 0 0 3.2 -1.75" />
+            <feGaussianBlur stdDeviation="3" />
+          </filter>
+          <linearGradient id="hw-hill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#9BD13A" />
+            <stop offset=".25" stopColor="#6DB52A" />
+            <stop offset=".6" stopColor="#4C9622" />
+            <stop offset="1" stopColor="#2E6A17" />
+          </linearGradient>
+          <linearGradient id="hw-far" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#7FA9D9" />
+            <stop offset="1" stopColor="#5E86C2" />
+          </linearGradient>
+          <filter id="hw-grass" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9 0.22" numOctaves="2" seed="4" />
+            <feColorMatrix type="matrix" values="0 0 0 0 .12  0 0 0 0 .3  0 0 0 0 .05  0 0 0 .55 0" />
+          </filter>
+          <filter id="hw-patches" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.004 0.012" numOctaves="3" seed="2" />
+            <feColorMatrix type="matrix" values="0 0 0 0 .78  0 0 0 0 .9  0 0 0 0 .25  0 0 0 1.6 -0.7" />
+          </filter>
+          <clipPath id="hw-hillclip">
+            <path d="M0 760 C 220 640 560 560 900 590 C 1180 615 1420 650 1600 640 V1000 H0Z" />
+          </clipPath>
         </defs>
         <rect width="1600" height="1000" fill="url(#hw-sky)" />
-        {[
-          [180, 160, 260, 70], [420, 120, 200, 55], [760, 210, 320, 80], [1120, 130, 260, 66], [1400, 230, 240, 60], [980, 330, 220, 50], [260, 330, 240, 52],
-        ].map(([x, y, w, h], i) => (
-          <g key={i} opacity={0.9}>
-            <ellipse cx={x} cy={y} rx={w / 2} ry={h / 2} fill="url(#hw-cloud)" />
-            <ellipse cx={x - w * 0.22} cy={y + h * 0.12} rx={w * 0.3} ry={h * 0.42} fill="url(#hw-cloud)" />
-            <ellipse cx={x + w * 0.25} cy={y + h * 0.1} rx={w * 0.28} ry={h * 0.4} fill="url(#hw-cloud)" />
-          </g>
-        ))}
-        <path d="M0 700 C 300 600 520 640 760 690 S 1300 640 1600 700 V1000 H0Z" fill="url(#hw-hill2)" />
-        <path d="M0 780 C 260 620 640 560 980 640 C 1220 696 1420 720 1600 690 V1000 H0Z" fill="url(#hw-hill)" />
-        <path d="M0 780 C 260 620 640 560 980 640" fill="none" stroke="#E6FFA0" strokeOpacity=".5" strokeWidth="6" />
+        <g mask="url(#hw-cloudmask)">
+          <rect y="14" width="1600" height="1000" filter="url(#hw-cloudshade)" />
+          <rect width="1600" height="1000" filter="url(#hw-clouds)" />
+        </g>
+        {/* far ridge on the right */}
+        <path d="M1050 650 C 1180 612 1260 600 1330 606 C 1400 590 1470 600 1600 612 V700 H1050Z" fill="url(#hw-far)" />
+        <g clipPath="url(#hw-hillclip)">
+          <rect width="1600" height="1000" fill="url(#hw-hill)" />
+          <rect width="1600" height="1000" filter="url(#hw-patches)" opacity=".55" />
+          <rect width="1600" height="1000" filter="url(#hw-grass)" />
+        </g>
+        <path d="M0 760 C 220 640 560 560 900 590 C 1180 615 1420 650 1600 640" fill="none" stroke="#D8F58A" strokeOpacity=".45" strokeWidth="5" />
       </svg>
-      {dots ? <div className="absolute inset-0 opacity-[0.16] [background-image:radial-gradient(#0C1E6E_0.8px,transparent_1.1px)] [background-size:4px_4px]" /> : null}
+      {dots ? (
+        <>
+          {/* CRT aperture grille (vertical RGB phosphor stripes) + scanlines + vignette */}
+          <div className="absolute inset-0 opacity-60 [background-image:repeating-linear-gradient(90deg,rgb(255_60_60/0.10)_0_1px,rgb(60_255_90/0.08)_1px_2px,rgb(60_90_255/0.10)_2px_3px,rgb(0_0_0/0.22)_3px_4px)]" />
+          <div className="absolute inset-0 [background-image:repeating-linear-gradient(0deg,rgb(0_0_0/0.07)_0_1px,transparent_1px_3px)]" />
+          <div className="absolute inset-0 [background:radial-gradient(130%_100%_at_50%_45%,transparent_55%,rgb(0_0_0/0.35)_100%)]" />
+        </>
+      ) : null}
     </div>
   );
 }

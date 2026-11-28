@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 vi.mock('@/app/fonts', () => {
   const f = { style: { fontFamily: 'sans-serif' }, variable: '' };
-  return { jakarta: f, playfair: f, spaceMono: f, bebas: f, caveat: f, patrickHand: f, pacifico: f, bagel: f, specialElite: f, gochi: f, pixelify: f, nunito: f, anton: f, archivoBlack: f, orbitron: f, fontVariables: '' };
+  return { jakarta: f, playfair: f, spaceMono: f, bebas: f, caveat: f, patrickHand: f, pacifico: f, bagel: f, specialElite: f, gochi: f, pixelify: f, nunito: f, anton: f, archivoBlack: f, orbitron: f, unifraktur: f, grenze: f, jacquard: f, instrument: f, fontVariables: '' };
 });
 
 import { presignUrl, rfc3986 } from '@/lib/storage/sigv4';
@@ -244,11 +244,11 @@ describe('Tebak Lagu', () => {
   });
 });
 
-describe('SIM photozine', () => {
-  it('derives a stable licence number from the session', async () => {
-    const { simNumber } = await import('@/lib/sim/layout');
-    expect(simNumber('session-a')).toBe(simNumber('session-a'));
-    expect(simNumber('session-a')).not.toBe(simNumber('session-b'));
-    expect(simNumber('x')).toMatch(/^\d{4}-\d{4}-\d{6}$/);
+describe('SKCK photozine', () => {
+  it('derives a stable, lowercase certificate number from the session', async () => {
+    const { skckNumber } = await import('@/lib/skck/layout');
+    expect(skckNumber('session-a')).toBe(skckNumber('session-a'));
+    expect(skckNumber('session-a')).not.toBe(skckNumber('session-b'));
+    expect(skckNumber('x')).toMatch(/^\d{4}\/\d{3}\/kck\/\d{4}$/);
   });
 });

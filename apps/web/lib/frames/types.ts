@@ -6,8 +6,8 @@
  * Elements are drawn in array order (first = bottom).
  */
 
-export type FontKey = 'sans' | 'serif' | 'mono' | 'display' | 'hand' | 'marker' | 'script' | 'bubble' | 'typewriter' | 'scribble' | 'rounded' | 'impact' | 'heavy' | 'techno';
-export const FONT_KEYS: readonly FontKey[] = ['sans', 'serif', 'mono', 'display', 'hand', 'marker', 'script', 'bubble', 'typewriter', 'scribble', 'rounded', 'impact', 'heavy', 'techno'];
+export type FontKey = 'sans' | 'serif' | 'mono' | 'display' | 'hand' | 'marker' | 'script' | 'bubble' | 'typewriter' | 'scribble' | 'rounded' | 'impact' | 'heavy' | 'techno' | 'blackletter' | 'gothic' | 'pixelgothic' | 'editorial';
+export const FONT_KEYS: readonly FontKey[] = ['sans', 'serif', 'mono', 'display', 'hand', 'marker', 'script', 'bubble', 'typewriter', 'scribble', 'rounded', 'impact', 'heavy', 'techno', 'blackletter', 'gothic', 'pixelgothic', 'editorial'];
 
 export interface AssetRef {
   /** Path inside the `frames` bucket, e.g. "frames/assets/<uuid>.png" */
@@ -321,4 +321,16 @@ export function qrOverlaps(design: FrameDesign): number[] {
     }
   }
   return Array.from(hit).sort((a, b) => a - b);
+}
+
+/**
+ * Same design with every photo slot moved above the decorations (QR codes stay
+ * on top so they still scan). Used when a meme look is active: meme captions
+ * live inside the photo, so frame stickers/overlays must not cover them.
+ */
+export function raisePhotos(design: FrameDesign): FrameDesign {
+  const photos = design.elements.filter((e) => e.type === 'photo');
+  const qrs = design.elements.filter((e) => e.type === 'qr');
+  const rest = design.elements.filter((e) => e.type !== 'photo' && e.type !== 'qr');
+  return { ...design, elements: [...rest, ...photos, ...qrs] };
 }

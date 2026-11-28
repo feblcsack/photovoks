@@ -391,7 +391,7 @@ export function CaptureStage({
               onClick={() => setPalsOn((v) => !v)}
               disabled={running}
               aria-pressed={palsOn}
-              className={cn('bevel-out flex h-8 shrink-0 items-center gap-1.5 px-2 font-pixel text-[13px] active:bevel-in disabled:opacity-60', palsOn ? 'bg-sun' : 'bg-win')}
+              className={cn('bevel-out flex h-8 shrink-0 items-center gap-1.5 px-2 font-pixel text-[13px] active:bevel-pressed disabled:opacity-60', palsOn ? 'bg-sun' : 'bg-win')}
             >
               <PixelIcon name="star" className="size-4" /> Teman 3D: {palsOn ? (sprites ? PAL_LABELS[pal.id] : '…') : 'Mati'}
             </button>

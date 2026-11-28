@@ -5,7 +5,7 @@
  * desktop with the guest's buddy as guide:
  *  1. Foto_kamu.jpg — the strip prints out of a photo-machine slot.
  *  2. Paspor.txt — scrapbook passport card with the event details + stamps.
- *  0. SIM.exe — the "Surat Izin Mejeng" photozine (headline feature).
+ *  0. SKCK.exe — the "Surat Keterangan Cukup Kalcer" photozine (headline feature).
  *  3. Mau ngapain lagi? — stickers, live wall, minizine, print, guestbook, AI.
  *     TebakLagu.exe — guess the mystery song, win a voucher.
  *  4. Lokasi — postcard with a live map of the venue (UI Depok).
@@ -44,8 +44,8 @@ import type { WallSticker } from '@/lib/y2k-stickers';
 import { cn } from '@/lib/utils';
 import { variant } from '@/lib/media-variant';
 import { BikunProgress } from '@/components/brand/BikunProgress';
-import { SimPromo } from '@/components/sim/SimPromo';
-import { SimStudio } from '@/components/sim/SimStudio';
+import { SkckPromo } from '@/components/skck/SkckPromo';
+import { SkckStudio } from '@/components/skck/SkckStudio';
 import { GuestSongGame } from '@/components/song/GuestSongGame';
 import { BikunDrive, PlanePath, RektoratScene } from '@/components/brand/campus';
 
@@ -71,7 +71,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
   const [zineOpen, setZineOpen] = useState(false);
   const [foldOpen, setFoldOpen] = useState(false);
   const [simOpen, setSimOpen] = useState(false);
-  // Stable across polls (same URLs → same array) so the SIM studio doesn't reload photos.
+  // Stable across polls (same URLs → same array) so the SKCK studio doesn't reload photos.
   const shotsKey = d.session.urls.shots.join('|');
   const simPhotos = useMemo(() => (shotsKey ? shotsKey.split('|') : []).map((u, i) => ({ key: `shot-${i}`, src: variant(u, { w: 1080 }) })), [shotsKey]);
   const [wallStickers, setWallStickers] = useState<WallSticker[]>(d.wallStickers ?? []);
@@ -200,9 +200,9 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
           </Stamp>
         </header>
 
-        {/* ── SIM: the headline gimmick ─────────────────────────────────── */}
+        {/* ── SKCK: the headline gimmick ────────────────────────────────── */}
         {session.urls.shots.length ? (
-          <SimPromo className="mb-5" onOpen={() => setSimOpen(true)} thumbs={session.urls.shots.slice(0, 3).map((u) => variant(u, { w: 160 }))} />
+          <SkckPromo className="mb-5" onOpen={() => setSimOpen(true)} thumbs={session.urls.shots.slice(0, 3).map((u) => variant(u, { w: 160 }))} />
         ) : null}
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
@@ -353,7 +353,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
             <WinWindow title="Mau ngapain lagi?" icon="folder" menu={['File', 'Edit', 'Lihat', 'Bantuan']} bodyClassName="p-2" status={<span>Ketuk salah satu untuk membuka</span>}>
               <WinPanel className="flex flex-col gap-1 p-1">
                 {session.urls.shots.length ? (
-                  <ActionRow icon="star" title="Bikin SIM — Surat Izin Mejeng ★" body="Photozine lipat ala surat kendaraan dari fotomu. Fitur unggulan!" onClick={() => setSimOpen(true)} />
+                  <ActionRow icon="star" title="Bikin SKCK — Surat Keterangan Cukup Kalcer" body="Photozine lipat dari fotomu: pas foto, sidik kalcer & stempel lulus. Fitur unggulan!" onClick={() => setSimOpen(true)} />
                 ) : null}
                 {event.stickersEnabled && session.urls.strip && !isZine ? (
                   <ActionRow icon="star" title="Hias dengan stiker" body="Tempel stiker & teks, lalu simpan atau cetak" onClick={() => setStickerOpen(true)} />
@@ -469,7 +469,7 @@ export function GuestView({ token, initial }: { token: string; initial: GuestSes
         <WallStickerEditor open={wallOpen} onOpenChange={setWallOpen} token={token} imageUrl={(session.urls.thumb || session.urls.strip)!} aspect={aspect} initial={wallStickers} onSaved={setWallStickers} />
       ) : null}
       {simOpen ? (
-        <SimStudio
+        <SkckStudio
           photos={simPhotos}
           eventName={event.name}
           seed={session.id}
@@ -496,7 +496,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function ActionRow({ icon, title, body, onClick }: { icon: PixelIconName; title: string; body: string; onClick?: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="group flex w-full items-center gap-3 px-2 py-2 text-left hover:bg-cobalt hover:text-white focus-visible:bg-cobalt focus-visible:text-white">
+    <button type="button" onClick={onClick} className="group flex w-full items-center gap-3 px-2 py-2 text-left hover:bg-win-select hover:text-white focus-visible:bg-win-select focus-visible:text-white">
       <PixelIcon name={icon} className="size-9" />
       <span className="min-w-0 flex-1">
         <span className="block font-pixel text-[16px] leading-tight font-bold">{title}</span>

@@ -56,16 +56,19 @@
   --color-sun: #FFD43B;
   --color-sun-deep: #F2B705;
 
-  /* Retro OS ("Photovoks 98") — Windows-98-style chrome built from the same
-     palette: cream-silver face, cobalt title bars, sky/lime desktop. */
-  --color-win: #E6DECB;
-  --color-win-light: #FFFDF6;
-  --color-win-mid: #F3ECDC;
-  --color-win-shadow: #8C8170;
-  --color-title-from: #2747C9;
-  --color-title-to: #6F95FF;
-  --color-tip: #FFF6C4;
-  --color-desk: #3F86E8;
+  /* Retro OS ("Photovoks 98") — Windows 98 chrome, values taken 1:1 from the
+     98.css / Win98 UI-kit design systems: silver face, 4-tone bevels
+     (#fff / #dfdfdf / #808080 / #0a0a0a), navy → #1084d0 title bar, teal desk. */
+  --color-win: #C0C0C0;
+  --color-win-light: #FFFFFF;
+  --color-win-mid: #DFDFDF;
+  --color-win-shadow: #808080;
+  --color-win-dark: #0A0A0A;
+  --color-win-select: #000080;
+  --color-title-from: #000080;
+  --color-title-to: #1084D0;
+  --color-tip: #FFFFE1;
+  --color-desk: #008080;
   --color-xmb: #0C1E6E;
 
   --radius-ctl: 12px;
@@ -176,16 +179,125 @@ h1, .font-display { font-family: var(--font-display); font-weight: 400 !importan
 
 /* ── Retro OS kit ("Photovoks 98") ────────────────────────────────────────── */
 .font-pixel { font-family: var(--font-pixel); letter-spacing: 0.01em; }
-/* Raised 3D bevel (windows, buttons, taskbar) */
+/* Bevels — exactly the 98.css box-shadow stacks. */
+/* Raised button / taskbar item */
 @utility bevel-out {
-  box-shadow: inset -1px -1px 0 var(--color-ink), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid);
+  box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid);
 }
-/* Pressed / sunken field (inputs, status panes, screens) */
+/* Window frame (light edge is outermost-inner, slightly different from a button) */
+@utility bevel-window {
+  box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-mid), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-light);
+}
+/* Pressed button */
+@utility bevel-pressed {
+  box-shadow: inset -1px -1px 0 var(--color-win-light), inset 1px 1px 0 var(--color-win-dark), inset -2px -2px 0 var(--color-win-mid), inset 2px 2px 0 var(--color-win-shadow);
+}
+/* Sunken field (inputs, list views, screens) */
 @utility bevel-in {
-  box-shadow: inset 1px 1px 0 var(--color-win-shadow), inset -1px -1px 0 var(--color-win-light), inset 2px 2px 0 var(--color-ink), inset -2px -2px 0 var(--color-win-mid);
+  box-shadow: inset -1px -1px 0 var(--color-win-light), inset 1px 1px 0 var(--color-win-shadow), inset -2px -2px 0 var(--color-win-mid), inset 2px 2px 0 var(--color-win-dark);
+}
+/* Shallow status-bar pane */
+@utility bevel-status {
+  box-shadow: inset -1px -1px 0 var(--color-win-mid), inset 1px 1px 0 var(--color-win-shadow);
 }
 .win-title { background: linear-gradient(90deg, var(--color-title-from), var(--color-title-to)); }
-.win-title-idle { background: linear-gradient(90deg, #8C8170, #C9BFA9); }
+.win-title-idle { background: linear-gradient(90deg, #808080, #B5B5B5); }
+
+/* ── 98.css components (class form, so they never leak into the admin UI) ── */
+.win-btn {
+  background: var(--color-win);
+  color: #000;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 0;
+  font-family: var(--font-pixel);
+  box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid);
+}
+.win-btn:not(:disabled):active, .win-btn-pressed {
+  box-shadow: inset -1px -1px 0 var(--color-win-light), inset 1px 1px 0 var(--color-win-dark), inset -2px -2px 0 var(--color-win-mid), inset 2px 2px 0 var(--color-win-shadow);
+}
+.win-btn-pressed { background-color: var(--color-win-mid); background-image: repeating-conic-gradient(#fff 0 25%, transparent 0 50%); background-size: 2px 2px; }
+.win-btn:focus-visible { outline: 1px dotted #000; outline-offset: -4px; }
+.win-btn:disabled { color: var(--color-win-shadow); text-shadow: 1px 1px 0 #fff; }
+
+.win-field {
+  background: #fff;
+  border-radius: 0;
+  box-shadow: inset -1px -1px 0 var(--color-win-light), inset 1px 1px 0 var(--color-win-shadow), inset -2px -2px 0 var(--color-win-mid), inset 2px 2px 0 var(--color-win-dark);
+}
+
+/* Tabs: <div role=tablist> of .win-tab + a .win-tabpanel underneath */
+.win-tab {
+  position: relative;
+  z-index: 1;
+  padding: 6px 12px 4px;
+  margin-bottom: -2px;
+  background: var(--color-win);
+  border-radius: 3px 3px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  box-shadow: inset -1px 0 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-mid), inset -2px 0 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-light);
+}
+.win-tab-active { z-index: 3; margin-top: -2px; padding-bottom: 8px; margin-inline: -3px; }
+.win-tab:focus-visible { outline: 1px dotted #000; outline-offset: -5px; }
+.win-tabpanel {
+  position: relative;
+  z-index: 2;
+  background-color: var(--color-win);
+  box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-mid), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-light);
+}
+
+/* Etched group box */
+.win-fieldset {
+  margin: 0;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--color-win-shadow);
+  box-shadow: inset 1px 1px 0 var(--color-win-light), 1px 1px 0 var(--color-win-light);
+  font-family: var(--font-pixel);
+}
+.win-fieldset > legend { padding: 0 4px; background: var(--color-win); font-size: 14px; }
+
+/* Radio + checkbox */
+.win-radio, .win-check {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  background: #fff;
+  box-shadow: inset -1px -1px 0 var(--color-win-light), inset 1px 1px 0 var(--color-win-shadow), inset -2px -2px 0 var(--color-win-mid), inset 2px 2px 0 var(--color-win-dark);
+}
+.win-radio { border-radius: 50%; }
+.win-radio:checked { background-image: radial-gradient(circle, #000 0 2px, transparent 2.5px); }
+.win-check:checked { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 6l2 2 5-5v2l-5 5-2-2z' fill='%23000'/%3E%3C/svg%3E"); }
+.win-radio:focus-visible, .win-check:focus-visible { outline: 1px dotted #000; outline-offset: 2px; }
+
+/* Trackbar (range) — thin sunken groove + raised thumb */
+.win-range { -webkit-appearance: none; appearance: none; background: transparent; width: 100%; height: 28px; }
+.win-range::-webkit-slider-runnable-track { height: 4px; background: #000; box-shadow: 1px 1px 0 #fff, -1px -1px 0 var(--color-win-shadow); }
+.win-range::-moz-range-track { height: 4px; background: #000; box-shadow: 1px 1px 0 #fff, -1px -1px 0 var(--color-win-shadow); }
+.win-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 24px; margin-top: -10px;
+  background: var(--color-win);
+  box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid);
+}
+.win-range::-moz-range-thumb {
+  width: 14px; height: 24px; border: 0; border-radius: 0;
+  background: var(--color-win);
+  box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid);
+}
+
+/* Win98 scrollbars on the retro surfaces */
+.win-scroll::-webkit-scrollbar { width: 16px; height: 16px; }
+.win-scroll::-webkit-scrollbar-track { background-color: #DFDFDF; background-image: repeating-conic-gradient(#C0C0C0 0 25%, #fff 0 50%); background-size: 2px 2px; }
+.win-scroll::-webkit-scrollbar-thumb { background-color: var(--color-win); box-shadow: inset -1px -1px 0 var(--color-win-dark), inset 1px 1px 0 var(--color-win-light), inset -2px -2px 0 var(--color-win-shadow), inset 2px 2px 0 var(--color-win-mid); }
+.win-scroll::-webkit-scrollbar-corner { background: var(--color-win-mid); }
+.win-scroll { scrollbar-color: var(--color-win) var(--color-win-mid); }
+
+/* Selected list item (navy highlight, white text) */
+.win-selected { background: var(--color-win-select); color: #fff; }
 /* Dotted selection marquee like a desktop icon in focus */
 .win-focus { outline: 1px dotted var(--color-ink); outline-offset: -4px; }
 /* CRT scanlines + slight vignette for "on screen" content */
@@ -203,7 +315,7 @@ h1, .font-display { font-family: var(--font-display); font-weight: 400 !importan
 
 /* Boot / progress / misc gimmicks */
 @keyframes boot-chunks { from { background-position: 0 0; } to { background-position: 44px 0; } }
-.boot-bar { background: repeating-linear-gradient(90deg, var(--color-cobalt) 0 18px, transparent 18px 22px); animation: boot-chunks 0.6s steps(2) infinite; }
+.boot-bar { background: repeating-linear-gradient(90deg, var(--color-win-select) 0 10px, transparent 10px 12px); animation: boot-chunks 0.6s steps(2) infinite; }
 @keyframes paper-fly { 0% { transform: translate(0, 0) rotate(0); opacity: 0; } 10% { opacity: 1; } 50% { transform: translate(var(--fx, 120px), -34px) rotate(-14deg); } 90% { opacity: 1; } 100% { transform: translate(calc(var(--fx, 120px) * 2), 0) rotate(0); opacity: 0; } }
 .paper-fly { animation: paper-fly 1.6s ease-in-out infinite; }
 @keyframes zzz { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(18px, -40px) scale(1.15); opacity: 0; } }

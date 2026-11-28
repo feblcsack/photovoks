@@ -18,6 +18,10 @@ import {
   Playfair_Display,
   Plus_Jakarta_Sans,
   Space_Mono,
+  UnifrakturMaguntia,
+  Grenze_Gotisch,
+  Jacquard_24,
+  Instrument_Serif,
 } from 'next/font/google';
 
 /**
@@ -63,7 +67,19 @@ export const specialElite = Special_Elite({ subsets: ['latin'], variable: '--fon
 /** Scribbles / handwritten notes. */
 export const gochi = Gochi_Hand({ subsets: ['latin'], variable: '--font-scribble', weight: '400', display: 'swap', preload: false });
 
+/**
+ * Gothic / editorial set (SKCK zine + frame builder). Lazy: never preloaded.
+ *  - UnifrakturMaguntia  classic blackletter — titles only
+ *  - Grenze Gotisch      readable gothic — headings and labels
+ *  - Jacquard 24         pixel blackletter — matches the 98 chrome
+ *  - Instrument Serif    editorial italic — body copy, captions
+ */
+export const unifraktur = UnifrakturMaguntia({ subsets: ['latin'], weight: '400', display: 'swap', preload: false });
+export const grenze = Grenze_Gotisch({ subsets: ['latin'], weight: ['400', '600', '800'], variable: '--font-gothic', display: 'swap', preload: false });
+export const jacquard = Jacquard_24({ subsets: ['latin'], weight: '400', variable: '--font-pixelgothic', display: 'swap', preload: false });
+export const instrument = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['normal', 'italic'], variable: '--font-editorial', display: 'swap', preload: false });
+
 /** Retro OS (Windows-98-ish) title bars, taskbar, dialogs. */
 export const pixelify = Pixelify_Sans({ subsets: ['latin'], variable: '--font-pixelify', weight: ['400', '600', '700'], display: 'swap' });
 
-export const fontVariables = `${nunito.variable} ${jakarta.variable} ${spaceMono.variable} ${bagel.variable} ${specialElite.variable} ${gochi.variable} ${pixelify.variable} ${anton.variable} ${archivoBlack.variable} ${orbitron.variable}`;
+export const fontVariables = `${nunito.variable} ${jakarta.variable} ${spaceMono.variable} ${bagel.variable} ${specialElite.variable} ${gochi.variable} ${pixelify.variable} ${anton.variable} ${archivoBlack.variable} ${orbitron.variable} ${grenze.variable} ${jacquard.variable} ${instrument.variable}`;

@@ -180,7 +180,7 @@ export function AttractView({
             {canStart ? (
               <p className="flex max-w-md items-center gap-2 border-2 border-ink bg-[#F3F1EA] px-3 py-2 text-left shadow-[3px_3px_0_var(--color-ink)]">
                 <span className="shrink-0 rotate-[-6deg] bg-sun px-1.5 py-0.5 font-techno text-[11px] font-black">★ BARU</span>
-                <span className="text-[13px] leading-snug">Habis foto, bikin <b className="font-heavy">SIM — Surat Izin Mejeng</b>: photozine lipat ala surat kendaraan dari fotomu sendiri.</span>
+                <span className="text-[13px] leading-snug">Habis foto, bikin <b className="font-[family-name:var(--font-gothic)] text-[15px]">SKCK — Surat Keterangan Cukup Kalcer</b>: photozine lipat dari fotomu sendiri.</span>
               </p>
             ) : null}
           </WinWindow>

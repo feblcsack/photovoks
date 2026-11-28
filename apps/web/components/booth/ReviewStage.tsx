@@ -11,7 +11,7 @@ import { ensureMemeFonts, MEME_STYLES, styledCopy, type MemeStyle } from '@/lib/
 import { NO_ADJUST, type Adjustments } from '@/lib/booth/grade';
 import { AdjustPanel } from './AdjustPanel';
 import { scaledCopy } from '@/lib/frames/render';
-import type { FrameRecord } from '@/lib/frames/types';
+import { raisePhotos, type FrameRecord } from '@/lib/frames/types';
 import { cn } from '@/lib/utils';
 import { CanvasThumb, type Shot } from './CaptureStage';
 
@@ -68,6 +68,7 @@ export function ReviewStage({
     };
   }, [memeEnabled]);
   const look: MemeStyle = memeEnabled ? meme : 'none';
+  const design = useMemo(() => (look === 'none' ? frame.design : raisePhotos(frame.design)), [look, frame.design]);
   // Sliders move fast; the heavy per-pixel grade follows a deferred copy so dragging stays smooth.
   const grade = useDeferredValue(adjust);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- fontsReady re-renders the meme text once fonts load
@@ -121,7 +122,7 @@ export function ReviewStage({
         >
           <div className="flex min-h-0 w-full flex-1 items-center justify-center">
             <FrameCanvas
-              design={frame.design}
+              design={design}
               photos={photos}
               liveFrames={mode === 'live' ? live : undefined}
               playing={mode === 'live'}
@@ -154,14 +155,14 @@ export function ReviewStage({
                     <button
                       type="button"
                       onClick={() => toggle(i)}
-                      className={cn('block aspect-[3/4] w-full overflow-hidden border-2 bg-white p-0.5 transition', order >= 0 ? 'border-cobalt' : 'border-transparent opacity-55')}
+                      className={cn('block aspect-[3/4] w-full overflow-hidden border-2 bg-white p-0.5 transition', order >= 0 ? 'border-win-select' : 'border-transparent opacity-55')}
                     >
                       <CanvasThumb canvas={filteredPreviews[i]} />
                     </button>
-                    <span className={cn('max-w-full truncate px-1 font-pixel text-[12px]', order >= 0 && 'win-focus bg-cobalt text-white')}>Foto_{String(i + 1).padStart(2, '0')}</span>
+                    <span className={cn('max-w-full truncate px-1 font-pixel text-[12px]', order >= 0 && 'win-focus win-selected')}>Foto_{String(i + 1).padStart(2, '0')}</span>
                     {order >= 0 && choosing ? <span className="absolute top-1 left-1 flex size-6 items-center justify-center border-2 border-ink bg-sun font-pixel text-xs font-bold">{order + 1}</span> : null}
                     {retakesLeft > 0 ? (
-                      <button type="button" onClick={() => onRetake(i)} className="bevel-out absolute right-1 bottom-6 flex size-9 items-center justify-center bg-win active:bevel-in" aria-label={`Ulangi foto ${i + 1}`}>
+                      <button type="button" onClick={() => onRetake(i)} className="bevel-out absolute right-1 bottom-6 flex size-9 items-center justify-center bg-win active:bevel-pressed" aria-label={`Ulangi foto ${i + 1}`}>
                         <RotateCcw className="size-4" />
                       </button>
                     ) : null}
@@ -186,9 +187,9 @@ export function ReviewStage({
                     title={m.hint}
                     aria-pressed={meme === m.id}
                     onClick={() => { sfx.tick(); onMemeChange(m.id); }}
-                    className={cn('flex flex-col items-stretch gap-1 p-1 text-left', meme === m.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-in')}
+                    className={cn('flex flex-col items-stretch gap-1 p-1 text-left', meme === m.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-pressed')}
                   >
-                    <span className={cn('block aspect-[3/4] w-full overflow-hidden border-2 bg-white', meme === m.id ? 'border-cobalt' : 'border-transparent')}>
+                    <span className={cn('block aspect-[3/4] w-full overflow-hidden border-2 bg-white', meme === m.id ? 'border-win-select' : 'border-transparent')}>
                       {memeThumbs[i] ? <CanvasThumb canvas={memeThumbs[i]} /> : null}
                     </span>
                     <span className={cn('block truncate font-pixel text-[12px] leading-tight', meme === m.id && 'font-bold')}>{m.label}</span>
@@ -209,9 +210,9 @@ export function ReviewStage({
                     type="button"
                     aria-pressed={filter === f.id}
                     onClick={() => { sfx.tick(); onFilterChange(f.id); }}
-                    className={cn('flex flex-col items-stretch gap-1 p-1 text-left', filter === f.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-in')}
+                    className={cn('flex flex-col items-stretch gap-1 p-1 text-left', filter === f.id ? 'bevel-in bg-win-light' : 'bevel-out bg-win active:bevel-pressed')}
                   >
-                    <span className={cn('block aspect-square w-full overflow-hidden border-2 bg-white', filter === f.id ? 'border-cobalt' : 'border-transparent')}>
+                    <span className={cn('block aspect-square w-full overflow-hidden border-2 bg-white', filter === f.id ? 'border-win-select' : 'border-transparent')}>
                       {filterThumbs[i] ? <CanvasThumb canvas={filterThumbs[i]} /> : null}
                     </span>
                     <span className={cn('block truncate font-pixel text-[12px] leading-tight', filter === f.id && 'font-bold')}>{f.label}</span>

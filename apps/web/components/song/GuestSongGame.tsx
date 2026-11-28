@@ -7,7 +7,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Music2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/field';
+import { WinInput } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import { PixelIcon, WinPanel, WinWindow } from '@/components/os/retro';
 import { WordArt } from '@/components/brand/WordArt';
@@ -108,7 +108,7 @@ export function GuestSongGame({ token }: { token: string }) {
           {round.status === 'playing' ? (
             <form onSubmit={submit} className="flex flex-col gap-2">
               <div className={shake ? 'animate-[pop_0.3s]' : undefined}>
-                <Input value={guess} onChange={(e) => setGuess(e.target.value)} maxLength={120} placeholder="Judul lagunya apa hayo…" aria-label="Tebakan judul lagu" autoComplete="off" />
+                <WinInput value={guess} onChange={(e) => setGuess(e.target.value)} maxLength={120} placeholder="Judul lagunya apa hayo…" aria-label="Tebakan judul lagu" autoComplete="off" />
               </div>
               <div className="flex items-center justify-between gap-2">
                 <p className="font-pixel text-[13px] text-ink-2">

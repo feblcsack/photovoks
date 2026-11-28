@@ -36,7 +36,7 @@ export function AdjustPanel({ value, onChange }: { value: Adjustments; onChange:
             key={q.label}
             type="button"
             onClick={() => { sfx.tick(); onChange({ ...NO_ADJUST, ...q.value }); }}
-            className="bevel-out min-h-9 bg-win px-2 font-pixel text-[12px] active:bevel-in"
+            className="bevel-out min-h-9 bg-win px-2 font-pixel text-[12px] active:bevel-pressed"
           >
             {q.label}
           </button>
@@ -54,7 +54,7 @@ export function AdjustPanel({ value, onChange }: { value: Adjustments; onChange:
             className={cn('relative min-h-9 flex-1 px-2 font-pixel text-[13px]', group === g.id ? 'bevel-out z-10 -mb-0.5 bg-win-light font-bold' : 'bevel-out bg-win text-ink-2')}
           >
             {g.label}
-            {changed(g.id) ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-cobalt" aria-label="diubah" /> : null}
+            {changed(g.id) ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-win-select" aria-label="diubah" /> : null}
           </button>
         ))}
       </div>
@@ -87,7 +87,7 @@ export function AdjustPanel({ value, onChange }: { value: Adjustments; onChange:
                 value={v}
                 onChange={(e) => set(s.key, Number(e.target.value))}
                 onDoubleClick={() => set(s.key, 0)}
-                className="h-8 w-full accent-[var(--color-cobalt,#2747C9)]"
+                className="win-range"
               />
             </div>
           );
@@ -98,7 +98,7 @@ export function AdjustPanel({ value, onChange }: { value: Adjustments; onChange:
         type="button"
         disabled={isNeutral(value)}
         onClick={() => { sfx.tick(); onChange(NO_ADJUST); }}
-        className="bevel-out mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 bg-win font-pixel text-[13px] active:bevel-in disabled:text-ink-2"
+        className="bevel-out mt-2 flex min-h-9 w-full items-center justify-center gap-1.5 bg-win font-pixel text-[13px] active:bevel-pressed disabled:text-ink-2"
       >
         <RotateCcw className="size-3.5" /> Reset semua pengaturan
       </button>

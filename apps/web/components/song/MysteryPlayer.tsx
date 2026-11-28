@@ -114,7 +114,7 @@ export function MysteryPlayer({ spotifyId, revealed = false, label = 'LAGU MISTE
       </div>
       {mode === 'api' ? (
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => ctl.current?.togglePlay()} className="bevel-out flex size-12 shrink-0 items-center justify-center bg-sun active:bevel-in" aria-label={state.paused ? 'Putar' : 'Jeda'}>
+          <button type="button" onClick={() => ctl.current?.togglePlay()} className="bevel-out flex size-12 shrink-0 items-center justify-center bg-sun active:bevel-pressed" aria-label={state.paused ? 'Putar' : 'Jeda'}>
             {state.paused ? <Play className="size-6 fill-current" /> : <Pause className="size-6 fill-current" />}
           </button>
           <div className="min-w-0 flex-1">

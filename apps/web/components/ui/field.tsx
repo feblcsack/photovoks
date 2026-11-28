@@ -41,3 +41,8 @@ export function Field({ label, hint, error, children, className, htmlFor }: { la
     </div>
   );
 }
+
+/** 98.css text box (sunken white field, square, pixel font) for the retro surfaces. */
+export const WinInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function WinInput({ className, ...props }, ref) {
+  return <input ref={ref} className={cn('win-field h-10 w-full px-2.5 font-pixel text-[15px] text-black placeholder:text-win-shadow focus:outline-1 focus:outline-dotted focus:outline-black focus:-outline-offset-4 disabled:bg-win', className)} {...props} />;
+});

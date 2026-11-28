@@ -141,7 +141,7 @@ export function LiveWall({ token, eventName, initialItems, initialMessages, gues
           <button
             type="button"
             onClick={() => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {})}
-            className="bevel-out flex size-10 items-center justify-center bg-win text-ink hover:bg-sun active:bevel-in"
+            className="bevel-out flex size-10 items-center justify-center bg-win text-ink hover:bg-sun active:bevel-pressed"
             aria-label={full ? 'Keluar layar penuh' : 'Layar penuh'}
           >
             {full ? <Minimize className="size-4" /> : <Maximize className="size-4" />}

@@ -80,7 +80,7 @@ function WinDialog({ open, onOpenChange, title, description, children, footer, s
             {winIcon ? <span className="flex size-5 items-center justify-center [&>*]:max-h-full">{winIcon}</span> : null}
             <D.Title className="min-w-0 flex-1 truncate font-pixel text-[15px] font-semibold">{title ?? 'Photovoks'}</D.Title>
             {!hideClose ? (
-              <D.Close className="bevel-out bg-win flex size-6 items-center justify-center text-ink active:bevel-in" aria-label="Tutup">
+              <D.Close className="bevel-out bg-win flex size-6 items-center justify-center text-ink active:bevel-pressed" aria-label="Tutup">
                 <X className="size-4" strokeWidth={3} />
               </D.Close>
             ) : null}

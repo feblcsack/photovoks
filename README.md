@@ -17,8 +17,8 @@ PC + printer ──► /event/KODE/print  (atau `pnpm print`, worker senyap)
 | Area | Yang bisa dilakukan |
 |---|---|
 | **Event** | Banyak event aktif sekaligus. Tiap event punya kode unik, PIN (bcrypt, lockout 5×), frame, pengaturan booth/cetak/AI/galeri sendiri. |
-| **Booth** | Layar awal (bawaan atau **video/gambar sendiri**, ketuk layar untuk mulai) → pilih frame → kamera (preview dipotong persis ke rasio slot) → countdown → **jeda tiap foto: tamu menekan tombol lagi untuk foto berikutnya** → pilih foto terbaik + ulang foto + filter (17 preset termasuk Sinematik, Kodachrome, Digicam Y2K, Polaroid, Lomo, Pink Kalcer) + **Atur foto** (kecerahan, kontras, bagian terang/gelap, saturasi, vibrance, suhu, tint, pudar, grain, vignet, ketajaman) + **Gaya meme** (10 template, aktifkan di Pengaturan → Fun) → komposisi (dengan **QR softfile di frame**) → QR, **cetak satu ketukan**, Gaya AI. Auto-kembali ke awal saat idle. |
-| **Tema "Photovoks 98"** | Alur tamu (booth, halaman QR, live wall, landing) bergaya desktop retro ala Windows 98 dengan palet Photovoks: jendela ber-title bar, taskbar, ikon pixel, wallpaper bukit. Kamera tampil di dalam TV CRT merah. Pemilih frame bergaya menu konsol (XMB). Komponen ada di `components/os/`. |
+| **Booth** | Layar awal (bawaan atau **video/gambar sendiri**, ketuk layar untuk mulai) → pilih frame → kamera (preview dipotong persis ke rasio slot) → countdown → **jeda tiap foto: tamu menekan tombol lagi untuk foto berikutnya** → pilih foto terbaik + ulang foto + filter (17 preset termasuk Sinematik, Kodachrome, Digicam Y2K, Polaroid, Lomo, Pink Kalcer) + **Atur foto** (kecerahan, kontras, bagian terang/gelap, saturasi, vibrance, suhu, tint, pudar, grain, vignet, ketajaman) + **Gaya meme** (10 template, aktifkan di Pengaturan → Fun; saat meme aktif, foto dinaikkan di atas dekorasi frame supaya teks meme tidak tertutup) → komposisi (dengan **QR softfile di frame**) → QR, **cetak satu ketukan**, Gaya AI. Auto-kembali ke awal saat idle. |
+| **Tema "Photovoks 98"** | Alur tamu (booth, halaman QR, live wall, landing) bergaya desktop Windows 98 mengikuti design system 98.css / Win98 UI kit (wajah silver, bevel 4 warna, title bar navy→biru, seleksi navy, tab, group box, radio, trackbar, scrollbar 98 — kelas `win-*` & utilitas `bevel-*` di `globals.css`), wallpaper bukit hijau + langit berawan dengan garis CRT (gambar asli prosedural, bukan foto berhak cipta). Kamera tampil di dalam TV CRT merah. Pemilih frame bergaya menu konsol (XMB). Komponen ada di `components/os/`. |
 | **Pilih karakter** | 4 pemandu 3D orisinal (three.js, dimuat terpisah): Si Bokek, Si Kaget, Si Ngantuk, Si Licik. Tamu memilih di awal, lalu karakter menemani di pojok layar dengan tips per langkah dan ikut bereaksi saat hitung mundur dan flash. Karakter terbawa ke halaman QR (`?b=`). Efek suara sintetis bisa dimatikan di pengaturan operator. |
 | **Lokasi** | Tetap di **Universitas Indonesia, Depok** (`lib/location.ts`, tidak bisa diubah per event). Kartu pos + peta OpenStreetMap interaktif di landing dan halaman tamu, tombol Buka peta / Rute. CSP mengizinkan `frame-src https://www.openstreetmap.org`. |
 | **Pengaturan Booth** | **Satu halaman** per event (`/event/KODE/booth`): layar awal + pratinjau, frame & letak QR, sesi foto, cetak, fitur tamu, galeri/live/buku tamu, status. Satu tombol Simpan. |
@@ -238,14 +238,16 @@ Status sistem (DB utama/cadangan, migrasi, storage, AI, QRIS), grafik egress 31 
 PIN di-hash ulang otomatis ke bcrypt cost 10 saat login (sebelumnya 12 — ±4× lebih lambat di serverless), query yang tak perlu dilewati, satu navigasi + skeleton instan, dan fungsi Vercel dikunci ke region **syd1** (sama dengan database Sydney) di `vercel.json`.
 
 
-## 15. v6 — SIM (Surat Izin Mejeng) & Tebak Lagu
+## 15. v6 — SKCK (Surat Keterangan Cukup Kalcer) & Tebak Lagu
 
-### SIM — Surat Izin Mejeng (fitur unggulan)
-Photozine lipat parodi surat kendaraan, dibuat dari foto sesi. *Mejeng* = tampil gaya di tempat umum (slang Jakarta). Penerbit fiktif: **SAMSAT KALCER** (Sistem Administrasi Mejeng Satu Atap). Golongan: **A** Anak Kalcer, **B** Bikunholic, **C** Cekrek, **D** Dandan Maksimal.
+### SKCK — Surat Keterangan Cukup Kalcer (fitur unggulan)
+Photozine lipat parodi surat keterangan, dibuat dari foto sesi. Penerbit fiktif: **biro urusan kalcer**. Kategori: anak baru kalcer, bikunholic, cekrek profesional, dandan maksimal.
 
-- 8 panel (sampul, 2 foto berbingkai daun, punggung, data pemegang, arti "mejeng", pasal-pasal + QR, "barang bukti") dalam **1 lembar A4 cetak 1 sisi**: lipat dua memanjang (setengah atas ke belakang) lalu lipat zig-zag → kartu saku. Gaya **xerox hitam-putih** atau **warna**.
-- Ada di halaman tamu (banner **SIM.exe ★ Fitur Unggulan** paling atas + menu), di layar hasil booth (cetak langsung), promo di layar sambutan booth & landing.
-- Kode: `lib/sim/layout.ts` (renderer canvas), `components/sim/SimStudio.tsx`, `components/sim/SimPromo.tsx`. Bukan dokumen resmi — tertulis di panel belakang.
+- 8 halaman (sampul, pas foto 4×6, pose terdaftar, punggung + barcode, keterangan + stempel "lulus", rumus sidik kalcer, ketentuan + QR, barang bukti) dalam **1 lembar cetak 1 sisi** (A4 / Letter / A5). Tata letak dihitung dalam milimeter per panel, jadi rapi di semua ukuran kertas.
+- Tipografi: gotik (UnifrakturMaguntia, Grenze Gotisch, Jacquard 24), Instrument Serif italic untuk teks, mesin ketik untuk isian. **Tidak ada teks huruf kapital semua.**
+- Studio: tab **Depan / Belakang / Cara lipat**. "Cara lipat" menampilkan garis lipat berwarna (merah = lipat 1 ke belakang, biru = gunung, hijau = lembah) + 4 langkah bergambar. **PDF / JPG / cetak selalu bersih tanpa garis panduan**, sesuai ukuran kertas.
+- Foto SKCK memakai foto yang sudah difilter **tanpa overlay meme** (meme hanya di strip, GIF, dan cetakan), jadi wajah tetap terlihat.
+- Kode: `lib/skck/layout.ts` (renderer canvas), `components/skck/SkckStudio.tsx`, `components/skck/FoldSteps.tsx`, `components/skck/SkckPromo.tsx`. Bukan dokumen resmi — tertulis di halaman terakhir.
 
 ### Tebak Lagu (Spotify)
 - **Mode panggung** (pengunjung belum beli): *Portal Pemilik › Tebak Lagu* → **Putar lagu acak** → ketik tebakan / **Tandai benar** → voucher hadiah.
